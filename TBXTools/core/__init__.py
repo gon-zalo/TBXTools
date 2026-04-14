@@ -1,0 +1,1 @@
+from terminology_extractor import TerminologyExtractor
