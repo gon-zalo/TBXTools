@@ -1,2 +1,4 @@
 old/
 tbxtools_gon.egg-info/
+__pycache__/
+tests/test.sqlite
