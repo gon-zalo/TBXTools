@@ -1,6 +1,7 @@
 import sqlite3
 import os
 from pathlib import Path
+import string
 
 class _SQLiteManager:
     '''
@@ -12,9 +13,11 @@ class _SQLiteManager:
         self.cur = None
         self.maxinserts = 10000
 
-        self.punctuation = None
+        self.punctuation = string.punctuation
+        self.stopwords = None
+        self.inner_stopwords = None
 
-    def _check_extension(self, project_name): # adding .sqlite extension automatically
+    def check_extension(self, project_name): # adding .sqlite extension automatically
         file_name = Path(project_name)
 
         if file_name.suffix.lower() != '.sqlite':
@@ -25,7 +28,7 @@ class _SQLiteManager:
     def create_project(self,project_name,overwrite=False):
         '''Opens a project. If the project already exists, it raises an exception. To avoid the exception use overwrite=True. To open existing projects, use the open_project method.'''
 
-        project_name = self._check_extension(project_name)
+        project_name = self.check_extension(project_name)
 
         if os.path.isfile(project_name) and not overwrite:
                 raise Exception("This project already exists. Use open_project().")
@@ -38,59 +41,18 @@ class _SQLiteManager:
 
             with self.conn:
                 self.cur = self.conn.cursor()
-                self.cur.execute("CREATE TABLE sl_corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, segment TEXT)")
-                self.cur.execute("CREATE TABLE tl_corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, segment TEXT)")
-                self.cur.execute("CREATE TABLE parallel_corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, segmentSL, segmentTL TEXT)")
-                self.cur.execute("CREATE TABLE tagged_parallel_corpus(id INTEGER PRIMARY KEY, tagged_segmentSL, tagged_segmentTL TEXT)")
-                self.cur.execute("CREATE TABLE sl_corpus_c(id INTEGER PRIMARY KEY AUTOINCREMENT, segment TEXT)")
-                self.cur.execute("CREATE TABLE tl_corpus_c(id INTEGER PRIMARY KEY AUTOINCREMENT, segment TEXT)")
-                self.cur.execute("CREATE TABLE sl_tagged_corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, tagged_segment TEXT)")
-                self.cur.execute("CREATE TABLE tl_tagged_corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, tagged_segment TEXT)")
-                self.cur.execute("CREATE TABLE sl_tagged_corpus_c(id INTEGER PRIMARY KEY AUTOINCREMENT, tagged_segment TEXT)")
-                self.cur.execute("CREATE TABLE tl_tagged_corpus_c(id INTEGER PRIMARY KEY AUTOINCREMENT, tagged_segment TEXT)")
-                self.cur.execute("CREATE TABLE sl_stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, sl_stopword TEXT)")
-                self.cur.execute("CREATE TABLE sl_inner_stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, sl_inner_stopword TEXT)")
-                self.cur.execute("CREATE TABLE tl_stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, tl_stopword TEXT)")
-                self.cur.execute("CREATE TABLE tl_inner_stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, tl_inner_stopword TEXT)")
-                self.cur.execute("CREATE TABLE sl_exclusion_regexps (id INTEGER PRIMARY KEY AUTOINCREMENT, sl_exclusion_regexp TEXT)")
-                self.cur.execute("CREATE TABLE tl_exclusion_regexps (id INTEGER PRIMARY KEY AUTOINCREMENT, tl_exclusion_regexp TEXT)")
-                self.cur.execute("CREATE TABLE sl_morphonorm_rules (id INTEGER PRIMARY KEY AUTOINCREMENT, sl_morphonorm_rule TEXT)")
-                self.cur.execute("CREATE TABLE tl_morphonorm_rules (id INTEGER PRIMARY KEY AUTOINCREMENT, tl_morphonorm_rule TEXT)")
-                self.cur.execute("CREATE TABLE evaluation_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, sl_term TEXT, tl_term TEXT)")
-                self.cur.execute("CREATE TABLE reference_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, sl_term TEXT, tl_term TEXT)")
-                self.cur.execute("CREATE TABLE validated_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, sl_term TEXT, tl_term TEXT)")
-                self.cur.execute("CREATE TABLE compoundify_terms_sl (id INTEGER PRIMARY KEY AUTOINCREMENT, term TEXT)")
-                self.cur.execute("CREATE TABLE compoundify_terms_tl (id INTEGER PRIMARY KEY AUTOINCREMENT, term TEXT)")
-                self.cur.execute("CREATE TABLE tsr_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, term TEXT)")
-                self.cur.execute("CREATE TABLE tosearch_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, term TEXT)")
-                self.cur.execute("CREATE TABLE exclusion_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, sl_term TEXT, tl_term TEXT)")
-                self.cur.execute("CREATE TABLE exclusion_noterms (id INTEGER PRIMARY KEY AUTOINCREMENT, sl_term TEXT, tl_term TEXT)")
+                self.cur.execute("CREATE TABLE corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, segment TEXT)")
                 self.cur.execute("CREATE TABLE tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT, frequency INTEGER)")
                 self.cur.execute("CREATE TABLE ngrams (id INTEGER PRIMARY KEY AUTOINCREMENT, ngram TEXT, n INTEGER, frequency INTEGER)")
-                self.cur.execute("CREATE TABLE tagged_ngrams (id INTEGER PRIMARY KEY AUTOINCREMENT, ngram TEXT, tagged_ngram TEXT, n INTEGER, frequency INTEGER)")
-                
-                self.cur.execute("CREATE INDEX indextaggedngram on tagged_ngrams (ngram);")
-                
-                self.cur.execute("CREATE TABLE embeddings_sl (id INTEGER PRIMARY KEY AUTOINCREMENT, candidate TEXT, embedding BLOB)")
-                self.cur.execute("CREATE INDEX indexembeddings_sl on embeddings_sl (candidate);")
-                
-                self.cur.execute("CREATE TABLE embeddings_sl_ref (id INTEGER PRIMARY KEY AUTOINCREMENT, candidate TEXT, embedding BLOB)")
-                self.cur.execute("CREATE INDEX indexembeddings_sl_ref on embeddings_sl_ref (candidate);")
-                
-                self.cur.execute("CREATE TABLE embeddings_tl (id INTEGER PRIMARY KEY AUTOINCREMENT, candidate TEXT, embedding BLOB)")
-                self.cur.execute("CREATE INDEX indexembeddings_tl on embeddings_tl (candidate);")
-                
                 self.cur.execute("CREATE TABLE term_candidates (id INTEGER PRIMARY KEY AUTOINCREMENT, candidate TEXT, n INTEGER, frequency INTEGER, measure TEXT, value FLOAT)")
-                self.cur.execute("CREATE TABLE index_pt(id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT, target TEXT, probability FLOAT)")
-                self.cur.execute("CREATE INDEX index_index_pt on index_pt (source);")
-                self.cur.execute("CREATE TABLE linguistic_patterns (id INTEGER PRIMARY KEY AUTOINCREMENT, linguistic_pattern TEXT)")
-                
-                self.conn.commit()
-                
+                self.cur.execute("CREATE TABLE stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, stopword TEXT)")
+                self.cur.execute("CREATE TABLE inner_stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, inner_stopword TEXT)")
+
+
     def open_project(self,project_name):
         '''Opens an existing project. If the project doesn't exist it raises an exception.'''
 
-        project_name = self._check_extension(project_name)
+        project_name = self.check_extension(project_name)
 
         if not os.path.isfile(project_name):
                 raise Exception("Project not found")
@@ -98,6 +60,7 @@ class _SQLiteManager:
             self.conn = sqlite3.connect(project_name)
             self.cur = self.conn.cursor() 
 
+    # LOAD METHODS
     def load_stopwords(self, stopwords_file , encoding="utf-8"):
         data=[]
         record=[]
@@ -117,23 +80,33 @@ class _SQLiteManager:
             record=[]
 
         with self.conn:
-            self.cur.executemany("INSERT INTO sl_stopwords (sl_stopword) VALUES (?)",data)  
+            self.cur.executemany("INSERT INTO stopwords (stopword) VALUES (?)",data)  
+        
+    def load_inner_stopwords(self, stopwords_file, encoding='utf-8'):
+        data=[]
+        record=[]
+        with open(stopwords_file, "r", encoding=encoding) as fc:
+            while 1:
+                linia=fc.readline()
+                if not linia:
+                    break 
+                linia=linia.rstrip()
+                record.append(linia)
+                data.append(record)
+                record=[]
+        
+        for punct in self.punctuation:
+            record.append(punct)
+            data.append(record)
+            record=[]
 
+        with self.conn:
+            self.cur.executemany("INSERT INTO inner_stopwords (inner_stopword) VALUES (?)",data)  
+
+    # INSERT METHODS
     def insert_segments(self, data):
         with self.conn:
-            self.cur.executemany("INSERT INTO sl_corpus (segment) VALUES (?)", data)
-
-    def get_segments(self, corpus=None): # corpus in case we want to implement SL and TL
-        segments = []
-
-        with self.conn:
-            self.cur.execute("SELECT segment from sl_corpus")
-
-            for row in self.cur.fetchall():
-                segment = row[0]
-                segments.append(segment)
-        
-        return segments
+            self.cur.executemany("INSERT INTO corpus (segment) VALUES (?)", data)
 
     def insert_ngrams(self, data):
         with self.conn:
@@ -143,9 +116,85 @@ class _SQLiteManager:
         with self.conn:
             self.cur.executemany("INSERT INTO tokens (token, frequency) VALUES (?,?)", data)
 
+    def insert_candidate_terms(self, data):
+        with self.conn:
+            self.cur.executemany("INSERT INTO term_candidates (candidate, n, frequency, measure, value) VALUES (?,?,?,?,?)", data)
+            
+    # GET METHODS
+    def get_segments(self, corpus=None): # corpus in case we want to implement SL and TL
+        segments = []
+        with self.conn:
+            self.cur.execute("SELECT segment from corpus")
 
-    # get_ngrams
-    # get_stopwords
+            for row in self.cur.fetchall():
+                segment = row[0]
+                segments.append(segment)
+        
+        return segments
+
+    def get_stopwords(self):
+        stopwords = []
+        with self.conn:
+            self.cur.execute("SELECT stopword FROM stopwords")
+
+            for stopword in self.cur.fetchall():
+                stopwords.append(stopword[0])
+
+        return stopwords
+    
+    def get_inner_stopwords(self):
+        inner_stopwords = []
+        with self.conn:
+            self.cur.execute("SELECT inner_stopword FROM inner_stopwords")
+
+            for inner_stopword in self.cur.fetchall():
+                inner_stopwords.append(inner_stopword[0])
+
+        return inner_stopwords
+    
+    def get_ngrams(self):
+        ngrams = []
+        with self.conn:
+            self.cur.execute("SELECT ngram, n, frequency FROM ngrams order by frequency desc")
+
+            for ngram_row in self.cur.fetchall():
+                ngrams.append(ngram_row)
+
+        return ngrams
+
+    def get_candidate_terms(self):
+        candidate_terms = []
+        with self.conn:
+            self.cur.execute("SELECT candidate, frequency FROM term_candidates order by frequency desc")
+
+            for candidates_row in self.cur.fetchall():
+                candidate_terms.append(candidates_row)
+
+        return candidate_terms
+        
+
+    # DELETE METHODS
+    def delete_corpus(self):
+        with self.conn:
+            self.cur.execute('DELETE FROM corpus')
+            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='corpus'")
+
+    def delete_ngrams(self):
+        with self.conn:
+            self.cur.execute('DELETE FROM ngrams')
+            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='ngrams'")
+
+    def delete_tokens(self):
+        with self.conn:
+            self.cur.execute('DELETE FROM tokens')
+            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='tokens'")
+
+    def delete_candidate_terms(self):
+        with self.conn:
+            self.cur.execute("DELETE FROM term_candidates")
+            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='term_candidates'")
+
+
     # get_corpus(table_name)
     # get_ngrams()
     # get_tokens()
