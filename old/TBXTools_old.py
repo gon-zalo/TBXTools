@@ -2094,18 +2094,25 @@ class TBXTools:
         '''Deletes term candidates matching a set of regular expresions loaded with the load_sl_exclusion_regexps method.'''
         self.cur.execute("SELECT sl_exclusion_regexp FROM sl_exclusion_regexps")
         results=self.cur.fetchall()
+
         for r in results:
+
             nregexp=len(r[0].split())
             exreg=r[0]
+
             self.cur.execute("SELECT candidate FROM term_candidates")
             results=self.cur.fetchall()
+
             cexreg=re.compile(exreg)
+
             for a in results:
                 candidate=a[0]
                 ncandidate=len(candidate.split())
+
                 match=re.match(cexreg,candidate)
+                
                 if not match==None and nregexp==ncandidate:
-                    self.cur.execute('DELETE FROM term_candidates WHERE candidate=?', (candidate,))
+                    self.cur.execute('DELETE FROM term_candidates WHERE candidate=?', (candidate,)) # no funciona!!!!!!!!!!!
                     if verbose:
                         print(exreg,"-->",candidate)
             self.conn.commit()

@@ -1,4 +1,3 @@
-import nltk
 from nltk.util import ngrams
 from nltk.probability import FreqDist
 
@@ -17,11 +16,9 @@ class StatisticalExtractor:
         n_max = n_max
             
         for segment in segments:
-            # print(segment)
             for n in range(n_min, n_max+1): #we DON'T calculate one order bigger in order to detect nested candidates
 
                 tokens = segment.split() # tokenizing here, can be done separately
-                # print(tokens)
                 ngs = ngrams(tokens, n)
 
                 for ng in ngs:
@@ -32,7 +29,8 @@ class StatisticalExtractor:
 
         n_grams = []
         for c in ngramsFD.most_common():
-            if c[1]>=minfreq:
+            # print(ngramsFD.most_common())
+            if c[1]>=minfreq: # accessing frequency
 
                 ngrams_row=[] # change
                 ngrams_row.append(" ".join(c[0]))            
@@ -57,26 +55,29 @@ class StatisticalExtractor:
         '''Performs an statistical term extraction using the extracted ngrams (ngram_calculation should be executed first). Loading stop-words is advisable. '''
 
         candidate_terms = []
-        for ngram_row in ngrams:
-            ngram = ngram_row[0].lower().split()
+        for row in ngrams:
 
-            if ngram[0] in stopwords or ngram[-1] in stopwords:
+            # row is (full_term, n, freq)
+            full_term = row[0]
+            n = row[1]
+            freq = row[2]
+
+            split_term = full_term.lower().split()
+
+            # ignoring terms that contain stopwords at the beginning or end
+            if split_term[0] in stopwords or split_term[-1] in stopwords:
                 continue
 
-            for element in range(1, len(ngram)):
-                if ngram[element] in inner_stopwords:
+            # ignoring terms that contain stopwords inside
+            for element in range(1, len(split_term)):
+                if split_term[element] in inner_stopwords:
                     continue
-            row = []
-            row.append(ngram_row[0])
-            row.append(ngram_row[1])
-            row.append(ngram_row[2])
-            row.append("frequency")
-            row.append(ngram_row[2])
 
-            candidate_terms.append(row)
-            # print(candidate_terms)
+            terms_row = (full_term, n, freq, "frequency", freq)
 
-            if ngram_row[2] < min_freq:
+            candidate_terms.append(terms_row)
+
+            if freq < min_freq:
                 break
 
         return candidate_terms

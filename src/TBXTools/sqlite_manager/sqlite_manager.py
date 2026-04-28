@@ -44,10 +44,10 @@ class _SQLiteManager:
                 self.cur.execute("CREATE TABLE corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, segment TEXT)")
                 self.cur.execute("CREATE TABLE tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT, frequency INTEGER)")
                 self.cur.execute("CREATE TABLE ngrams (id INTEGER PRIMARY KEY AUTOINCREMENT, ngram TEXT, n INTEGER, frequency INTEGER)")
-                self.cur.execute("CREATE TABLE term_candidates (id INTEGER PRIMARY KEY AUTOINCREMENT, candidate TEXT, n INTEGER, frequency INTEGER, measure TEXT, value FLOAT)")
+                self.cur.execute("CREATE TABLE candidate_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, candidate TEXT, n INTEGER, frequency INTEGER, measure TEXT, value FLOAT)")
                 self.cur.execute("CREATE TABLE stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, stopword TEXT)")
                 self.cur.execute("CREATE TABLE inner_stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, inner_stopword TEXT)")
-
+                self.cur.execute("CREATE TABLE exclusion_regexes (id INTEGER PRIMARY KEY AUTOINCREMENT, exclusion_regex TEXT)")
 
     def open_project(self,project_name):
         '''Opens an existing project. If the project doesn't exist it raises an exception.'''
@@ -59,6 +59,7 @@ class _SQLiteManager:
         else:
             self.conn = sqlite3.connect(project_name)
             self.cur = self.conn.cursor() 
+
 
     # LOAD METHODS
     def load_stopwords(self, stopwords_file , encoding="utf-8"):
@@ -103,6 +104,20 @@ class _SQLiteManager:
         with self.conn:
             self.cur.executemany("INSERT INTO inner_stopwords (inner_stopword) VALUES (?)",data)  
 
+    def load_exclusion_regexes(self, exclusion_regexes_file, encoding='utf-8'):
+        '''Loads the exclusion regular expressions for the source language.'''
+
+        data=[]
+        with open(exclusion_regexes_file, "r", encoding=encoding) as cf:
+            for line in cf:
+                line=line.rstrip()
+                record=[]
+                record.append(line)
+                data.append(record)
+
+        with self.conn:
+            self.cur.executemany('INSERT INTO exclusion_regexes (exclusion_regex) VALUES (?)',data)
+
     # INSERT METHODS
     def insert_segments(self, data):
         with self.conn:
@@ -118,8 +133,9 @@ class _SQLiteManager:
 
     def insert_candidate_terms(self, data):
         with self.conn:
-            self.cur.executemany("INSERT INTO term_candidates (candidate, n, frequency, measure, value) VALUES (?,?,?,?,?)", data)
+            self.cur.executemany("INSERT INTO candidate_terms (candidate, n, frequency, measure, value) VALUES (?,?,?,?,?)", data)
             
+
     # GET METHODS
     def get_segments(self, corpus=None): # corpus in case we want to implement SL and TL
         segments = []
@@ -155,7 +171,7 @@ class _SQLiteManager:
     def get_ngrams(self):
         ngrams = []
         with self.conn:
-            self.cur.execute("SELECT ngram, n, frequency FROM ngrams order by frequency desc")
+            self.cur.execute("SELECT ngram, n, frequency FROM ngrams ORDER BY frequency DESC")
 
             for ngram_row in self.cur.fetchall():
                 ngrams.append(ngram_row)
@@ -165,13 +181,32 @@ class _SQLiteManager:
     def get_candidate_terms(self):
         candidate_terms = []
         with self.conn:
-            self.cur.execute("SELECT candidate, frequency FROM term_candidates order by frequency desc")
+            self.cur.execute("SELECT candidate, n, frequency FROM candidate_terms ORDER BY frequency DESC")
+
+            for candidates_row in self.cur.fetchall():
+                candidate_terms.append(candidates_row)
+
+        return candidate_terms
+    
+    def get_filtered_candidate_terms_by_frequency(self, fmax, fmin, nb):
+        candidate_terms = []
+        with self.conn:
+            self.cur.execute("SELECT candidate, n, frequency FROM candidate_terms where frequency <="+str(fmax)+" and frequency>="+str(fmin)+"  and n ="+str(nb))
 
             for candidates_row in self.cur.fetchall():
                 candidate_terms.append(candidates_row)
 
         return candidate_terms
         
+    def get_exclusion_regexes(self):
+        regexes = []
+        with self.conn:
+            self.cur.execute("SELECT exclusion_regex FROM exclusion_regexes")
+
+            for regexes_row in self.cur.fetchall():
+                regexes.append(regexes_row)
+        
+        return regexes
 
     # DELETE METHODS
     def delete_corpus(self):
@@ -191,13 +226,9 @@ class _SQLiteManager:
 
     def delete_candidate_terms(self):
         with self.conn:
-            self.cur.execute("DELETE FROM term_candidates")
-            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='term_candidates'")
+            self.cur.execute("DELETE FROM candidate_terms")
+            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='candidate_terms'")
 
-
-    # get_corpus(table_name)
-    # get_ngrams()
-    # get_tokens()
-    # get_stopwords(language)
-    # get_inner_stopwords(language)
-    # get_term_candidates()
+    def delete_specific_candidate_term(self, candidate):
+        with self.conn:
+            self.cur.execute("DELETE FROM candidate_terms WHERE candidate=?", (candidate,))
