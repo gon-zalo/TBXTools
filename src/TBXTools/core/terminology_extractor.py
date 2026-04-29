@@ -1,7 +1,7 @@
 # main class
 from ..sqlite_manager import _SQLiteManager
 from ..candidate_extractor import StatisticalExtractor
-from ..preprocessor import Preprocessor
+from .._preprocessor import Preprocessor
 
 from pathlib import Path
 
