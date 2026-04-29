@@ -59,6 +59,7 @@ class Preprocessor:
                 candidate_n = candidate_row[1]
                 
                 match = re.match(compiled_regexes, candidate)
+                
                 # codigo de prueba con \w+ disorder en el archivo de regexes
                 # if match:
                 #     print(regex_n, candidate_n)

@@ -28,11 +28,11 @@ class StatisticalExtractor:
                 tokensFD[token] += 1
 
         n_grams = []
-        for c in ngramsFD.most_common():
+        for c in ngramsFD.most_common(): # what is c?
             # print(ngramsFD.most_common())
             if c[1]>=minfreq: # accessing frequency
 
-                ngrams_row=[] # change
+                ngrams_row=[] # change to tuple
                 ngrams_row.append(" ".join(c[0]))            
                 ngrams_row.append(len(c[0]))
                 ngrams_row.append(c[1])   
@@ -41,7 +41,7 @@ class StatisticalExtractor:
         self.n_grams = n_grams
 
         tokens_output = []                
-        for c in tokensFD.most_common():
+        for c in tokensFD.most_common(): # what is c?
             tokens_row=[]
             tokens_row.append(c[0])            
             tokens_row.append(c[1])   
@@ -63,6 +63,7 @@ class StatisticalExtractor:
             freq = row[2]
 
             split_term = full_term.lower().split()
+            first_word = split_term[0]
 
             # ignoring terms that contain stopwords at the beginning or end
             if split_term[0] in stopwords or split_term[-1] in stopwords:

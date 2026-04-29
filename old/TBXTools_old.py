@@ -2889,7 +2889,7 @@ class TBXTools:
         for tc in tcaux:
             record=[]
             record.append(tc)            
-            record.append(len(tc.split()))
+            record.append(len(tc.split())) 
             record.append(tcaux[tc])   
             record.append("freq")
             record.append(tcaux[tc])   

@@ -17,6 +17,8 @@ class TerminologyExtractor:
 
             # testing stuff
         self.n_grams = None
+        self.tokens = None
+        self.stopwords = None
 
         # path objects
         self._TBXTools_path = Path("../src/TBXTools")
@@ -34,7 +36,7 @@ class TerminologyExtractor:
         self._sqlite.open_project(project_name)
             
     # load functions
-    def load_corpus(self, corpus_file, encoding="utf-8", compoundify=False, comp_symbol="▁"):
+    def load_corpus(self, corpus_file, encoding="utf-8", compoundify=False, comp_symbol="▁"): # move to sqlitemanager and fix
         # quizás habría que preprocesarlo antes de guardarlo en sqlite
         '''Loads a monolingual corpus for the source language. It's recommended, but not compulsory, that the corpus is segmented (one segment per line). Use external tools to segment the corpus. A plain text corpus (not segmented), can be also used.'''
         self._sqlite.delete_corpus()
