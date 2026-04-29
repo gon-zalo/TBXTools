@@ -5,3 +5,5 @@ tests/test.sqlite
 tests/__init__.py
 tests/*.txt
 old/TBXTools_old.py
+TBXTools_2/progetto_prova.db
+TBXTools_2/archivo_term_candidates
