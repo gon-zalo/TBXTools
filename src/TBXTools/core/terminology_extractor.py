@@ -23,8 +23,10 @@ class TerminologyExtractor:
         # path objects
         self._TBXTools_path = Path("../src/TBXTools")
         self._resources_path = self._TBXTools_path / "resources"
+
         self._stopwords_eng = self._resources_path /  "stopwords" / "stop-eng.txt"
         self._inner_stopwords_eng = self._resources_path / "inner" / "inner-stop-eng.txt"
+
         self._exclusion_regexes = self._resources_path / "regexes" / "regex-eng.txt"
     
 
@@ -91,7 +93,7 @@ class TerminologyExtractor:
 
 # STATISTICAL EXTRACTOR FUNCTIONS
     # statistical extraction
-    def ngram_calculation(self, n_min, n_max, corpus=None): # make private? implement into statistical_term_extraction?
+    def ngram_calculation(self, nmin, nmax, corpus=None): # make private? implement into statistical_term_extraction?
         print("Calculating n grams")
         self._sqlite.delete_ngrams()
         self._sqlite.delete_tokens()
@@ -100,8 +102,8 @@ class TerminologyExtractor:
     
         n_grams, tokens_output = self.candidate_extractor.ngram_calculation(
             segments, 
-            n_min, 
-            n_max
+            nmin, 
+            nmax
             )
 
         self._sqlite.insert_ngrams(n_grams)
