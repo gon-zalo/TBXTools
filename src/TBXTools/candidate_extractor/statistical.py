@@ -7,16 +7,16 @@ class StatisticalExtractor:
         self.n_grams = None
         self.tokens = None
 
-    def ngram_calculation (self, segments, n_min, n_max, minfreq=2, corpus=None):
+    def ngram_calculation (self, segments, nmin, nmax, minfreq=2, corpus=None):
         '''Performs the calculation of ngrams.'''
         
         ngramsFD= FreqDist()
         tokensFD= FreqDist()
-        n_min = n_min
-        n_max = n_max
+        nmin = nmin
+        nmax = nmax
             
         for segment in segments:
-            for n in range(n_min, n_max+1): #we DON'T calculate one order bigger in order to detect nested candidates
+            for n in range(nmin, nmax+1): #we DON'T calculate one order bigger in order to detect nested candidates
 
                 tokens = segment.split() # tokenizing here, can be done separately
                 ngs = ngrams(tokens, n)
