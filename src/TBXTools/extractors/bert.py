@@ -1,17 +1,20 @@
-from transformers import AutoTokenizer
-# from .base import BaseExtractor
+from .base import BaseExtractor
 
-class BertExtractor:
+class BertExtractor(BaseExtractor):
 
     def __init__(self, model=None, tokenizer=None, external_terms=None, lr=None, batch_size=None, epochs=None, weight_decay=None):
+        
+        from transformers import AutoTokenizer
+
         self.model = model or 'distilbert/distilbert-base-uncased'
-        self.tokenizer = tokenizer or AutoTokenizer.from_pretrained(model, max_length=512, force_download=True, do_lower_case=False)
+        self.tokenizer = tokenizer or AutoTokenizer.from_pretrained(self.model, max_length=512, force_download=False, do_lower_case=False)
         self.external_terms = external_terms
 
         self.lr = lr or 5e-05 # learning rate
         self.batch_size = batch_size or 16
         self.epochs = epochs or 3
         self.weight_decay = weight_decay or 0.03
+
         self.tokens = None
         self.labels = None
         
@@ -143,5 +146,5 @@ class BertExtractor:
         # from transformers import BertTokenizer, Trainer, BertForTokenClassification, DataCollatorForTokenClassification
 
 
-        for segment in segments[:5]:
+        for segment in segments[:1]:
             print(segment)

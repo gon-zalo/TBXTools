@@ -1,5 +1,12 @@
-from TBXTools import TerminologyExtractor, BertExtractor
+from TBXTools import Extractor, BertExtractor
 
-extractor = TerminologyExtractor(extractor=BertExtractor())
+extractor = Extractor(
+    project_name="bert-test",
+    method=BertExtractor(),
+    corpus='Mental_health.txt'
+)
 
-extractor.bert_extract()
+extractor.extract()
+
+print(extractor.terms())
+print(extractor.tokens())

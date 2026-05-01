@@ -21,7 +21,7 @@ class Extractor:
         self._tokens = None
         self._terms = None
 
-        # path objects
+        # path objects, should be implemented in the Resources class
         self._TBXTools_path = Path("../src/TBXTools")
         self._resources_path = self._TBXTools_path / "resources"
         self._stopwords_eng = self._resources_path /  "stopwords" / "stop-eng.txt"
@@ -36,14 +36,14 @@ class Extractor:
 
         self.stopwords = self._sqlite.get_stopwords() 
         self.inner_stopwords = self._sqlite.get_inner_stopwords()
-        
         # setting the extractor stopwords here
         # this is temporary until Resources and Preprocessor class is implemented, these stopwords can also be passed in extract()
         self.extractor.stopwords = self.stopwords
         self.extractor.inner_stopwords = self.inner_stopwords
+        
 
 # SQLITE FUNCTIONS 
-# most can be removed as the user does not need to run them anymore
+    # most can be removed as the user does not need to run them anymore
     def create_project(self, project_name, overwrite=False):
         self._sqlite.create_project(project_name, overwrite)
 
