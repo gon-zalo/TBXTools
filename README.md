@@ -13,18 +13,19 @@
 
 ## Code example (will change)
 ```
-from TBXTools import TerminologyExtractor
+from TBXTools import Extractor, StatisticalExtractor
 
-extractor = TerminologyExtractor()
-extractor.create_project("example", overwrite=True)
-extractor.load_corpus("corpus-example.txt")
-extractor.ngram_calculation(nmin=2, nmax=3)
-extractor.load_stopwords()
-extractor.load_innerstopwords()
-extractor.statistical_term_extraction()
-extractor.case_normalization(verbose=True)
-extractor.nest_normalization(verbose=True)
-extractor.load_exclusion_regexes()
-extractor.regexp_exclusion(verbose=True)
-extractor.save_candidates("candidates-example.txt")
+extractor = Extractor(
+    method=StatisticalExtractor(nmin=2,nmax=3),
+    project_name="example-project",
+    corpus="example-corpus.txt"
+)
+
+extractor.extract()
+
+# Can be inspected this way
+print(extractor.terms()) 
+print(extractor.tokens())
+
+extractor.save_candidates("candidates_test.txt")
 ```
