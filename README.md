@@ -21,20 +21,10 @@ extractor = Extractor(
     corpus="example-corpus.txt"
 )
 
-<<<<<<< Updated upstream
-extractor.extract()
-
-# Can be inspected this way
-print(extractor.terms()) 
-print(extractor.tokens())
-
-extractor.save_candidates("candidates_test.txt")
-=======
 results = extractor.extract()
 
 # Results can be inspected this way
 print(results.terms())
 print(results.tokens())
 results.save_candidates("example-candidates.txt")
->>>>>>> Stashed changes
 ```
