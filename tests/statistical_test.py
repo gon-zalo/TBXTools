@@ -6,10 +6,10 @@ extractor = Extractor(
     corpus="Mental_health.txt"
 )
 
-extractor.extract()
+results = extractor.extract()
 
-print(extractor.terms())
-print(extractor.tokens())
+print(results.terms())
+print(results.tokens())
 
 # extractor.case_normalization(verbose=False) # error with casing
 # extractor.nest_normalization(verbose=False)
