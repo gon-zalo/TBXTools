@@ -27,4 +27,3 @@ results = extractor.extract()
 print(results.terms())
 print(results.tokens())
 results.save_candidates("example-candidates.txt")
-```
