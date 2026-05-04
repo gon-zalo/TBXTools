@@ -1,1 +1,1 @@
-from .sqlite_manager import _SQLiteManager
+from .sqlite_manager import SQLite

@@ -1,5 +1,5 @@
 # main class
-from ..sqlite_manager import _SQLiteManager # remove underscore from class name
+from ..sqlite_manager import SQLite # remove underscore from class name
 from .._preprocessor import Preprocessor
 from ..results import Results
 
@@ -15,7 +15,7 @@ class Extractor:
 
         self.preprocessor = Preprocessor()
         # internal sqlite class to manage everything related to the db
-        self._sqlite = _SQLiteManager()
+        self._sqlite = SQLite()
 
         self._ngrams = None
         self._tokens = None
@@ -28,8 +28,8 @@ class Extractor:
         self._inner_stopwords_eng = self._resources_path / "inner" / "inner-stop-eng.txt"
         self._exclusion_regexes = self._resources_path / "regexes" / "regex-eng.txt"
 
-        # all of this is automatic
-        self.create_project(project_name=project_name)
+        # all of this is automatic, although they should be run in SQLiteManager()
+        self.create_project(project_name=project_name) # should be implemented in SQLiteManager(), project_name can be passed as an object arg or changing the object's attribute from here
         self.load_corpus(corpus_file=corpus)
         self.load_stopwords(stopwords_file=self._stopwords_eng) # add a default
         self.load_inner_stopwords(inner_stopwords_file=self._inner_stopwords_eng)
@@ -106,6 +106,10 @@ class Extractor:
 
 # EXTRACTION  FUNCTIONS
     def extract(self):
+        '''
+        Function to extract terms from a segmented corpus.
+        Returns a Results() object.
+        '''
         print("Running term extraction")
         segments = self._sqlite.get_segments()
 
