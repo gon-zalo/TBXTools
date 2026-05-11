@@ -1,5 +1,5 @@
 # main class
-from ..sqlite_manager import SQLite # remove underscore from class name
+from ..sqlite import SQLite # remove underscore from class name
 from .._preprocessor import Preprocessor
 from ..results import Results
 
@@ -11,10 +11,9 @@ class Extractor:
         self.project_name = project_name
         self.corpus = corpus
         self.extractor = method
-        self.language = language # should be implemented at some point
+        self.language = language # should be implemented at some point, can be changed to lang
 
         self.preprocessor = Preprocessor()
-        # internal sqlite class to manage everything related to the db
         self._sqlite = SQLite()
 
         self._ngrams = None

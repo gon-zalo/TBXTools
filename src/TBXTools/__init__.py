@@ -1,6 +1,6 @@
 from .core import Extractor
 # from .preprocessor import Preprocessor
-from .extractors import StatisticalExtractor, BertExtractor
+from .extractor import StatisticalExtractor, BertExtractor
 
 __all__=[
     "Extractor"
