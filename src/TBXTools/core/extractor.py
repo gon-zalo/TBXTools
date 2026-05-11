@@ -1,36 +1,48 @@
 # main class
-from ..sqlite_manager import _SQLiteManager
-from ..candidate_extractor import StatisticalExtractor
+from ..sqlite import SQLite # remove underscore from class name
 from .._preprocessor import Preprocessor
+from ..results import Results
 
 from pathlib import Path
 
-class TerminologyExtractor:
+class Extractor:
 
-    def __init__(self, candidate_extractor=None, preprocessor=None):
-        
-        self.candidate_extractor = candidate_extractor or StatisticalExtractor()
-        self.preprocessor = preprocessor or Preprocessor()
+    def __init__(self, project_name, method, corpus, stopwords=None, inner_stopwords=None, language=None):
+        self.project_name = project_name
+        self.corpus = corpus
+        self.extractor = method
+        self.language = language # should be implemented at some point, can be changed to lang
 
-        # internal sqlite class to manage everything related to the db
-        self._sqlite = _SQLiteManager()
+        self.preprocessor = Preprocessor()
+        self._sqlite = SQLite()
 
-            # testing stuff
-        self.n_grams = None
-        self.tokens = None
-        self.stopwords = None
+        self._ngrams = None
+        self._tokens = None
+        self._terms = None
 
-        # path objects
+        # path objects, should be implemented in the Resources class
         self._TBXTools_path = Path("../src/TBXTools")
         self._resources_path = self._TBXTools_path / "resources"
-
         self._stopwords_eng = self._resources_path /  "stopwords" / "stop-eng.txt"
         self._inner_stopwords_eng = self._resources_path / "inner" / "inner-stop-eng.txt"
-
         self._exclusion_regexes = self._resources_path / "regexes" / "regex-eng.txt"
-    
 
-# SQLITE FUNCTIONS
+        # all of this is automatic, although they should be run in SQLiteManager()
+        self.create_project(project_name=project_name) # should be implemented in SQLiteManager(), project_name can be passed as an object arg or changing the object's attribute from here
+        self.load_corpus(corpus_file=corpus)
+        self.load_stopwords(stopwords_file=self._stopwords_eng) # add a default
+        self.load_inner_stopwords(inner_stopwords_file=self._inner_stopwords_eng)
+
+        self.stopwords = self._sqlite.get_stopwords() 
+        self.inner_stopwords = self._sqlite.get_inner_stopwords()
+        # setting the extractor stopwords here
+        # this is temporary until Resources and Preprocessor class is implemented, these stopwords can also be passed in extract()
+        self.extractor.stopwords = self.stopwords
+        self.extractor.inner_stopwords = self.inner_stopwords
+        
+
+# SQLITE FUNCTIONS 
+    # most can be removed as the user does not need to run them anymore
     def create_project(self, project_name, overwrite=False):
         self._sqlite.create_project(project_name, overwrite)
 
@@ -91,43 +103,34 @@ class TerminologyExtractor:
             for row in candidate_terms:
                 f.write(",".join(str(element) for element in row) + "\n")
 
-# STATISTICAL EXTRACTOR FUNCTIONS
-    # statistical extraction
-    def ngram_calculation(self, nmin, nmax, corpus=None): # make private? implement into statistical_term_extraction?
-        print("Calculating n grams")
-        self._sqlite.delete_ngrams()
-        self._sqlite.delete_tokens()
-
+# EXTRACTION  FUNCTIONS
+    def extract(self):
+        '''
+        Function to extract terms from a segmented corpus.
+        Returns a Results() object.
+        '''
+        print("Running term extraction")
         segments = self._sqlite.get_segments()
-    
-        n_grams, tokens_output = self.candidate_extractor.ngram_calculation(
-            segments, 
-            nmin, 
-            nmax
-            )
 
-        self._sqlite.insert_ngrams(n_grams)
-        self._sqlite.insert_tokens(tokens_output)
+        # this returns a Result object
+        results = self.extractor.extract(segments=segments)
 
-        # self.n_grams = self.candidate_extractor.n_grams
-
-    def statistical_term_extraction(self, min_freq=2, corpus=None):
-        print("Running statistical term extraction")
-        self._sqlite.delete_candidate_terms()
-
-        stopwords = self._sqlite.get_stopwords()
-        inner_stopwords = self._sqlite.get_inner_stopwords()
-        ngrams = self._sqlite.get_ngrams()
-
-        candidate_terms = self.candidate_extractor.statistical_term_extraction(
-            ngrams=ngrams, 
-            stopwords=stopwords, 
-            inner_stopwords=inner_stopwords
-            )
-
-        self._sqlite.insert_candidate_terms(candidate_terms)
+        self._sqlite.insert_candidate_terms(results._terms)
+        self._sqlite.insert_tokens(results._tokens)
         
-        # self.candidate_terms = self.candidate_extractor.candidate_terms 
+        self._terms = results._terms
+        self._tokens = results._tokens
+
+        if not results._extractor_info:
+            print("Error: Unknown extractor")
+
+        if results._extractor_info == "statistical":
+            self._sqlite.insert_ngrams(results._ngrams)
+
+        return results
+
+    def preprocess(self):
+        pass
 
 # PREPROCESSOR FUNCTIONS
     def case_normalization(self, verbose=False):
@@ -188,3 +191,9 @@ class TerminologyExtractor:
                 print(f"Excluded {len(candidates_to_exclude)} terms")
         else:
             print("No candidate terms excluded")
+
+    def bert_extract(self):
+        print("Running BERT extraction")
+        segments = self._sqlite.get_segments()
+
+        self.extractor.extract(segments)

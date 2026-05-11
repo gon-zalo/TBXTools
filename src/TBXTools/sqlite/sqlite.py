@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 import string
 
-class _SQLiteManager:
+class SQLite:
     '''
     Class to manage SQLite functions.
     '''

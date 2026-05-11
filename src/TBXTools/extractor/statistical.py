@@ -1,33 +1,54 @@
-from nltk.util import ngrams
-from nltk.probability import FreqDist
+import nltk
+from nltk.util import ngrams as compute_ngrams
+from .base import BaseExtractor
+from ..results import Results
 
-class StatisticalExtractor:
+class StatisticalExtractor(BaseExtractor):
 
-    def __init__(self):
+    def __init__(self, nmin, nmax, stopwords=None, inner_stopwords=None):
+        
+        self.nmin = nmin
+        self.nmax = nmax
+        self.stopwords = stopwords # or a basic stopwords list
+        self.inner_stopwords = inner_stopwords # or a basic inner stopwords list
+
         self.n_grams = None
         self.tokens = None
 
-    def ngram_calculation (self, segments, nmin, nmax, minfreq=2, corpus=None):
-        '''Performs the calculation of ngrams.'''
+# MAIN FUNCTION
+    def extract(self, segments):
+        print("Running statistical extraction")
+        nmin = self.nmin
+        nmax = self.nmax
         
-        ngramsFD= FreqDist()
-        tokensFD= FreqDist()
-        nmin = nmin
-        nmax = nmax
+        print("Computing n grams")
+        ngrams, tokens = self._ngram_calculation(segments, nmin, nmax)
+        candidate_terms = self._statistical_term_extraction(ngrams=ngrams)
+
+        return Results(terms=candidate_terms, ngrams=ngrams, tokens=tokens, extractor_info="statistical")
+
+# COMPUTING FUNCTIONS
+    def _ngram_calculation (self, segments, minfreq=2, corpus=None):
+        '''Performs the calculation of ngrams.'''
+        # change variable names, fix lines 57 to 70 (transform into tuples)
+        ngramsFD= nltk.probability.FreqDist()
+        tokensFD= nltk.probability.FreqDist()
+        nmin = self.nmin
+        nmax = self.nmax
             
         for segment in segments:
             for n in range(nmin, nmax+1): #we DON'T calculate one order bigger in order to detect nested candidates
 
                 tokens = segment.split() # tokenizing here, can be done separately
-                ngs = ngrams(tokens, n)
+                ngrams = compute_ngrams(tokens, n)
 
-                for ng in ngs:
-                    ngramsFD[ng] += 1
+                for ngram in ngrams:
+                    ngramsFD[ngram] += 1
 
             for token in tokens:
                 tokensFD[token] += 1
 
-        n_grams = []
+        ngrams_output = []
         for c in ngramsFD.most_common(): # what is c?
             # print(ngramsFD.most_common())
             if c[1]>=minfreq: # accessing frequency
@@ -36,9 +57,9 @@ class StatisticalExtractor:
                 ngrams_row.append(" ".join(c[0]))            
                 ngrams_row.append(len(c[0]))
                 ngrams_row.append(c[1])   
-                n_grams.append(ngrams_row)
+                ngrams_output.append(ngrams_row)
 
-        self.n_grams = n_grams
+        self.ngrams = ngrams_output
 
         tokens_output = []                
         for c in tokensFD.most_common(): # what is c?
@@ -49,9 +70,9 @@ class StatisticalExtractor:
 
         self.tokens = tokens_output
 
-        return n_grams, tokens_output
+        return ngrams_output, tokens_output
 
-    def statistical_term_extraction(self, ngrams, min_freq=2, stopwords=None, inner_stopwords=None):
+    def _statistical_term_extraction(self, ngrams, min_freq=2):
         '''Performs an statistical term extraction using the extracted ngrams (ngram_calculation should be executed first). Loading stop-words is advisable. '''
 
         candidate_terms = []
@@ -66,12 +87,12 @@ class StatisticalExtractor:
             first_word = split_term[0]
 
             # ignoring terms that contain stopwords at the beginning or end
-            if split_term[0] in stopwords or split_term[-1] in stopwords:
+            if split_term[0] in self.stopwords or split_term[-1] in self.stopwords:
                 continue
 
             # ignoring terms that contain stopwords inside
             for element in range(1, len(split_term)):
-                if split_term[element] in inner_stopwords:
+                if split_term[element] in self.inner_stopwords:
                     continue
 
             terms_row = (full_term, n, freq, "frequency", freq)
