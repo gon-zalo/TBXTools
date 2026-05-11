@@ -45,9 +45,11 @@ class SQLite:
                 self.cur.execute("CREATE TABLE tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT, frequency INTEGER)")
                 self.cur.execute("CREATE TABLE ngrams (id INTEGER PRIMARY KEY AUTOINCREMENT, ngram TEXT, n INTEGER, frequency INTEGER)")
                 self.cur.execute("CREATE TABLE candidate_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, candidate TEXT, n INTEGER, frequency INTEGER, measure TEXT, value FLOAT)")
+                self.cur.execute("CREATE TABLE filtered_candidate_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, candidate TEXT, n INTEGER, frequency INTEGER, measure TEXT, value FLOAT)")
                 self.cur.execute("CREATE TABLE stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, stopword TEXT)")
                 self.cur.execute("CREATE TABLE inner_stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, inner_stopword TEXT)")
                 self.cur.execute("CREATE TABLE exclusion_regexes (id INTEGER PRIMARY KEY AUTOINCREMENT, exclusion_regex TEXT)")
+
 
     def open_project(self,project_name):
         '''Opens an existing project. If the project doesn't exist it raises an exception.'''
@@ -135,6 +137,9 @@ class SQLite:
         with self.conn:
             self.cur.executemany("INSERT INTO candidate_terms (candidate, n, frequency, measure, value) VALUES (?,?,?,?,?)", data)
             
+    def insert_filtered_candidate_terms(self, data):
+        with self.conn:
+            self.cur.executemany("INSERT INTO filtered_candidate_terms (candidate, n, frequency, measure, value) VALUES (?,?,?,?,?)", data)
 
     # GET METHODS
     def get_segments(self, corpus=None): # corpus in case we want to implement SL and TL
@@ -191,7 +196,7 @@ class SQLite:
     def get_filtered_candidate_terms_by_frequency(self, fmax, fmin, nb):
         candidate_terms = []
         with self.conn:
-            self.cur.execute("SELECT candidate, n, frequency FROM candidate_terms where frequency <="+str(fmax)+" and frequency>="+str(fmin)+"  and n ="+str(nb))
+            self.cur.execute("SELECT candidate, n, frequency FROM candidate_terms WHERE frequency <="+str(fmax)+" and frequency>="+str(fmin)+"  and n ="+str(nb))
 
             for candidates_row in self.cur.fetchall():
                 candidate_terms.append(candidates_row)

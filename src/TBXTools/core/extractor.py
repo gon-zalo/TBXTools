@@ -1,6 +1,6 @@
 # main class
 from ..sqlite import SQLite # remove underscore from class name
-from .._preprocessor import Preprocessor
+from ..preprocessor import Preprocessor
 from ..results import Results
 
 from pathlib import Path
@@ -13,12 +13,12 @@ class Extractor:
         self.extractor = method
         self.language = language # should be implemented at some point, can be changed to lang
 
-        self.preprocessor = Preprocessor()
+        self._preprocessor = Preprocessor()
         self._sqlite = SQLite()
 
-        self._ngrams = None
-        self._tokens = None
-        self._terms = None
+        # self._ngrams = None
+        # self._tokens = None
+        # self._terms = None
 
         # path objects, should be implemented in the Resources class
         self._TBXTools_path = Path("../src/TBXTools")
@@ -103,8 +103,8 @@ class Extractor:
             for row in candidate_terms:
                 f.write(",".join(str(element) for element in row) + "\n")
 
-# EXTRACTION  FUNCTIONS
-    def extract(self):
+# EXTRACTION FUNCTIONS
+    def extract(self, case_normalization=False, verbose=False):
         '''
         Function to extract terms from a segmented corpus.
         Returns a Results() object.
@@ -114,12 +114,15 @@ class Extractor:
 
         # this returns a Result object
         results = self.extractor.extract(segments=segments)
-
-        self._sqlite.insert_candidate_terms(results._terms)
         self._sqlite.insert_tokens(results._tokens)
-        
-        self._terms = results._terms
-        self._tokens = results._tokens
+
+        if case_normalization:
+            normalized_terms = self._preprocessor.case_normalization(candidate_terms=results._terms, verbose=verbose)
+
+            results._terms = normalized_terms
+
+        # inserting data into the database
+        self._sqlite.insert_candidate_terms(results._terms)
 
         if not results._extractor_info:
             print("Error: Unknown extractor")
@@ -132,17 +135,28 @@ class Extractor:
     def preprocess(self):
         pass
 
-# PREPROCESSOR FUNCTIONS
-    def case_normalization(self, verbose=False):
+    # nest norm?
+    def postprocess(self):
+        pass
 
+# PREPROCESSOR FUNCTIONS
+    # implementar en .extract
+    def regex_exclusion(self, verbose=False):
+        print("Running regex exclusion")
+        regexes = self._sqlite.get_exclusion_regexes()
         candidate_terms = self._sqlite.get_candidate_terms()
 
-        normalized_terms = self.preprocessor.case_normalization(candidate_terms=candidate_terms, verbose=verbose)
+        candidates_to_exclude = self._preprocessor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms)
 
-        self._sqlite.delete_candidate_terms()
-        self._sqlite.insert_candidate_terms(normalized_terms)
+        if candidates_to_exclude:
+            for candidate in candidates_to_exclude:
+                self._sqlite.delete_specific_candidate_term(candidate=candidate)
+                print(f"Excluded {len(candidates_to_exclude)} terms")
+        else:
+            print("No candidate terms excluded")
 
-    def nest_normalization(self, percent=10, verbose=False):
+
+    def _old_nest_normalization(self, percent=10, verbose=False):
         # not implemented in preprocessor yet
         candidate_terms = self._sqlite.get_candidate_terms()
         for row in candidate_terms:
@@ -162,38 +176,8 @@ class Extractor:
                 filtered_term = filtered_row[0]
                 filtered_term_freq = filtered_row[2]
 
-                if not candidate_term == filtered_term and not filtered_term.find(candidate_term)==-1: # que coño es esto
+                if not candidate_term == filtered_term and not filtered_term.find(candidate_term)==-1: # if candidate term is not the same as the filtered term and the candidate term cant be found in the filtered term
                     self._sqlite.delete_specific_candidate_term(candidate=candidate_term)
 
                     if verbose:
                         print(str(candidate_term_freq),candidate_term,"-->",str(filtered_term_freq),filtered_term)
-
-        # intento de implementación de nest_norm
-        # def nest_normalization_new(self, percent=10, verbose=False):
-        #     candidate_terms = self._sqlite.get_candidate_terms()
-
-        #     fmax, fmin, nb = self.preprocessor._get_frequencies(candidate_terms=candidate_terms)
-
-        #     candidate_terms_by_freq = self._sqlite.get_candidate_terms_by_frequency(fmax=fmax, fmin=fmin, nb=nb)
-
-        #     normalized_terms = self.preprocessor.nest_normalization(candidate_terms_by_freq=candidate_terms_by_freq, ta=ta, fa=fa)
-
-    def regex_exclusion(self, verbose=False):
-        print("Running regex exclusion")
-        regexes = self._sqlite.get_exclusion_regexes()
-        candidate_terms = self._sqlite.get_candidate_terms()
-
-        candidates_to_exclude = self.preprocessor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms)
-
-        if candidates_to_exclude:
-            for candidate in candidates_to_exclude:
-                self._sqlite.delete_specific_candidate_term(candidate=candidate)
-                print(f"Excluded {len(candidates_to_exclude)} terms")
-        else:
-            print("No candidate terms excluded")
-
-    def bert_extract(self):
-        print("Running BERT extraction")
-        segments = self._sqlite.get_segments()
-
-        self.extractor.extract(segments)

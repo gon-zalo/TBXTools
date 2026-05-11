@@ -16,3 +16,8 @@ class Results:
         tokens = [token[0] for token in self._tokens]
         return tokens[:limit]
     
+    def ngrams(self, limit=20):
+        ngrams = [ngram[0] for ngram in self._ngrams]
+        return ngrams[:limit]
+    
+    
