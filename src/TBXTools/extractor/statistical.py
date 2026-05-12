@@ -5,7 +5,7 @@ from ..results import Results
 
 class StatisticalExtractor(BaseExtractor):
 
-    def __init__(self, nmin, nmax, stopwords=None, inner_stopwords=None):
+    def __init__(self, nmin, nmax, nest_normalization=False, nest_normalization_percent=10, stopwords=None, inner_stopwords=None):
         
         self.nmin = nmin
         self.nmax = nmax
@@ -14,9 +14,12 @@ class StatisticalExtractor(BaseExtractor):
 
         self.n_grams = None
         self.tokens = None
+        self.extractor_info = "statistical"
+        self.nest_normalization = nest_normalization
+        self.nest_normalization_percent = nest_normalization_percent
 
 # MAIN FUNCTION
-    def extract(self, segments):
+    def extract(self, segments, verbose):
         print("Running statistical extraction")
         nmin = self.nmin
         nmax = self.nmax
@@ -25,7 +28,7 @@ class StatisticalExtractor(BaseExtractor):
         ngrams, tokens = self._ngram_calculation(segments, nmin, nmax)
         candidate_terms = self._statistical_term_extraction(ngrams=ngrams)
 
-        return Results(terms=candidate_terms, ngrams=ngrams, tokens=tokens, extractor_info="statistical")
+        return Results(terms=candidate_terms, ngrams=ngrams, tokens=tokens, extractor_info=self.extractor_info)
 
 # COMPUTING FUNCTIONS
     def _ngram_calculation (self, segments, minfreq=2, corpus=None):
