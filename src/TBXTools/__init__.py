@@ -1,9 +1,9 @@
-from .core import TerminologyExtractor
+from .core import Extractor
 # from .preprocessor import Preprocessor
-# from .candidate_extractor import StatisticalExtractor
+from .extractor import StatisticalExtractor, BertExtractor
 
 __all__=[
-    "TerminologyExtractor"
+    "Extractor"
     # "StatisticalExtractor",
     # "Preprocessor"
     ]
