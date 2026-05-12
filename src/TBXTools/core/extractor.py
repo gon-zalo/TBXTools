@@ -7,14 +7,13 @@ from pathlib import Path
 
 class Extractor:
 
-    def __init__(self, project_name, method, corpus, stopwords=None, inner_stopwords=None, language=None):
+    def __init__(self, project_name, method, corpus, stopwords=None, inner_stopwords=None, language=None, overwrite_project=False):
         self.project_name = project_name
         self.corpus = corpus
         self.extractor = method
         self.language = language # should be implemented at some point, can be changed to lang
 
         self._processor = Processor()
-        self._sqlite = SQLite()
 
         # self._ngrams = None
         # self._tokens = None
@@ -22,17 +21,13 @@ class Extractor:
 
         # path objects, should be implemented in the Resources class
         self._TBXTools_path = Path("../src/TBXTools")
+
         self._resources_path = self._TBXTools_path / "resources"
         self._stopwords_eng = self._resources_path /  "stopwords" / "stop-eng.txt"
         self._inner_stopwords_eng = self._resources_path / "inner" / "inner-stop-eng.txt"
         self._exclusion_regexes = self._resources_path / "regexes" / "regex-eng.txt"
 
-        # all of this is automatic, although they should be run in SQLiteManager()
-        self.create_project(project_name=project_name) # should be implemented in SQLiteManager(), project_name can be passed as an object arg or changing the object's attribute from here
-        self.load_corpus(corpus_file=corpus)
-        self.load_stopwords(stopwords_file=self._stopwords_eng) # add a default
-        self.load_inner_stopwords(inner_stopwords_file=self._inner_stopwords_eng)
-        self.load_exclusion_regexes(exclusion_regexes_file=self._exclusion_regexes)
+        self._sqlite = SQLite(corpus_file=corpus, project_name=self.project_name, stopwords=self._stopwords_eng, inner_stopwords=self._inner_stopwords_eng, exclusion_regexes=self._exclusion_regexes, overwrite_project=overwrite_project)
 
         self.stopwords = self._sqlite.get_stopwords() 
         self.inner_stopwords = self._sqlite.get_inner_stopwords()
@@ -41,62 +36,6 @@ class Extractor:
         self.extractor.stopwords = self.stopwords
         self.extractor.inner_stopwords = self.inner_stopwords
         
-
-# SQLITE FUNCTIONS 
-    # most can be removed as the user does not need to run them anymore
-    def create_project(self, project_name, overwrite=False):
-        self._sqlite.create_project(project_name, overwrite)
-
-    def open_project(self, project_name):
-        self._sqlite.open_project(project_name)
-            
-    # load functions
-    def load_corpus(self, corpus_file, encoding="utf-8", compoundify=False, comp_symbol="▁"): # move to sqlitemanager and fix
-        # quizás habría que preprocesarlo antes de guardarlo en sqlite
-        '''Loads a monolingual corpus for the source language. It's recommended, but not compulsory, that the corpus is segmented (one segment per line). Use external tools to segment the corpus. A plain text corpus (not segmented), can be also used.'''
-        self._sqlite.delete_corpus()
-        # NOT IMPLEMENTED IN SQLMANAGER, porque no sé que es compoundify
-        if compoundify:
-            compterms=[]
-            self.cur.execute('SELECT term from compoundify_terms_sl')
-            data=self.cur.fetchall()
-            for d in data:
-                compterms.append(d[0])            
-
-        data = []
-        continserts = 0
-
-        with open(corpus_file, "r", encoding=encoding, errors="ignore") as cf:
-            for line in cf:
-                line = line.rstrip()
-
-                if compoundify:
-                    for compterm in compterms:
-                        if line.find(compterm)>=1:
-                            comptermMOD=compterm.replace(" ",comp_symbol)
-                            line=line.replace(compterm,comptermMOD)
-
-                data.append((line,))
-                continserts += 1
-
-                if continserts == self._sqlite.maxinserts:
-                    self._sqlite.insert_segments(data)
-                    data = []
-                    continserts = 0
-
-        self._sqlite.insert_segments(data)
-
-    def load_stopwords(self, stopwords_file=None):
-        stopwords_file = self._stopwords_eng # temporary since we are using english only for now
-        self._sqlite.load_stopwords(stopwords_file)
-
-    def load_inner_stopwords(self, inner_stopwords_file=None):
-        inner_stopwords_file = self._inner_stopwords_eng # temporary since we are using english only for now
-        self._sqlite.load_inner_stopwords(inner_stopwords_file)
-
-    def load_exclusion_regexes(self, exclusion_regexes_file=None):
-        exclusion_regexes_file = self._exclusion_regexes # temporary since we are using english only for now
-        self._sqlite.load_exclusion_regexes(exclusion_regexes_file=exclusion_regexes_file)
 
 # EXTRACTION FUNCTIONS
     def extract(self, case_normalization=False, regex_exclusion=False, verbose=False) -> Results:
