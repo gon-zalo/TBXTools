@@ -9,7 +9,7 @@ class SQLite:
     '''
 
     def __init__(self):
-        self.conn = None
+        c = None
         self.cur = None
         self.maxinserts = 10000
 
@@ -187,16 +187,6 @@ class SQLite:
         candidate_terms = []
         with self.conn:
             self.cur.execute("SELECT candidate, n, frequency FROM candidate_terms ORDER BY frequency DESC")
-
-            for candidates_row in self.cur.fetchall():
-                candidate_terms.append(candidates_row)
-
-        return candidate_terms
-    
-    def get_filtered_candidate_terms_by_frequency(self, fmax, fmin, nb):
-        candidate_terms = []
-        with self.conn:
-            self.cur.execute("SELECT candidate, n, frequency FROM candidate_terms WHERE frequency <="+str(fmax)+" and frequency>="+str(fmin)+"  and n ="+str(nb))
 
             for candidates_row in self.cur.fetchall():
                 candidate_terms.append(candidates_row)

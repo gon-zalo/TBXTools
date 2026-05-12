@@ -1,6 +1,6 @@
 # main class
 from ..sqlite import SQLite # remove underscore from class name
-from ..preprocessor import Preprocessor
+from ..processor import Processor
 from ..results import Results
 
 from pathlib import Path
@@ -13,7 +13,7 @@ class Extractor:
         self.extractor = method
         self.language = language # should be implemented at some point, can be changed to lang
 
-        self._preprocessor = Preprocessor()
+        self._processor = Processor()
         self._sqlite = SQLite()
 
         # self._ngrams = None
@@ -32,6 +32,7 @@ class Extractor:
         self.load_corpus(corpus_file=corpus)
         self.load_stopwords(stopwords_file=self._stopwords_eng) # add a default
         self.load_inner_stopwords(inner_stopwords_file=self._inner_stopwords_eng)
+        self.load_exclusion_regexes(exclusion_regexes_file=self._exclusion_regexes)
 
         self.stopwords = self._sqlite.get_stopwords() 
         self.inner_stopwords = self._sqlite.get_inner_stopwords()
@@ -97,14 +98,8 @@ class Extractor:
         exclusion_regexes_file = self._exclusion_regexes # temporary since we are using english only for now
         self._sqlite.load_exclusion_regexes(exclusion_regexes_file=exclusion_regexes_file)
 
-    def save_candidates(self, file_name): # save as csv?
-        candidate_terms = self._sqlite.get_candidate_terms()
-        with open(file_name, "w", encoding='utf-8') as f:
-            for row in candidate_terms:
-                f.write(",".join(str(element) for element in row) + "\n")
-
 # EXTRACTION FUNCTIONS
-    def extract(self, case_normalization=False, verbose=False):
+    def extract(self, case_normalization=False, regex_exclusion=False, verbose=False) -> Results:
         '''
         Function to extract terms from a segmented corpus.
         Returns a Results() object.
@@ -112,17 +107,20 @@ class Extractor:
         print("Running term extraction")
         segments = self._sqlite.get_segments()
 
-        # this returns a Result object
-        results = self.extractor.extract(segments=segments)
+        # this returns a Results object
+        results = self.extractor.extract(segments=segments, verbose=verbose)
         self._sqlite.insert_tokens(results._tokens)
 
+        # print(results._terms)
         if case_normalization:
-            normalized_terms = self._preprocessor.case_normalization(candidate_terms=results._terms, verbose=verbose)
+            normalized_terms = self._processor.case_normalization(candidate_terms=results._terms, verbose=verbose)
 
             results._terms = normalized_terms
 
         # inserting data into the database
         self._sqlite.insert_candidate_terms(results._terms)
+        # passing the sqlite connection to the Results object
+        results._sqlite = self._sqlite
 
         if not results._extractor_info:
             print("Error: Unknown extractor")
@@ -138,46 +136,3 @@ class Extractor:
     # nest norm?
     def postprocess(self):
         pass
-
-# PREPROCESSOR FUNCTIONS
-    # implementar en .extract
-    def regex_exclusion(self, verbose=False):
-        print("Running regex exclusion")
-        regexes = self._sqlite.get_exclusion_regexes()
-        candidate_terms = self._sqlite.get_candidate_terms()
-
-        candidates_to_exclude = self._preprocessor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms)
-
-        if candidates_to_exclude:
-            for candidate in candidates_to_exclude:
-                self._sqlite.delete_specific_candidate_term(candidate=candidate)
-                print(f"Excluded {len(candidates_to_exclude)} terms")
-        else:
-            print("No candidate terms excluded")
-
-
-    def _old_nest_normalization(self, percent=10, verbose=False):
-        # not implemented in preprocessor yet
-        candidate_terms = self._sqlite.get_candidate_terms()
-        for row in candidate_terms:
-
-            candidate_term = row[0]
-            candidate_term_n = row[1]
-            candidate_term_freq = row[2]
-            second_term_n = candidate_term_n + 1
-
-            fmax = candidate_term_freq * percent/100 + candidate_term_freq
-            fmin = candidate_term_freq * percent/100 - candidate_term_freq
-
-            filtered_candidate_terms = self._sqlite.get_filtered_candidate_terms_by_frequency(fmax=fmax, fmin=fmin, nb=second_term_n)
-
-            for filtered_row in filtered_candidate_terms:
-
-                filtered_term = filtered_row[0]
-                filtered_term_freq = filtered_row[2]
-
-                if not candidate_term == filtered_term and not filtered_term.find(candidate_term)==-1: # if candidate term is not the same as the filtered term and the candidate term cant be found in the filtered term
-                    self._sqlite.delete_specific_candidate_term(candidate=candidate_term)
-
-                    if verbose:
-                        print(str(candidate_term_freq),candidate_term,"-->",str(filtered_term_freq),filtered_term)

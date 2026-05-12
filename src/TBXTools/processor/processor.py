@@ -1,4 +1,4 @@
-class Preprocessor:
+class Processor:
 
     def __init__(self):
         pass
@@ -7,7 +7,7 @@ class Preprocessor:
         '''
         Performs case normalization. If a capitalized term exists as non-capitalized, the capitalized one will be deleted and the frequency of the non-capitalized one will be increased by the frequency of the capitalized.
         '''
-        print("Normalizing case")
+        print("Applying case normalization")
         auxiliar={}
 
         for terms_row in candidate_terms:
@@ -18,7 +18,6 @@ class Preprocessor:
 
         normalized_terms = []
         for terms_row in candidate_terms:
-            # row = []
 
             term = terms_row[0]
             freq = terms_row[2]
@@ -43,37 +42,51 @@ class Preprocessor:
 
         return normalized_terms
     
-# INTENTO DE IMPLEMENTACIÓN, NO ESTÁ ACABADO Y NO ME SALE
-    def nest_normalization(self, filtered_row, candidate_term, candidate_term_freq, percent=10, verbose=False):
-    # not implemented in preprocessor yet
-        normalized_terms = []
-        print(filtered_row)
-        filtered_term = filtered_row[0]
-        filtered_term_freq = filtered_row[2]
-        filtered_candidate_term = ""
-        # if not candidate_term == filtered_term and not filtered_term.find(candidate_term)==-1: # que coño es esto
-        #     self._sqlite.delete_specific_candidate_term(candidate=candidate_term)
+    def nest_normalization(self, candidate_terms, percent=10, verbose=False):
+        '''
+        Removes candidate terms that are nested inside another term with similar frequency.
+        '''
+        print("Applying nest normalization")
+        terms_to_delete = []
+        terms_by_n = {}
 
-        if candidate_term == filtered_term and filtered_term.find(candidate_term)==-1:
-            filtered_candidate_term = candidate_term
+        for row in candidate_terms:
+            candidate_term = row[0]
+            candidate_term_n = row[1]
+            candidate_term_freq = row[2]
 
-            if verbose:
-                print(str(candidate_term_freq),candidate_term,"-->",str(filtered_term_freq),filtered_term)
-            
-        return filtered_candidate_term
-    
-    # percent needs to be chosen by the user, not hardcoded like this
-    def filter_candidate_terms(self, row, percent=10):
+            if candidate_term_n not in terms_by_n:
+                terms_by_n[candidate_term_n] = []
 
-        candidate_term, candidate_term_n, candidate_term_freq, measure, value = row
-        second_term_n = candidate_term_n + 1
+            terms_by_n[candidate_term_n].append((candidate_term, candidate_term_freq))
 
-        fmax = candidate_term_freq * percent/100 + candidate_term_freq
-        fmin = candidate_term_freq * percent/100 - candidate_term_freq
+        for row in candidate_terms:
 
-        return fmax, fmin, second_term_n, candidate_term, candidate_term_freq
+            candidate_term = row[0]
+            candidate_term_n = row[1]
+            candidate_term_freq = row[2]
 
+            second_term_n = candidate_term_n + 1
 
+            if second_term_n not in terms_by_n:
+                continue
+
+            fmax = candidate_term_freq * percent/100 + candidate_term_freq
+            fmin = candidate_term_freq * percent/100 - candidate_term_freq
+
+            for filtered_term, filtered_term_freq in terms_by_n[second_term_n]:
+
+                if filtered_term_freq < fmin or filtered_term_freq > fmax:
+                    continue
+
+                if candidate_term != filtered_term and candidate_term in filtered_term:
+
+                    terms_to_delete.append(candidate_term)
+
+                    if verbose:
+                        print(candidate_term_freq,candidate_term,"-->",filtered_term_freq,filtered_term)
+
+        return terms_to_delete
 
 # NO FUNCIONA CORRECTAMENTE, REVISAR
     def regex_exclusion(self, regexes, candidate_terms, verbose=False):
@@ -92,7 +105,7 @@ class Preprocessor:
                 candidate_n = candidate_row[1]
                 
                 match = re.match(compiled_regexes, candidate)
-                
+        
                 # codigo de prueba con \w+ disorder en el archivo de regexes
                 # if match:
                 #     print(regex_n, candidate_n)
