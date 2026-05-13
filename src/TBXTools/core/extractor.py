@@ -12,7 +12,7 @@ class Extractor:
     def __init__(self, project_name, method, corpus, stopwords=None, inner_stopwords=None, exclusion_regexes=None, language=None, overwrite_project=False):
         # self.project_name = project_name
         # self.corpus = corpus
-        self.extractor = method
+        self.method = method
         self.lang, self._lang_code = get_lang(language.lower())
 
         self._processor = Processor()
@@ -29,8 +29,8 @@ class Extractor:
 
         # setting the extractor stopwords here
         # this is temporary until Resources and Preprocessor class is implemented, these stopwords can also be passed in extract()
-        self.extractor.stopwords = self._sqlite.get_stopwords() 
-        self.extractor.inner_stopwords = self._sqlite.get_inner_stopwords()
+        self.method.stopwords = self._sqlite.get_stopwords() 
+        self.method.inner_stopwords = self._sqlite.get_inner_stopwords()
         
 
 # EXTRACTION FUNCTIONS
@@ -43,7 +43,7 @@ class Extractor:
         segments = self._sqlite.get_segments()
         print(segments)
         # this returns a Results object
-        results = self.extractor.extract(segments=segments, verbose=verbose)
+        results = self.method.extract(segments=segments, verbose=verbose)
         self._sqlite.insert_tokens(results._tokens)
 
         # print(results._terms)
