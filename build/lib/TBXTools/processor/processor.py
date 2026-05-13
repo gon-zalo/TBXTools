@@ -1,6 +1,3 @@
-from nltk.tokenize import RegexpTokenizer
-import re
-
 class Processor:
 
     def __init__(self):
@@ -137,49 +134,5 @@ class Processor:
                 
 
 
-    
-    def tokenize_prova_solo_parole(self, segment):
-        
-        tokenizer = RegexpTokenizer(r'\w+') #solo parole, senza punteggiatura
-        token = tokenizer.tokenize(segment)
-
-        return token
-    
-    def tokenize_prova_parole_e_punt(self, segment):
-
-        tokenizer= RegexpTokenizer(r'\w+|\$[\d\.]+|\S')
-
-        token = tokenizer.tokenize(segment)
-        return token
-
-
-    
-    def tokenize_prova_regex(self, segment):
-        
-        token= re.findall(r"\w+", segment)
-        #append mi segmenta mantenendo la distinzione per segmenti-lista di liste vs extend- solo lista di termini-vedi quale devi usare
-
-        
-        return token
-
-
-
-        
-#import re
-
-#def tokenize_segments(self, segments):
-
-    #tokenized_segments = []
-
-    #for segment in segments:
-
-        #cleaned = re.sub(r"[^\w\s]", " ", segment)
-
-        #tokens = cleaned.split()
-
-        #tokenized_segments.append(tokens)
-
-    #return tokenized_segments
-
-
+#creare funzione tokenization
 

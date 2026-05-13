@@ -34,16 +34,15 @@ class StatisticalExtractor(BaseExtractor):
     def _ngram_calculation (self, segments, minfreq=2, corpus=None):
         '''Performs the calculation of ngrams.'''
         # change variable names, fix lines 57 to 70 (transform into tuples)
-        ngramsFD= nltk.probability.FreqDist() #Crea un oggetto FreqDist di NLTK per contare le frequenze degli n-grammi - esempio {'machine learning': 5, 'deep learning': 3}
-        tokensFD= nltk.probability.FreqDist() 
+        ngramsFD= nltk.probability.FreqDist()
+        tokensFD= nltk.probability.FreqDist()
         nmin = self.nmin
         nmax = self.nmax
             
         for segment in segments:
             for n in range(nmin, nmax+1): #we DON'T calculate one order bigger in order to detect nested candidates
-                
-                tokens= self.tokenize_prova_regex(segment)
-                #tokens = segment.split() # tokenizing here, can be done separately
+
+                tokens = segment.split() # tokenizing here, can be done separately
                 ngrams = compute_ngrams(tokens, n)
 
                 for ngram in ngrams:
@@ -88,15 +87,14 @@ class StatisticalExtractor(BaseExtractor):
             freq = row[2]
 
             split_term = full_term.lower().split()
-            first_word = split_term[0] #this variable is not used, but it can be useful for some filters (e.g. stop-words at the beginning of the term)- es machine learning --> first_word = machine, last_word = learning
-            # last_word = split_term[-1]
+            first_word = split_term[0]
 
             # ignoring terms that contain stopwords at the beginning or end
             if split_term[0] in self.stopwords or split_term[-1] in self.stopwords:
                 continue
 
             # ignoring terms that contain stopwords inside
-            for element in range(1, len(split_term)): #dovrebbe essere range(1, len(split_term)-1) se vogliamo escludere solo stopwords interne
+            for element in range(1, len(split_term)):
                 if split_term[element] in self.inner_stopwords:
                     continue
 
@@ -108,64 +106,3 @@ class StatisticalExtractor(BaseExtractor):
                 break
 
         return candidate_terms
-    
-
-
-
-    #idea per migliorare statistical - da verificare
-
-    #def _statistical_term_extraction(self, ngrams, min_freq=2):
-
-    #candidate_terms = []
-
-    #for row in ngrams:
-
-        #full_term = row[0]
-        #n = row[1]
-        #freq = row[2]
-
-        # --- preprocessing con regex ---
-        #cleaned = re.sub(r"[^\w\s]", " ", full_term)
-        #cleaned = re.sub(r"\s+", " ", cleaned).strip().lower()
-
-        #split_term = cleaned.split()
-
-        #if not split_term:
-            #continue
-
-        # --- rimozione stopwords iniziali/finali ---
-        #while split_term and split_term[0] in self.stopwords:
-            #split_term = split_term[1:]
-
-        #while split_term and split_term[-1] in self.stopwords:
-            #split_term = split_term[:-1]
-
-        #if not split_term:
-            #continue
-
-        # --- rimozione stopwords interne ---
-        #split_term = [
-            #w for w in split_term
-            #if w not in self.inner_stopwords
-        #]
-
-        #if not split_term:
-            #continue
-
-        #cleaned_term = " ".join(split_term)
-
-        #terms_row = (
-            #cleaned_term,
-            #n,
-            #freq,
-            #"frequency",
-            #freq
-        #)
-
-        #candidate_terms.append(terms_row)
-
-        # attenzione: questo break è valido solo se ngrams è ordinato
-        #if freq < min_freq:
-            #break
-
-    #return candidate_terms

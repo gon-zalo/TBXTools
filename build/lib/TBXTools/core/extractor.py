@@ -106,7 +106,6 @@ class Extractor:
         '''
         print("Running term extraction")
         segments = self._sqlite.get_segments()
-        print(segments[:50]) 
 
         # this returns a Results object
         results = self.extractor.extract(segments=segments, verbose=verbose)
