@@ -30,7 +30,7 @@ results.regex_exclusion()
 results.save_candidates("save-example.txt")
 
 # Results can be inspected with the following methods:
-results.terms()
-results.ngrams()
-results.tokens()
+print(results.terms())
+print(results.ngrams())
+print(results.tokens())
 ```
