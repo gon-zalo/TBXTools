@@ -4,9 +4,10 @@ extractor = Extractor(
     method=StatisticalExtractor(
         nmin=2,
         nmax=3),
-    project_name="test-new-4",
+    project_name="test-new-5",
     corpus="Mental_health.txt",
-    language="en"
+    language="en", 
+    overwrite_project=True
 )
 
 results = extractor.extract(case_normalization=True, verbose=False)
