@@ -1,40 +1,36 @@
 # main class
-from ..sqlite import SQLite # remove underscore from class name
+from ..sqlite import SQLite
 from ..processor import Processor
 from ..results import Results
+from ..utils import get_lang
+from ..resources import Resources
 
 from pathlib import Path
 
 class Extractor:
 
-    def __init__(self, project_name, method, corpus, stopwords=None, inner_stopwords=None, language=None, overwrite_project=False):
-        self.project_name = project_name
-        self.corpus = corpus
+    def __init__(self, project_name, method, corpus, stopwords=None, inner_stopwords=None, exclusion_regexes=None, language=None, overwrite_project=False):
+        # self.project_name = project_name
+        # self.corpus = corpus
         self.extractor = method
-        self.language = language # should be implemented at some point, can be changed to lang
+        self.lang, self._lang_code = get_lang(language.lower())
 
         self._processor = Processor()
+        self._resources = Resources()
 
-        # self._ngrams = None
-        # self._tokens = None
-        # self._terms = None
+        # initializing the SQLite database
+        self._sqlite = SQLite(
+            corpus_file=corpus, 
+            project_name=project_name, 
+            stopwords=stopwords or self._resources.fetch_stopwords_file(lang_code=self._lang_code), 
+            inner_stopwords=inner_stopwords or self._resources.fetch_inner_stopwords_file(lang_code=self._lang_code), 
+            exclusion_regexes=exclusion_regexes or self._resources.fetch_regexes_file(lang_code=self._lang_code),
+            overwrite_project=overwrite_project)
 
-        # path objects, should be implemented in the Resources class
-        self._TBXTools_path = Path("../src/TBXTools")
-
-        self._resources_path = self._TBXTools_path / "resources"
-        self._stopwords_eng = self._resources_path /  "stopwords" / "stop-eng.txt"
-        self._inner_stopwords_eng = self._resources_path / "inner" / "inner-stop-eng.txt"
-        self._exclusion_regexes = self._resources_path / "regexes" / "regex-eng.txt"
-
-        self._sqlite = SQLite(corpus_file=corpus, project_name=self.project_name, stopwords=self._stopwords_eng, inner_stopwords=self._inner_stopwords_eng, exclusion_regexes=self._exclusion_regexes, overwrite_project=overwrite_project)
-
-        self.stopwords = self._sqlite.get_stopwords() 
-        self.inner_stopwords = self._sqlite.get_inner_stopwords()
         # setting the extractor stopwords here
         # this is temporary until Resources and Preprocessor class is implemented, these stopwords can also be passed in extract()
-        self.extractor.stopwords = self.stopwords
-        self.extractor.inner_stopwords = self.inner_stopwords
+        self.extractor.stopwords = self._sqlite.get_stopwords() 
+        self.extractor.inner_stopwords = self._sqlite.get_inner_stopwords()
         
 
 # EXTRACTION FUNCTIONS
@@ -45,7 +41,7 @@ class Extractor:
         '''
         print("Running term extraction")
         segments = self._sqlite.get_segments()
-
+        print(segments)
         # this returns a Results object
         results = self.extractor.extract(segments=segments, verbose=verbose)
         self._sqlite.insert_tokens(results._tokens)
