@@ -1,3 +1,4 @@
+STOPWORDS = set('''
 is
 be
 are
@@ -38,7 +39,7 @@ among
 amongst
 an
 and
-and\/or
+and/or
 another
 any
 anybody
@@ -385,3 +386,4 @@ ever
 had
 apart
 thereby
+'''.split())
