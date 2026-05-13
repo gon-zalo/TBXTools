@@ -16,15 +16,15 @@ class Extractor:
         self.lang, self._lang_code = get_lang(language.lower())
 
         self._processor = Processor()
-        self._resources = Resources()
+        self._resources = Resources(lang_code=self._lang_code)
 
         # initializing the SQLite database
         self._sqlite = SQLite(
             corpus_file=corpus, 
             project_name=project_name, 
-            stopwords=stopwords or self._resources.fetch_stopwords_file(lang_code=self._lang_code), 
-            inner_stopwords=inner_stopwords or self._resources.fetch_inner_stopwords_file(lang_code=self._lang_code), 
-            exclusion_regexes=exclusion_regexes or self._resources.fetch_regexes_file(lang_code=self._lang_code),
+            stopwords=stopwords or self._resources.fetch_stopwords(), 
+            inner_stopwords=inner_stopwords or self._resources.fetch_inner_stopwords(), 
+            exclusion_regexes=None,
             overwrite_project=overwrite_project)
 
         # setting the extractor stopwords here
@@ -41,12 +41,11 @@ class Extractor:
         '''
         print("Running term extraction")
         segments = self._sqlite.get_segments()
-        print(segments)
+
         # this returns a Results object
         results = self.method.extract(segments=segments, verbose=verbose)
         self._sqlite.insert_tokens(results._tokens)
 
-        # print(results._terms)
         if case_normalization:
             normalized_terms = self._processor.case_normalization(candidate_terms=results._terms, verbose=verbose)
 

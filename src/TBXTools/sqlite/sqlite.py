@@ -15,17 +15,16 @@ class SQLite:
         self.project_path = Path(project_name)
         self.corpus_path = Path(corpus_file).absolute()
 
-        print(self.corpus_path)
         self.TABLE_NAMES = ["corpus", "tokens", "ngrams", "candidate_terms", "stopwords", "inner_stopwords", "exclusion_regexes"]
 
     # Initializing project, corpus, stopwords, etc.
         self.initialize_project(project_name=project_name, overwrite_project=overwrite_project)
         self.load_corpus(corpus_file=self.corpus_path)
-        self.load_stopwords(stopwords_file=stopwords)
-        self.load_inner_stopwords(inner_stopwords_file=inner_stopwords)
-        self.load_exclusion_regexes(exclusion_regexes_file=exclusion_regexes)
+        self.load_stopwords(stopwords=stopwords)
+        self.load_inner_stopwords(inner_stopwords=inner_stopwords)
+        # self.load_exclusion_regexes(exclusion_regexes_file=exclusion_regexes)
 
-    def check_extension(self, project_name): # adding .sqlite extension automatically
+    def check_extension(self, project_name):
         file_name = Path(project_name) 
 
         if file_name.suffix.lower() != '.sqlite':
@@ -122,65 +121,53 @@ class SQLite:
         self.insert_segments(data)
         print("Corpus loaded")
 
-    def load_stopwords(self, stopwords_file , encoding="utf-8"):
+    def load_stopwords(self, stopwords , encoding="utf-8"):
         data=[]
-        record=[]
-        with open(stopwords_file, "r", encoding=encoding) as fc:
-            while 1:
-                linia=fc.readline()
-                if not linia:
-                    break 
-                linia=linia.rstrip()
-                record.append(linia)
-                data.append(record)
-                record=[]
-        
-        for punct in self.punctuation:
-            record.append(punct)
-            data.append(record)
-            record=[]
+
+        if isinstance(stopwords, set):
+            data = [(word,) for word in sorted(stopwords)]
+
+        else:
+            with open(stopwords, "r", encoding=encoding) as fc:
+                data = [(line.rstrip(),) for line in fc]
+            
+            data.extend((punct,) for punct in self.punctuation) # remove this at some point?
 
         with self.conn:
             self.cur.executemany("INSERT INTO stopwords (stopword) VALUES (?)",data) 
+
         print("Stopwords loaded") 
-        
-    def load_inner_stopwords(self, inner_stopwords_file, encoding='utf-8'):
-        
-        if not self.check_if_table_is_populated("inner_stopwords"):
+
+    def load_inner_stopwords(self, inner_stopwords , encoding="utf-8"):
             data=[]
-            record=[]
-            with open(inner_stopwords_file, "r", encoding=encoding) as fc:
-                while 1:
-                    linia=fc.readline()
-                    if not linia:
-                        break 
-                    linia=linia.rstrip()
-                    record.append(linia)
-                    data.append(record)
-                    record=[]
             
-            for punct in self.punctuation:
-                record.append(punct)
-                data.append(record)
-                record=[]
+            if isinstance(inner_stopwords, set):
+                data = [(word,) for word in sorted(inner_stopwords)]
+
+            else:
+                with open(inner_stopwords, "r", encoding=encoding) as fc:
+                    data = [(line.rstrip(),) for line in fc]
+                
+                data.extend((punct,) for punct in self.punctuation) # remove this at some point?
 
             with self.conn:
-                self.cur.executemany("INSERT INTO inner_stopwords (inner_stopword) VALUES (?)",data)  
-        print("Inner stopwords loaded")
+                self.cur.executemany("INSERT INTO inner_stopwords (inner_stopword) VALUES (?)",data) 
+
+            print("Inner stopwords loaded") 
+
 
     def load_exclusion_regexes(self, exclusion_regexes_file, encoding='utf-8'):
         '''Loads the exclusion regular expressions for the source language.'''
-        if not self.check_if_table_is_populated("exclusion_regexes"):
-            data=[]
-            with open(exclusion_regexes_file, "r", encoding=encoding) as cf:
-                for line in cf:
-                    line=line.rstrip()
-                    record=[]
-                    record.append(line)
-                    data.append(record)
+        data=[]
+        with open(exclusion_regexes_file, "r", encoding=encoding) as cf:
+            for line in cf:
+                line=line.rstrip()
+                record=[]
+                record.append(line)
+                data.append(record)
 
-            with self.conn:
-                self.cur.executemany('INSERT INTO exclusion_regexes (exclusion_regex) VALUES (?)',data)
+        with self.conn:
+            self.cur.executemany('INSERT INTO exclusion_regexes (exclusion_regex) VALUES (?)',data)
 
     # INSERT METHODS
     def insert_segments(self, data):
