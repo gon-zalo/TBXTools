@@ -11,17 +11,16 @@ class SQLite:
     def __init__(self, corpus_file, project_name, stopwords, inner_stopwords, exclusion_regexes, overwrite_project):
         self.cur = None
         self.maxinserts = 10000
-
         self.punctuation = string.punctuation
-        self.stopwords = None
-        self.inner_stopwords = None
         self.project_path = Path(project_name)
+        self.corpus_path = Path(corpus_file).absolute()
 
+        print(self.corpus_path)
         self.TABLE_NAMES = ["corpus", "tokens", "ngrams", "candidate_terms", "stopwords", "inner_stopwords", "exclusion_regexes"]
 
     # Initializing project, corpus, stopwords, etc.
         self.initialize_project(project_name=project_name, overwrite_project=overwrite_project)
-        self.load_corpus(corpus_file=corpus_file)
+        self.load_corpus(corpus_file=self.corpus_path)
         self.load_stopwords(stopwords_file=stopwords)
         self.load_inner_stopwords(inner_stopwords_file=inner_stopwords)
         self.load_exclusion_regexes(exclusion_regexes_file=exclusion_regexes)
@@ -120,6 +119,8 @@ class SQLite:
                     data = []
                     continserts = 0
 
+        self.insert_segments(data)
+        print("Corpus loaded")
 
     def load_stopwords(self, stopwords_file , encoding="utf-8"):
         data=[]
@@ -140,7 +141,8 @@ class SQLite:
             record=[]
 
         with self.conn:
-            self.cur.executemany("INSERT INTO stopwords (stopword) VALUES (?)",data)  
+            self.cur.executemany("INSERT INTO stopwords (stopword) VALUES (?)",data) 
+        print("Stopwords loaded") 
         
     def load_inner_stopwords(self, inner_stopwords_file, encoding='utf-8'):
         
@@ -164,6 +166,7 @@ class SQLite:
 
             with self.conn:
                 self.cur.executemany("INSERT INTO inner_stopwords (inner_stopword) VALUES (?)",data)  
+        print("Inner stopwords loaded")
 
     def load_exclusion_regexes(self, exclusion_regexes_file, encoding='utf-8'):
         '''Loads the exclusion regular expressions for the source language.'''
