@@ -11,7 +11,7 @@ class SQLite:
     def __init__(self, corpus_file, project_name, stopwords, inner_stopwords, exclusion_regexes, overwrite_project):
         self.cur = None
         self.maxinserts = 10000
-        self.punctuation = string.punctuation
+        # self.punctuation = string.punctuation
         self.project_path = Path(project_name)
         self.corpus_path = Path(corpus_file).absolute()
 
@@ -131,7 +131,7 @@ class SQLite:
             with open(stopwords, "r", encoding=encoding) as fc:
                 data = [(line.rstrip(),) for line in fc]
             
-            data.extend((punct,) for punct in self.punctuation) # remove this at some point?
+            # data.extend((punct,) for punct in self.punctuation) # remove this at some point?
 
         with self.conn:
             self.cur.executemany("INSERT INTO stopwords (stopword) VALUES (?)",data) 
@@ -148,7 +148,7 @@ class SQLite:
                 with open(inner_stopwords, "r", encoding=encoding) as fc:
                     data = [(line.rstrip(),) for line in fc]
                 
-                data.extend((punct,) for punct in self.punctuation) # remove this at some point?
+                # data.extend((punct,) for punct in self.punctuation) # remove this at some point?
 
             with self.conn:
                 self.cur.executemany("INSERT INTO inner_stopwords (inner_stopword) VALUES (?)",data) 
@@ -277,6 +277,32 @@ class SQLite:
         with self.conn:
             self.cur.execute("DELETE FROM candidate_terms WHERE candidate=?", (candidate,))
 
+# ADD FUNCTIONS
+    def add_stopwords(self, stopwords_list):
+        current_stopwords = self.get_stopwords()
+        data = []
+        for stopword in stopwords_list:
+            if stopword in set(current_stopwords):
+                continue
+            else:
+                data.append((stopword,))
+        
+        with self.conn:
+            self.cur.executemany("INSERT INTO stopwords (stopword) VALUES (?)",data) 
+
+    def add_inner_stopwords(self, inner_stopwords_list):
+        current_inner_stopwords = self.get_inner_stopwords()
+        data = []
+        for inner_stopword in inner_stopwords_list:
+            if inner_stopword in set(current_inner_stopwords):
+                continue
+            else:
+                data.append((inner_stopword,))
+        
+        with self.conn:
+            self.cur.executemany("INSERT INTO inner_stopwords (inner_stopword) VALUES (?)",data) 
+
+# CHECK FUNCTIONS
     def check_if_table_is_populated(self, table_name):
         with self.conn:
             self.cur.execute(f"SELECT COUNT(*) FROM {table_name}")
