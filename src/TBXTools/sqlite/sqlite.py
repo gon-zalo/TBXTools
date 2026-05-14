@@ -89,56 +89,58 @@ class SQLite:
     # LOAD METHODS
     def load_corpus(self, corpus_file, encoding="utf-8", compoundify=False, comp_symbol="▁"):
         '''Loads a monolingual corpus for the source language. It's recommended, but not compulsory, that the corpus is segmented (one segment per line). Use external tools to segment the corpus. A plain text corpus (not segmented), can be also used.'''
-        self.delete_corpus()
-        if compoundify:
-            compterms=[]
-            self.cur.execute('SELECT term from compoundify_terms_sl')
-            data=self.cur.fetchall()
-            for d in data:
-                compterms.append(d[0])            
+        if not self.check_if_table_is_populated("corpus"):
+            if compoundify:
+                compterms=[]
+                self.cur.execute('SELECT term from compoundify_terms_sl')
+                data=self.cur.fetchall()
+                for d in data:
+                    compterms.append(d[0])            
 
-        data = []
-        continserts = 0
+            data = []
+            continserts = 0
 
-        with open(corpus_file, "r", encoding=encoding, errors="ignore") as cf:
-            for line in cf:
-                line = line.rstrip()
+            with open(corpus_file, "r", encoding=encoding, errors="ignore") as cf:
+                for line in cf:
+                    line = line.rstrip()
 
-                if compoundify:
-                    for compterm in compterms:
-                        if line.find(compterm)>=1:
-                            comptermMOD=compterm.replace(" ",comp_symbol)
-                            line=line.replace(compterm,comptermMOD)
+                    if compoundify:
+                        for compterm in compterms:
+                            if line.find(compterm)>=1:
+                                comptermMOD=compterm.replace(" ",comp_symbol)
+                                line=line.replace(compterm,comptermMOD)
 
-                data.append((line,))
-                continserts += 1
+                    data.append((line,))
+                    continserts += 1
 
-                if continserts == self.maxinserts:
-                    self.insert_segments(data)
-                    data = []
-                    continserts = 0
+                    if continserts == self.maxinserts:
+                        self.insert_segments(data)
+                        data = []
+                        continserts = 0
 
-        self.insert_segments(data)
-        print("Corpus loaded")
+            self.insert_segments(data)
+            print("Corpus loaded")
 
     def load_stopwords(self, stopwords , encoding="utf-8"):
-        data=[]
+        if not self.check_if_table_is_populated("stopwords"):
+            data=[]
 
-        if isinstance(stopwords, set):
-            data = [(word,) for word in sorted(stopwords)]
+            if isinstance(stopwords, set):
+                data = [(word,) for word in sorted(stopwords)]
 
-        else:
-            with open(stopwords, "r", encoding=encoding) as fc:
-                data = [(line.rstrip(),) for line in fc]
-            
-            # data.extend((punct,) for punct in self.punctuation) # remove this at some point?
+            else:
+                with open(stopwords, "r", encoding=encoding) as fc:
+                    data = [(line.rstrip(),) for line in fc]
+                
+                # data.extend((punct,) for punct in self.punctuation) # remove this at some point?
 
-        with self.conn:
-            self.cur.executemany("INSERT INTO stopwords (stopword) VALUES (?)",data) 
+            with self.conn:
+                self.cur.executemany("INSERT INTO stopwords (stopword) VALUES (?)",data) 
 
-        print("Stopwords loaded") 
+            print("Stopwords loaded") 
 
     def load_inner_stopwords(self, inner_stopwords , encoding="utf-8"):
+        if not self.check_if_table_is_populated("inner_stopwords"):
             data=[]
             
             if isinstance(inner_stopwords, set):
@@ -171,20 +173,24 @@ class SQLite:
 
     # INSERT METHODS
     def insert_segments(self, data):
-        with self.conn:
-            self.cur.executemany("INSERT INTO corpus (segment) VALUES (?)", data)
+        if not self.check_if_table_is_populated("corpus"):
+            with self.conn:
+                self.cur.executemany("INSERT INTO corpus (segment) VALUES (?)", data)
 
     def insert_ngrams(self, data):
-        with self.conn:
-            self.cur.executemany("INSERT INTO ngrams (ngram, n, frequency) VALUES (?,?,?)", data)
+        if not self.check_if_table_is_populated("ngrams"):
+            with self.conn:
+                self.cur.executemany("INSERT INTO ngrams (ngram, n, frequency) VALUES (?,?,?)", data)
     
     def insert_tokens(self, data):
-        with self.conn:
-            self.cur.executemany("INSERT INTO tokens (token, frequency) VALUES (?,?)", data)
+        if not self.check_if_table_is_populated("tokens"):
+            with self.conn:
+                self.cur.executemany("INSERT INTO tokens (token, frequency) VALUES (?,?)", data)
 
     def insert_candidate_terms(self, data):
-        with self.conn:
-            self.cur.executemany("INSERT INTO candidate_terms (candidate, n, frequency, measure, value) VALUES (?,?,?,?,?)", data)
+        if not self.check_if_table_is_populated("candidate_terms"):
+            with self.conn:
+                self.cur.executemany("INSERT INTO candidate_terms (candidate, n, frequency, measure, value) VALUES (?,?,?,?,?)", data)
             
     def insert_filtered_candidate_terms(self, data):
         with self.conn:
