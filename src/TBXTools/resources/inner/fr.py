@@ -1,3 +1,4 @@
+INNER_STOPWORDS = set('''
 mais
 ou
 et
@@ -12,3 +13,4 @@ lorsque
 que
 quoisque
 se
+'''.split())

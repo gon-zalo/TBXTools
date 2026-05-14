@@ -70,3 +70,17 @@ class Extractor:
     # nest norm?
     def postprocess(self):
         pass
+
+    def stopwords(self):
+        return self._sqlite.get_stopwords()
+
+    def inner_stopwords(self):
+        return self._sqlite.get_inner_stopwords()
+    
+    def add_stopwords(self, stopwords_list):
+        if isinstance(stopwords_list, list):
+            self._sqlite.add_stopwords(stopwords_list=stopwords_list)
+
+    def add_inner_stopwords(self, inner_stopwords_list):
+        if isinstance(inner_stopwords_list, list):
+            self._sqlite.add_inner_stopwords(inner_stopwords_list=inner_stopwords_list)

@@ -7,7 +7,7 @@ extractor = Extractor(
     project_name="test-new-5",
     corpus="Mental_health.txt",
     language="en", 
-    overwrite_project=True
+    overwrite_project=True  
 )
 
 results = extractor.extract(case_normalization=True, verbose=False)
