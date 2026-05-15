@@ -46,18 +46,18 @@ class StatisticalExtractor(BaseExtractor):
                 #for each segment it tries every dimension of ngram 
 
                 tokens= self._processor.tokenize(segment)
-                #tokens = segment.split() # tokenizing here, can be done separately
-                ngrams = compute_ngrams(tokens, n) #funzione esterna che calcola ngrammi- es da tokens = ['I', 'love', 'NLP'] con n=2 produce [('I', 'love'), ('love', 'NLP')]
+                
+                ngrams = compute_ngrams(tokens, n) 
 
 
                 for ngram in ngrams:
-                    ngramsFD[ngram] += 1 #incrementa la freq dell'n gramma
+                    ngramsFD[ngram] += 1 
 
             for token in tokens:
                 tokensFD[token] += 1
 
         ngrams_output = []
-        for tuple_ngram_freq in ngramsFD.most_common(): # what is c? c is a tuple- ((token1, token2), frequenza)
+        for tuple_ngram_freq in ngramsFD.most_common(): 
             # print(ngramsFD.most_common())
 
             ngrama= tuple_ngram_freq[0]
@@ -65,8 +65,8 @@ class StatisticalExtractor(BaseExtractor):
 
             if freq>=minfreq:
                 ngrams_row=(
-                    " ".join(ngrama), #unire termini tupla in una stringa- (machine, learning) a (machine learning)
-                    len(ngrama), #quanti n grams- machine learning- n= 2
+                    " ".join(ngrama), 
+                    len(ngrama), 
                     freq
                 ) 
 
