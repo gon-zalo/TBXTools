@@ -112,9 +112,14 @@ class StatisticalExtractor(BaseExtractor):
                 continue
 #
         
-            for element in range(1, len(split_term)):
+            contains_inner_stopword = False
+
+            for element in range(1, len(split_term)-1):
                 if split_term[element] in self.inner_stopwords:
-                    continue
+                    contains_inner_stopword = True
+                    break
+            if contains_inner_stopword:
+                continue
 
             terms_row = (full_term, n, freq, "frequency", freq)
 

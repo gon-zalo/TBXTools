@@ -181,6 +181,9 @@ class SQLite:
     def insert_tokens(self, data):
         with self.conn:
             self.cur.executemany("INSERT INTO tokens (token, frequency) VALUES (?,?)", data)
+    
+    
+
 
     def insert_candidate_terms(self, data):
         with self.conn:

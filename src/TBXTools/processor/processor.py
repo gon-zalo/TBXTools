@@ -9,47 +9,40 @@ class Processor:
         self.inner_stopwords = inner_stopwords 
     
     
+    #this should work- enseña la comparación entre candidate terms con case_normalization= True y False
+    #luego debería estar listo para el pull
     def case_normalization(self, candidate_terms, verbose=False):
-        '''
-        Performs case normalization. If a capitalized term exists as non-capitalized, the capitalized one will be deleted and the frequency of the non-capitalized one will be increased by the frequency of the capitalized.
-        '''
+        
         print("Applying case normalization")
-        auxiliar={}
 
+        freq_dict = {}
+
+    
         for terms_row in candidate_terms:
             term = terms_row[0]
             freq = terms_row[2]
 
-            auxiliar[term] = freq
+            key = term.lower().strip()
+            freq_dict[key] = freq_dict.get(key, 0) + freq
 
+    
         normalized_terms = []
-        for terms_row in candidate_terms:
 
-            term = terms_row[0]
-            freq = terms_row[2]
-            if not term == term.lower() and term.lower() in auxiliar:
+        for term, freq in freq_dict.items():
+            n = len(term.split())
 
-                first_term = term
-                second_term = term.lower()
+            row = (term, n, freq, "freq", freq)
+            normalized_terms.append(row)
 
-                first_term_freq = freq
-                second_term_freq = auxiliar[second_term]
-
-                n = len(second_term.split())
-
-                total_frequency = first_term_freq + second_term_freq
-
-                if verbose:
-                    print(first_term, first_term_freq,"-->",second_term, second_term_freq,"-->",total_frequency)
-
-                row = (second_term, n, total_frequency, "freq", total_frequency) # tuples are simpler
-
-                normalized_terms.append(row)
+            if verbose:
+                print(term, "->", freq)
 
         return normalized_terms
     
-
-        
+        #we can maybe add something like the following, to eliminate terms that have frequency= 2 or something like that (since they are a loot)
+        #right now it considers candidates that have at least frequency= 2- it comes from the statistical extractor
+        # if freq < min_freq: 
+                #break
         
 
     
