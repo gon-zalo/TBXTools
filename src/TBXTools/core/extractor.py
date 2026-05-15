@@ -47,9 +47,12 @@ class Extractor:
         self._sqlite.insert_tokens(results._tokens)
 
         if case_normalization:
+
             normalized_terms = self._processor.case_normalization(candidate_terms=results._terms, verbose=verbose)
+           
 
             results._terms = normalized_terms
+
 
         # inserting data into the database
         self._sqlite.insert_candidate_terms(results._terms)
