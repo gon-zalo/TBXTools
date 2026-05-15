@@ -2,6 +2,7 @@ import nltk
 from nltk.util import ngrams as compute_ngrams
 from .base import BaseExtractor
 from ..results import Results
+from ..processor import Processor 
 
 class StatisticalExtractor(BaseExtractor):
 
@@ -9,15 +10,16 @@ class StatisticalExtractor(BaseExtractor):
         
         self.nmin = nmin
         self.nmax = nmax
-        self.stopwords = stopwords # or a basic stopwords list
-        self.inner_stopwords = inner_stopwords # or a basic inner stopwords list
+        self.stopwords = stopwords 
+        self.inner_stopwords = inner_stopwords 
 
         self.n_grams = None
         self.tokens = None
         self.extractor_info = "statistical"
         self.nest_normalization = nest_normalization
         self.nest_normalization_percent = nest_normalization_percent
-
+        self._processor= Processor()
+        
 # MAIN FUNCTION
     def extract(self, segments, verbose):
         print("Running statistical extraction")
@@ -29,51 +31,65 @@ class StatisticalExtractor(BaseExtractor):
         candidate_terms = self._statistical_term_extraction(ngrams=ngrams)
 
         return Results(terms=candidate_terms, ngrams=ngrams, tokens=tokens, extractor_info=self.extractor_info)
-
 # COMPUTING FUNCTIONS
+
+#it works
     def _ngram_calculation (self, segments, minfreq=2, corpus=None):
         '''Performs the calculation of ngrams.'''
-        # change variable names, fix lines 57 to 70 (transform into tuples)
-        ngramsFD= nltk.probability.FreqDist()
+        ngramsFD= nltk.probability.FreqDist() #object to count ngrams frequence - it workks like a dictionary- {'machine learning': 5, 'deep learning': 3}
         tokensFD= nltk.probability.FreqDist()
         nmin = self.nmin
         nmax = self.nmax
             
         for segment in segments:
             for n in range(nmin, nmax+1): #we DON'T calculate one order bigger in order to detect nested candidates
+                #for each segment it tries every dimension of ngram 
 
-                tokens = segment.split() # tokenizing here, can be done separately
-                ngrams = compute_ngrams(tokens, n)
+                tokens= self._processor.tokenize(segment)
+                
+                ngrams = compute_ngrams(tokens, n) 
+
 
                 for ngram in ngrams:
-                    ngramsFD[ngram] += 1
+                    ngramsFD[ngram] += 1 
 
             for token in tokens:
                 tokensFD[token] += 1
 
         ngrams_output = []
-        for c in ngramsFD.most_common(): # what is c?
+        for tuple_ngram_freq in ngramsFD.most_common(): 
             # print(ngramsFD.most_common())
-            if c[1]>=minfreq: # accessing frequency
 
-                ngrams_row=[] # change to tuple
-                ngrams_row.append(" ".join(c[0]))            
-                ngrams_row.append(len(c[0]))
-                ngrams_row.append(c[1])   
+            ngrama= tuple_ngram_freq[0]
+            freq= tuple_ngram_freq[1]
+
+            if freq>=minfreq:
+                ngrams_row=(
+                    " ".join(ngrama), 
+                    len(ngrama), 
+                    freq
+                ) 
+
                 ngrams_output.append(ngrams_row)
+                           
 
         self.ngrams = ngrams_output
 
         tokens_output = []                
-        for c in tokensFD.most_common(): # what is c?
-            tokens_row=[]
-            tokens_row.append(c[0])            
-            tokens_row.append(c[1])   
+        for tuple_token_freq in tokensFD.most_common(): 
+
+            the_token= tuple_token_freq[0]
+            freq_token= tuple_token_freq[1]
+
+            tokens_row=(the_token,
+                        freq_token)
+    
             tokens_output.append(tokens_row)
 
         self.tokens = tokens_output
 
         return ngrams_output, tokens_output
+
 
     def _statistical_term_extraction(self, ngrams, min_freq=2):
         '''Performs an statistical term extraction using the extracted ngrams (ngram_calculation should be executed first). Loading stop-words is advisable. '''
@@ -89,11 +105,13 @@ class StatisticalExtractor(BaseExtractor):
             split_term = full_term.lower().split()
             first_word = split_term[0]
 
+
+
             # ignoring terms that contain stopwords at the beginning or end
             if split_term[0] in self.stopwords or split_term[-1] in self.stopwords:
                 continue
-
-            # ignoring terms that contain stopwords inside
+#
+        
             for element in range(1, len(split_term)):
                 if split_term[element] in self.inner_stopwords:
                     continue
@@ -106,3 +124,4 @@ class StatisticalExtractor(BaseExtractor):
                 break
 
         return candidate_terms
+    
