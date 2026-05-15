@@ -8,21 +8,22 @@ class SQLite:
     Class to manage SQLite functions.
     '''
 
-    def __init__(self, corpus_file, project_name, stopwords, inner_stopwords, exclusion_regexes, overwrite_project):
+    def __init__(self, corpus, project_name, stopwords, inner_stopwords, exclusion_regexes, overwrite_project):
         self.cur = None
-        self.maxinserts = 10000
+        self.MAX_INSERTS = 10000
         # self.punctuation = string.punctuation
-        self.project_path = Path(project_name)
-        self.corpus_path = Path(corpus_file).absolute()
 
-        self.TABLE_NAMES = ["corpus", "tokens", "ngrams", "candidate_terms", "stopwords", "inner_stopwords", "exclusion_regexes"]
+        self.INITIALIZE_TABLES = ["corpus", "stopwords", "inner_stopwords"]
 
     # Initializing project, corpus, stopwords, etc.
         self.initialize_project(project_name=project_name, overwrite_project=overwrite_project)
-        self.load_corpus(corpus_file=self.corpus_path)
-        self.load_stopwords(stopwords=stopwords)
-        self.load_inner_stopwords(inner_stopwords=inner_stopwords)
-        # self.load_exclusion_regexes(exclusion_regexes_file=exclusion_regexes)
+
+        for table in self.INITIALIZE_TABLES:
+            if not self.check_if_table_is_populated(table):
+                self.load_corpus(corpus=corpus)
+                self.load_stopwords(stopwords=stopwords)
+                self.load_inner_stopwords(inner_stopwords=inner_stopwords)
+                # self.load_exclusion_regexes(exclusion_regexes_file=exclusion_regexes)
 
     def check_extension(self, project_name):
         file_name = Path(project_name) 
@@ -72,7 +73,6 @@ class SQLite:
             self.cur.execute("CREATE TABLE inner_stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, inner_stopword TEXT)")
             self.cur.execute("CREATE TABLE exclusion_regexes (id INTEGER PRIMARY KEY AUTOINCREMENT, exclusion_regex TEXT)")
 
-
     def open_project(self,project_name):
         '''Opens an existing project. If the project doesn't exist it raises an exception.'''
 
@@ -85,41 +85,34 @@ class SQLite:
             self.conn = sqlite3.connect(project_name)
             self.cur = self.conn.cursor() 
 
-
-    # LOAD METHODS
-    def load_corpus(self, corpus_file, encoding="utf-8", compoundify=False, comp_symbol="▁"):
-        '''Loads a monolingual corpus for the source language. It's recommended, but not compulsory, that the corpus is segmented (one segment per line). Use external tools to segment the corpus. A plain text corpus (not segmented), can be also used.'''
-        self.delete_corpus()
-        if compoundify:
-            compterms=[]
-            self.cur.execute('SELECT term from compoundify_terms_sl')
-            data=self.cur.fetchall()
-            for d in data:
-                compterms.append(d[0])            
-
+    def read_corpus(self, corpus_file, encoding):
         data = []
         continserts = 0
+        with open(corpus_file, "r", encoding=encoding, errors="ignore") as file:
+            data = [(line.rstrip(),) for line in file]
+            continserts += 1
 
-        with open(corpus_file, "r", encoding=encoding, errors="ignore") as cf:
-            for line in cf:
-                line = line.rstrip()
+            if continserts == self.MAX_INSERTS:
+                self.insert_segments(data)
+                data = []
+                continserts = 0
 
-                if compoundify:
-                    for compterm in compterms:
-                        if line.find(compterm)>=1:
-                            comptermMOD=compterm.replace(" ",comp_symbol)
-                            line=line.replace(compterm,comptermMOD)
+            print(data)
+            self.insert_segments(data)
 
-                data.append((line,))
-                continserts += 1
+    # LOAD METHODS
+    def load_corpus(self, corpus, encoding="utf-8", compoundify=False, comp_symbol="▁"):
+        '''Loads a monolingual corpus for the source language. It's recommended, but not compulsory, that the corpus is segmented (one segment per line). Use external tools to segment the corpus. A plain text corpus (not segmented), can be also used.'''
 
-                if continserts == self.maxinserts:
-                    self.insert_segments(data)
-                    data = []
-                    continserts = 0
+        if isinstance(corpus, list):
+            for corpus_file in corpus:
+                self.read_corpus(corpus_file=corpus_file, encoding=encoding)
 
-        self.insert_segments(data)
-        print("Corpus loaded")
+            print(f"{len(corpus)} corpora loaded")
+        
+        else:
+            self.read_corpus(corpus_file=corpus_file, encoding=encoding)
+            print(f"Corpus loaded")
 
     def load_stopwords(self, stopwords , encoding="utf-8"):
         data=[]
@@ -139,22 +132,21 @@ class SQLite:
         print("Stopwords loaded") 
 
     def load_inner_stopwords(self, inner_stopwords , encoding="utf-8"):
-            data=[]
+        data=[]
+        
+        if isinstance(inner_stopwords, set):
+            data = [(word,) for word in sorted(inner_stopwords)]
+
+        else:
+            with open(inner_stopwords, "r", encoding=encoding) as fc:
+                data = [(line.rstrip(),) for line in fc]
             
-            if isinstance(inner_stopwords, set):
-                data = [(word,) for word in sorted(inner_stopwords)]
+            # data.extend((punct,) for punct in self.punctuation) # remove this at some point?
 
-            else:
-                with open(inner_stopwords, "r", encoding=encoding) as fc:
-                    data = [(line.rstrip(),) for line in fc]
-                
-                # data.extend((punct,) for punct in self.punctuation) # remove this at some point?
+        with self.conn:
+            self.cur.executemany("INSERT INTO inner_stopwords (inner_stopword) VALUES (?)",data) 
 
-            with self.conn:
-                self.cur.executemany("INSERT INTO inner_stopwords (inner_stopword) VALUES (?)",data) 
-
-            print("Inner stopwords loaded") 
-
+        print("Inner stopwords loaded") 
 
     def load_exclusion_regexes(self, exclusion_regexes_file, encoding='utf-8'):
         '''Loads the exclusion regular expressions for the source language.'''
@@ -175,16 +167,19 @@ class SQLite:
             self.cur.executemany("INSERT INTO corpus (segment) VALUES (?)", data)
 
     def insert_ngrams(self, data):
-        with self.conn:
-            self.cur.executemany("INSERT INTO ngrams (ngram, n, frequency) VALUES (?,?,?)", data)
+        if not self.check_if_table_is_populated("ngrams"):
+            with self.conn:
+                self.cur.executemany("INSERT INTO ngrams (ngram, n, frequency) VALUES (?,?,?)", data)
     
     def insert_tokens(self, data):
-        with self.conn:
-            self.cur.executemany("INSERT INTO tokens (token, frequency) VALUES (?,?)", data)
+        if not self.check_if_table_is_populated("tokens"):
+            with self.conn:
+                self.cur.executemany("INSERT INTO tokens (token, frequency) VALUES (?,?)", data)
 
     def insert_candidate_terms(self, data):
-        with self.conn:
-            self.cur.executemany("INSERT INTO candidate_terms (candidate, n, frequency, measure, value) VALUES (?,?,?,?,?)", data)
+        if not self.check_if_table_is_populated("candidate_terms"):
+            with self.conn:
+                self.cur.executemany("INSERT INTO candidate_terms (candidate, n, frequency, measure, value) VALUES (?,?,?,?,?)", data)
             
     def insert_filtered_candidate_terms(self, data):
         with self.conn:
