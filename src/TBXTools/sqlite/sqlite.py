@@ -85,41 +85,50 @@ class SQLite:
             self.conn = sqlite3.connect(project_name)
             self.cur = self.conn.cursor() 
 
+    def read_corpus(self, corpus_file, encoding):
+        data = []
+        continserts = 0
+        with open(corpus_file, "r", encoding=encoding, errors="ignore") as cf:
+
+            pass
 
     # LOAD METHODS
-    def load_corpus(self, corpus_file, encoding="utf-8", compoundify=False, comp_symbol="▁"):
+    def load_corpus(self, corpus, encoding="utf-8", compoundify=False, comp_symbol="▁"):
         '''Loads a monolingual corpus for the source language. It's recommended, but not compulsory, that the corpus is segmented (one segment per line). Use external tools to segment the corpus. A plain text corpus (not segmented), can be also used.'''
         if not self.check_if_table_is_populated("corpus"):
-            if compoundify:
-                compterms=[]
-                self.cur.execute('SELECT term from compoundify_terms_sl')
-                data=self.cur.fetchall()
-                for d in data:
-                    compterms.append(d[0])            
 
-            data = []
-            continserts = 0
-
-            with open(corpus_file, "r", encoding=encoding, errors="ignore") as cf:
-                for line in cf:
-                    line = line.rstrip()
-
+            if isinstance(corpus, list):
+                for corpus_file in corpus:
                     if compoundify:
-                        for compterm in compterms:
-                            if line.find(compterm)>=1:
-                                comptermMOD=compterm.replace(" ",comp_symbol)
-                                line=line.replace(compterm,comptermMOD)
+                        compterms=[]
+                        self.cur.execute('SELECT term from compoundify_terms_sl')
+                        data=self.cur.fetchall()
+                        for d in data:
+                            compterms.append(d[0])            
 
-                    data.append((line,))
-                    continserts += 1
+                    data = []
+                    continserts = 0
 
-                    if continserts == self.maxinserts:
-                        self.insert_segments(data)
-                        data = []
-                        continserts = 0
+                    with open(corpus_file, "r", encoding=encoding, errors="ignore") as cf:
+                        for line in cf:
+                            line = line.rstrip()
 
-            self.insert_segments(data)
-            print("Corpus loaded")
+                            if compoundify:
+                                for compterm in compterms:
+                                    if line.find(compterm)>=1:
+                                        comptermMOD=compterm.replace(" ",comp_symbol)
+                                        line=line.replace(compterm,comptermMOD)
+
+                            data.append((line,))
+                            continserts += 1
+
+                            if continserts == self.maxinserts:
+                                self.insert_segments(data)
+                                data = []
+                                continserts = 0
+
+                    self.insert_segments(data)
+                print(f"{len(corpus)} corpora loaded")
 
     def load_stopwords(self, stopwords , encoding="utf-8"):
         if not self.check_if_table_is_populated("stopwords"):
