@@ -20,7 +20,7 @@ class Extractor:
 
         # initializing the SQLite database
         self._sqlite = SQLite(
-            corpus_file=corpus, 
+            corpus=corpus, 
             project_name=project_name, 
             stopwords=stopwords or self._resources.fetch_stopwords(), 
             inner_stopwords=inner_stopwords or self._resources.fetch_inner_stopwords(), 
