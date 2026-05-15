@@ -1,10 +1,13 @@
 from nltk.tokenize import RegexpTokenizer
 import re
 
+
 class Processor:
 
-    def __init__(self):
-        pass
+    def __init__(self, stopwords=None, inner_stopwords=None):
+        self.stopwords = stopwords 
+        self.inner_stopwords = inner_stopwords 
+    
     
     def case_normalization(self, candidate_terms, verbose=False):
         '''
@@ -44,6 +47,11 @@ class Processor:
                 normalized_terms.append(row)
 
         return normalized_terms
+    
+
+        
+        
+
     
     def nest_normalization(self, candidate_terms, percent=10, verbose=False):
         '''
@@ -138,48 +146,12 @@ class Processor:
 
 
     
-    def tokenize_prova_solo_parole(self, segment):
-        
-        tokenizer = RegexpTokenizer(r'\w+') #solo parole, senza punteggiatura
-        token = tokenizer.tokenize(segment)
-
-        return token
-    
-    def tokenize_prova_parole_e_punt(self, segment):
-
-        tokenizer= RegexpTokenizer(r'\w+|\$[\d\.]+|\S')
-
+    #it works
+    def tokenize(self, segment):
+        tokenizer= RegexpTokenizer(r"\b\w(?:[\w'.,-]*\w)?\b")
         token = tokenizer.tokenize(segment)
         return token
-
-
     
-    def tokenize_prova_regex(self, segment):
-        
-        token= re.findall(r"\w+", segment)
-        #append mi segmenta mantenendo la distinzione per segmenti-lista di liste vs extend- solo lista di termini-vedi quale devi usare
-
-        
-        return token
-
-
-
-        
-#import re
-
-#def tokenize_segments(self, segments):
-
-    #tokenized_segments = []
-
-    #for segment in segments:
-
-        #cleaned = re.sub(r"[^\w\s]", " ", segment)
-
-        #tokens = cleaned.split()
-
-        #tokenized_segments.append(tokens)
-
-    #return tokenized_segments
-
+    
 
 
