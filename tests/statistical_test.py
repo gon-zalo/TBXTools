@@ -13,4 +13,9 @@ results = extractor.extract(case_normalization=True, verbose=False)
 
 results.nest_normalization()
 results.regex_exclusion()
-results.save_candidates("test.txt")
+results.save_candidates("save-test.txt")
+
+# Results can be inspected with the following methods:
+print(results.terms())
+print(results.ngrams())
+print(results.tokens())
