@@ -44,16 +44,36 @@ class Processor:
         #right now it considers candidates that have at least frequency= 2- it comes from the statistical extractor
         # if freq < min_freq: 
                 #break
-        
-
     
-    #está funcionando mal- está borrando el termino "pequeño"- REVISAR
-    def nest_normalization(self, candidate_terms, percent=10, verbose=False):
-        '''
-        Removes candidate terms that are nested inside another term with similar frequency.
-        '''
-        print("Applying nest normalization")
-        terms_to_delete = []
+    #it works but maybe the code can be shorter
+    #he quitado lo de la frecuencia porque por ejemplo por mental health (65) yo quería que me quitara del computo cosas como mental health services que tenía freq= 7
+    #pero con fmax = candidate_term_freq * percent/100 + candidate_term_freq
+    #fmin = candidate_term_freq * percent/100 - candidate_term_freq
+    #y percent= 10
+    #La traducción más natural y precisa para el contexto de tu código es:
+    #El rango de tolerancia calculado por el código (con el 10%) permite buscar solo términos largos que tengan una frecuencia comprendida entre 58.5 y 71.5.
+    #se puede preguntar a patricia si quiere mantener las frecuencias
+    def nest_normalization(self, candidate_terms, verbose=False):
+
+        """
+    Normalize candidate term frequencies by reducing the frequency
+    of terms that occur as nested subterms inside longer candidate terms.
+
+    Terms whose normalized frequency becomes 0 are removed
+    from the final candidate list.
+
+    Example:
+        mental health -> 10
+        community mental health -> 5
+
+    Result:
+        mental health -> 5
+        community mental health -> 5
+    """
+
+        print("Applying nested frequency normalization")
+
+        updated_terms = []
         terms_by_n = {}
 
         for row in candidate_terms:
@@ -64,35 +84,69 @@ class Processor:
             if candidate_term_n not in terms_by_n:
                 terms_by_n[candidate_term_n] = []
 
-            terms_by_n[candidate_term_n].append((candidate_term, candidate_term_freq))
+            terms_by_n[candidate_term_n].append(
+            (candidate_term, candidate_term_freq)
+            )
 
+   
         for row in candidate_terms:
-
             candidate_term = row[0]
             candidate_term_n = row[1]
             candidate_term_freq = row[2]
 
-            second_term_n = candidate_term_n + 1
-
-            if second_term_n not in terms_by_n:
-                continue
-
-            fmax = candidate_term_freq * percent/100 + candidate_term_freq
-            fmin = candidate_term_freq * percent/100 - candidate_term_freq
-
-            for filtered_term, filtered_term_freq in terms_by_n[second_term_n]:
-
-                if filtered_term_freq < fmin or filtered_term_freq > fmax:
+            nested_frequency = 0
+            
+            # compare the current term only with longer terms
+            for longer_n, longer_terms in terms_by_n.items():
+                if longer_n <= candidate_term_n:
                     continue
 
-                if candidate_term != filtered_term and candidate_term in filtered_term:
+                for longer_term, longer_term_freq in longer_terms:
 
-                    terms_to_delete.append(candidate_term)
+                    if candidate_term == longer_term: #skip identical terms
+                        continue
 
-                    if verbose:
-                        print(candidate_term_freq,candidate_term,"-->",filtered_term_freq,filtered_term)
+                    #split terms into tokens
+                    candidate_tokens = candidate_term.split()
+                    longer_tokens = longer_term.split()
 
-        return terms_to_delete
+                    # search for an exact token sequence match
+                    for i in range(len(longer_tokens) - len(candidate_tokens) + 1):
+                        window = longer_tokens[i:i + len(candidate_tokens)]
+
+                        if window == candidate_tokens:
+                            nested_frequency += longer_term_freq
+                            break
+
+
+
+
+            # compute the normalized frequency
+            normalized_freq = max(candidate_term_freq - nested_frequency, 0)
+
+        
+            updated_row = (
+            candidate_term,
+            candidate_term_n,
+            normalized_freq,
+            "frequency",
+            normalized_freq
+        )
+            # remove terms whose normalized frequency becomes 0
+            if normalized_freq > 0:
+                updated_terms.append(updated_row)
+
+            elif verbose:
+                print(
+                f"Removed '{candidate_term}' "
+                f"because normalized frequency became 0"
+                )
+    
+        return updated_terms
+    
+
+
+    
 
 # NO FUNCIONA CORRECTAMENTE, REVISAR
     def regex_exclusion(self, regexes, candidate_terms, verbose=False):
