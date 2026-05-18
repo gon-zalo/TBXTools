@@ -97,7 +97,6 @@ class SQLite:
                 data = []
                 continserts = 0
 
-            print(data)
             self.insert_segments(data)
 
     # LOAD METHODS
@@ -111,7 +110,7 @@ class SQLite:
             print(f"{len(corpus)} corpora loaded")
         
         else:
-            self.read_corpus(corpus_file=corpus_file, encoding=encoding)
+            self.read_corpus(corpus_file=corpus, encoding=encoding)
             print(f"Corpus loaded")
 
     def load_stopwords(self, stopwords , encoding="utf-8"):
@@ -172,17 +171,9 @@ class SQLite:
                 self.cur.executemany("INSERT INTO ngrams (ngram, n, frequency) VALUES (?,?,?)", data)
     
     def insert_tokens(self, data):
-<<<<<<< HEAD
-        with self.conn:
-            self.cur.executemany("INSERT INTO tokens (token, frequency) VALUES (?,?)", data)
-    
-    
-
-=======
         if not self.check_if_table_is_populated("tokens"):
             with self.conn:
                 self.cur.executemany("INSERT INTO tokens (token, frequency) VALUES (?,?)", data)
->>>>>>> origin/master
 
     def insert_candidate_terms(self, data):
         if not self.check_if_table_is_populated("candidate_terms"):
