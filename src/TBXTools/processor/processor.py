@@ -5,6 +5,7 @@ import re
 class Processor:
 
     def __init__(self, stopwords=None, inner_stopwords=None):
+
         self.stopwords = stopwords 
         self.inner_stopwords = inner_stopwords 
     
@@ -39,6 +40,7 @@ class Processor:
 
         return normalized_terms
     
+<<<<<<< HEAD
         #we can maybe add something like the following, to eliminate terms that have frequency= 2 or something like that (since they are a loot)
         #right now it considers candidates that have at least frequency= 2- it comes from the statistical extractor
         # if freq < min_freq: 
@@ -46,6 +48,8 @@ class Processor:
         
 
     
+=======
+>>>>>>> origin/master
     def nest_normalization(self, candidate_terms, percent=10, verbose=False):
         '''
         Removes candidate terms that are nested inside another term with similar frequency.
@@ -135,16 +139,9 @@ class Processor:
                         print(regex,"-->",candidate)
                     
                     return set(list(candidates_to_exclude))
-                
 
-
-    
-    #it works
     def tokenize(self, segment):
-        tokenizer= RegexpTokenizer(r"\b\w(?:[\w'.,-]*\w)?\b")
+        tokenizer = RegexpTokenizer(r"\b\w(?:[\w'‘’.,-]*\w)?\b")
         token = tokenizer.tokenize(segment)
+
         return token
-    
-    
-
-
