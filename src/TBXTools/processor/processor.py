@@ -5,6 +5,7 @@ import re
 class Processor:
 
     def __init__(self, stopwords=None, inner_stopwords=None):
+
         self.stopwords = stopwords 
         self.inner_stopwords = inner_stopwords 
     
@@ -47,11 +48,6 @@ class Processor:
                 normalized_terms.append(row)
 
         return normalized_terms
-    
-
-        
-        
-
     
     def nest_normalization(self, candidate_terms, percent=10, verbose=False):
         '''
@@ -142,16 +138,9 @@ class Processor:
                         print(regex,"-->",candidate)
                     
                     return set(list(candidates_to_exclude))
-                
 
-
-    
-    #it works
     def tokenize(self, segment):
-        tokenizer= RegexpTokenizer(r"\b\w(?:[\w'.,-]*\w)?\b")
+        tokenizer = RegexpTokenizer(r"\b\w(?:[\w'‘’.,-]*\w)?\b")
         token = tokenizer.tokenize(segment)
+
         return token
-    
-    
-
-
