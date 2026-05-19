@@ -13,7 +13,7 @@ class SQLite:
         self.MAX_INSERTS = 10000
         # self.punctuation = string.punctuation
 
-        self.INITIALIZE_TABLES = ["corpus", "stopwords", "inner_stopwords"]
+        self.INITIALIZE_TABLES = ["corpus", "stopwords", "inner_stopwords", "exclusion_regexes"]
 
     # Initializing project, corpus, stopwords, etc.
         self.initialize_project(project_name=project_name, overwrite_project=overwrite_project)
