@@ -9,10 +9,10 @@ from pathlib import Path
 
 class Extractor:
 
-    def __init__(self, project_name, method, corpus, stopwords=None, inner_stopwords=None, exclusion_regexes=None, language=None, overwrite_project=False):
+    def __init__(self, project_name, methodology, corpus, stopwords=None, inner_stopwords=None, exclusion_regexes=None, language=None, overwrite_project=False):
         # self.project_name = project_name
         # self.corpus = corpus
-        self.method = method
+        self.methodology = methodology
         self.lang, self._lang_code = get_lang(language.lower())
 
         self._processor = Processor()
@@ -28,8 +28,8 @@ class Extractor:
             overwrite_project=overwrite_project)
 
         # this is temporary until Resources and Preprocessor class is implemented, these stopwords can also be passed in extract()
-        self.method.stopwords = self._sqlite.get_stopwords() 
-        self.method.inner_stopwords = self._sqlite.get_inner_stopwords()
+        self.methodology.stopwords = self._sqlite.get_stopwords() 
+        self.methodology.inner_stopwords = self._sqlite.get_inner_stopwords()
         
 
 # EXTRACTION FUNCTIONS
@@ -42,7 +42,7 @@ class Extractor:
         segments = self._sqlite.get_segments()
 
         # this returns a Results object
-        results = self.method.extract(segments=segments, verbose=verbose)
+        results = self.methodology.extract(segments=segments, verbose=verbose)
         self._sqlite.insert_tokens(results._tokens)
 
         if case_normalization:

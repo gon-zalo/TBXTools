@@ -4,7 +4,7 @@ corpora = ["Mental_health.txt", "Mental_disorder.txt"]
 regexes = [".+ health"]
 
 extractor = Extractor(
-    method=StatisticalExtractor(nmin=2, nmax=3),
+    methodology=StatisticalExtractor(nmin=2, nmax=3),
     project_name="test-example",
     corpus=corpora,
     language="english",
