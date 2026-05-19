@@ -22,7 +22,7 @@ class StatisticalExtractor(BaseExtractor):
         
 # MAIN FUNCTION
     def extract(self, segments, verbose):
-        print("Running statistical extraction")
+        print("Methodology: statistical")
         nmin = self.nmin
         nmax = self.nmax
         
@@ -49,7 +49,6 @@ class StatisticalExtractor(BaseExtractor):
                 
                 ngrams = compute_ngrams(tokens, n) 
 
-
                 for ngram in ngrams:
                     ngramsFD[ngram] += 1 
 
@@ -75,7 +74,8 @@ class StatisticalExtractor(BaseExtractor):
 
         self.ngrams = ngrams_output
 
-        tokens_output = []                
+        tokens_output = []      
+
         for tuple_token_freq in tokensFD.most_common(): 
 
             the_token= tuple_token_freq[0]
@@ -106,12 +106,11 @@ class StatisticalExtractor(BaseExtractor):
             first_word = split_term[0]
 
 
-
             # ignoring terms that contain stopwords at the beginning or end
             if split_term[0] in self.stopwords or split_term[-1] in self.stopwords:
                 continue
-#
-        
+
+
             for element in range(1, len(split_term)):
                 if split_term[element] in self.inner_stopwords:
                     continue
