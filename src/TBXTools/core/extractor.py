@@ -24,10 +24,9 @@ class Extractor:
             project_name=project_name, 
             stopwords=stopwords or self._resources.fetch_stopwords(), 
             inner_stopwords=inner_stopwords or self._resources.fetch_inner_stopwords(), 
-            exclusion_regexes=None,
+            exclusion_regexes=exclusion_regexes or None,
             overwrite_project=overwrite_project)
 
-        # setting the extractor stopwords here
         # this is temporary until Resources and Preprocessor class is implemented, these stopwords can also be passed in extract()
         self.method.stopwords = self._sqlite.get_stopwords() 
         self.method.inner_stopwords = self._sqlite.get_inner_stopwords()

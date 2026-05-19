@@ -95,50 +95,32 @@ class Processor:
 
         return terms_to_delete
 
-# NO FUNCIONA CORRECTAMENTE, REVISAR
     def regex_exclusion(self, regexes, candidate_terms, verbose=False):
-        '''Deletes term candidates matching a set of regular expresions loaded with the load_sl_exclusion_regexps method.'''
+        '''
+        Method to remove candidate terms that match regex expressions. It takes data in tuples as rows and outputs a list of candidate terms to exclude.
+        '''
         import re
-        
+
         candidates_to_exclude = []
-        for row in regexes:
-            regex = row[0]
-            regex_n= len(row[0].split())
+        for candidate_row in candidate_terms:
+            candidate = candidate_row[0]
+            candidate_n = candidate_row[1]
+            candidate_n = int(candidate_n)
 
-            compiled_regexes = re.compile(regex)
-
-            for candidate_row in candidate_terms:
-                candidate = candidate_row[0]
-                candidate_n = candidate_row[1]
-                
-                match = re.match(compiled_regexes, candidate)
-        
-                # codigo de prueba con \w+ disorder en el archivo de regexes
-                # if match:
-                #     print(regex_n, candidate_n)
-                #     print(candidate)
-
-                # if regex_n == candidate_n:
-                #     if match:
-                #         print("true match")
-                #         print(match)
-                #         print(candidate)
-                    # print("match")
-
-                # if match:
-                #     if regex_n == candidate_n:
-                #         candidates_to_exclude.append(candidate)
-                #         print(match)
+            for regex in regexes:
+                regex = regex[0]
+                regex_n = len(regex.split())
+                match = re.fullmatch(regex, candidate)
 
                 if match and regex_n == candidate_n:
-                    print("match")
                     candidates_to_exclude.append(candidate)
 
                     if verbose:
-                        print(regex,"-->",candidate)
-                    
-                    return set(list(candidates_to_exclude))
+                        print(f"{candidate} removed by {regex}")
 
+        return candidates_to_exclude
+
+            
     def tokenize(self, segment):
         tokenizer = RegexpTokenizer(r"\b\w(?:[\w'‘’.,-]*\w)?\b")
         token = tokenizer.tokenize(segment)

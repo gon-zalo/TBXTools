@@ -19,28 +19,23 @@ class SQLite:
         self.initialize_project(project_name=project_name, overwrite_project=overwrite_project)
 
         for table in self.INITIALIZE_TABLES:
-            if not self.check_if_table_is_populated(table):
+            if not self.table_is_populated(table):
                 self.load_corpus(corpus=corpus)
                 self.load_stopwords(stopwords=stopwords)
                 self.load_inner_stopwords(inner_stopwords=inner_stopwords)
-                # self.load_exclusion_regexes(exclusion_regexes_file=exclusion_regexes)
+                self.load_exclusion_regexes(exclusion_regexes=exclusion_regexes)
 
-    def check_extension(self, project_name):
-        file_name = Path(project_name) 
-
-        if file_name.suffix.lower() != '.sqlite':
-            file_name = file_name.with_suffix('.sqlite')
-        
-        return file_name
+    def add_extension(self, project_name):
+        return Path(project_name).with_suffix('.sqlite')
 
     def initialize_project(self, project_name, overwrite_project):
 
-        file_name = self.check_extension(project_name=project_name)
+        file_name = self.add_extension(project_name=project_name)
     
-        if Path(file_name).exists() and not overwrite_project:
+        if file_name.exists() and not overwrite_project:
             self.open_project(project_name=project_name)
 
-        elif Path(file_name).exists and overwrite_project:
+        elif file_name.exists and overwrite_project:
             self.create_project(project_name=project_name, overwrite=overwrite_project)
         
         else:
@@ -49,7 +44,7 @@ class SQLite:
     def create_project(self,project_name,overwrite=False):
         '''Opens a project. If the project already exists, it raises an exception. To avoid the exception use overwrite=True. To open existing projects, use the open_project method.'''
 
-        project_name = self.check_extension(project_name)
+        project_name = self.add_extension(project_name)
         print(f"Creating project: {project_name}")
         # if os.path.isfile(project_name) and not overwrite:
         #         raise Exception("This project already exists. Use open_project().")
@@ -76,7 +71,7 @@ class SQLite:
     def open_project(self,project_name):
         '''Opens an existing project. If the project doesn't exist it raises an exception.'''
 
-        project_name = self.check_extension(project_name)
+        project_name = self.add_extension(project_name)
         print(f"Opening project: {project_name}")
 
         if not os.path.isfile(project_name):
@@ -97,7 +92,6 @@ class SQLite:
                 data = []
                 continserts = 0
 
-            print(data)
             self.insert_segments(data)
 
     # LOAD METHODS
@@ -111,7 +105,7 @@ class SQLite:
             print(f"{len(corpus)} corpora loaded")
         
         else:
-            self.read_corpus(corpus_file=corpus_file, encoding=encoding)
+            self.read_corpus(corpus_file=corpus, encoding=encoding)
             print(f"Corpus loaded")
 
     def load_stopwords(self, stopwords , encoding="utf-8"):
@@ -119,47 +113,52 @@ class SQLite:
 
         if isinstance(stopwords, set):
             data = [(word,) for word in sorted(stopwords)]
+            print("Stopwords loaded")
 
         else:
-            with open(stopwords, "r", encoding=encoding) as fc:
-                data = [(line.rstrip(),) for line in fc]
+            with open(stopwords, "r", encoding=encoding) as f:
+                data = [(line.rstrip(),) for line in f]
             
             # data.extend((punct,) for punct in self.punctuation) # remove this at some point?
 
+            print("Stopwords loaded from file") 
         with self.conn:
             self.cur.executemany("INSERT INTO stopwords (stopword) VALUES (?)",data) 
 
-        print("Stopwords loaded") 
 
     def load_inner_stopwords(self, inner_stopwords , encoding="utf-8"):
         data=[]
         
         if isinstance(inner_stopwords, set):
             data = [(word,) for word in sorted(inner_stopwords)]
+            print("Inner stopwords loaded")
 
         else:
-            with open(inner_stopwords, "r", encoding=encoding) as fc:
-                data = [(line.rstrip(),) for line in fc]
+            with open(inner_stopwords, "r", encoding=encoding) as f:
+                data = [(line.rstrip(),) for line in f]
             
             # data.extend((punct,) for punct in self.punctuation) # remove this at some point?
+            print("Inner stopwords loaded from file") 
 
         with self.conn:
             self.cur.executemany("INSERT INTO inner_stopwords (inner_stopword) VALUES (?)",data) 
 
-        print("Inner stopwords loaded") 
 
-    def load_exclusion_regexes(self, exclusion_regexes_file, encoding='utf-8'):
+    def load_exclusion_regexes(self, exclusion_regexes, encoding='utf-8'):
         '''Loads the exclusion regular expressions for the source language.'''
         data=[]
-        with open(exclusion_regexes_file, "r", encoding=encoding) as cf:
-            for line in cf:
-                line=line.rstrip()
-                record=[]
-                record.append(line)
-                data.append(record)
+
+        if isinstance(exclusion_regexes, list):
+            data = [(regex,) for regex in exclusion_regexes]
+
+        else:
+            with open(exclusion_regexes, "r", encoding=encoding) as f:
+                data = [(line.rstrip(),) for line in f]
 
         with self.conn:
             self.cur.executemany('INSERT INTO exclusion_regexes (exclusion_regex) VALUES (?)',data)
+
+        print("Exclusion regexes loaded")
 
     # INSERT METHODS
     def insert_segments(self, data):
@@ -167,17 +166,17 @@ class SQLite:
             self.cur.executemany("INSERT INTO corpus (segment) VALUES (?)", data)
 
     def insert_ngrams(self, data):
-        if not self.check_if_table_is_populated("ngrams"):
+        if not self.table_is_populated("ngrams"):
             with self.conn:
                 self.cur.executemany("INSERT INTO ngrams (ngram, n, frequency) VALUES (?,?,?)", data)
     
     def insert_tokens(self, data):
-        if not self.check_if_table_is_populated("tokens"):
+        if not self.table_is_populated("tokens"):
             with self.conn:
                 self.cur.executemany("INSERT INTO tokens (token, frequency) VALUES (?,?)", data)
 
     def insert_candidate_terms(self, data):
-        if not self.check_if_table_is_populated("candidate_terms"):
+        if not self.table_is_populated("candidate_terms"):
             with self.conn:
                 self.cur.executemany("INSERT INTO candidate_terms (candidate, n, frequency, measure, value) VALUES (?,?,?,?,?)", data)
             
@@ -298,7 +297,7 @@ class SQLite:
             self.cur.executemany("INSERT INTO inner_stopwords (inner_stopword) VALUES (?)",data) 
 
 # CHECK FUNCTIONS
-    def check_if_table_is_populated(self, table_name):
+    def table_is_populated(self, table_name):
         with self.conn:
             self.cur.execute(f"SELECT COUNT(*) FROM {table_name}")
             count = self.cur.fetchone()[0]

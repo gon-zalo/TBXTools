@@ -44,18 +44,20 @@ class Results:
             self._sqlite.insert_candidate_terms(filtered_terms)
             self._terms = filtered_terms
 
-    # does not fully work, more info in: processor.regex_exclusion()
     def regex_exclusion(self, verbose=False):
+        '''
+        Deletes term candidates matching a set of regular expresions loaded with the exclusion_regexes attribute of the Extractor class.
+        '''
         print("Applying regex exclusion")
         regexes = self._sqlite.get_exclusion_regexes()
         candidate_terms = self._sqlite.get_candidate_terms()
 
-        candidates_to_exclude = self._processor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms)
+        candidates_to_exclude = self._processor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms, verbose=verbose)
 
         if candidates_to_exclude:
             for candidate in candidates_to_exclude:
                 self._sqlite.delete_specific_candidate_term(candidate=candidate)
-                print(f"Excluded {len(candidates_to_exclude)} terms")
+            print(f"Excluded {len(candidates_to_exclude)} terms")
         else:
             print("No candidate terms excluded")
 
