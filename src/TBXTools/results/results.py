@@ -26,7 +26,7 @@ class Results:
         ngrams = [ngram[0] for ngram in self._ngrams]
         return ngrams[:limit]
     
-    def nest_normalization(self, verbose=False):
+    def nest_normalization(self, percent=10, verbose=False):
 
         if self._extractor_info != "statistical":
             print(f"Error: Nest normalization cannot be run with {self._extractor_info} extractor")
@@ -35,7 +35,7 @@ class Results:
         else:
             candidate_terms = self._terms
 
-            filtered_terms = self._processor.nest_normalization(candidate_terms=candidate_terms, verbose=verbose)
+            filtered_terms = self._processor.nest_normalization(candidate_terms=candidate_terms, percent= percent, verbose=verbose)
 
             self._sqlite.delete_candidate_terms()
             self._sqlite.insert_candidate_terms(filtered_terms)

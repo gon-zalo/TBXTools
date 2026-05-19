@@ -4,7 +4,7 @@ extractor = Extractor(
     method=StatisticalExtractor(
         nmin=2,
         nmax=3),
-    project_name="test_nest_definitivo",
+    project_name= "finale",
     corpus="Mental_disorder.txt",
     language= "english"
 )
@@ -16,3 +16,13 @@ results.nest_normalization()
 #results.save_candidates("test.txt")
 
 print(results.tokens(limit=50))
+
+
+
+
+
+
+
+
+
+

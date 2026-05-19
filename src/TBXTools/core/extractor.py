@@ -46,18 +46,11 @@ class Extractor:
         results = self.method.extract(segments=segments, verbose=verbose)
         self._sqlite.insert_tokens(results._tokens)
 
-
-
         if case_normalization:
-
             normalized_terms = self._processor.case_normalization(candidate_terms=results._terms, verbose=verbose)
-           
             results._terms = normalized_terms
-
-
-        # inserting data into the database
-    
-        
+            
+        # inserting data into the database        
         self._sqlite.insert_candidate_terms(results._terms)
         
         # passing the sqlite connection to the Results object

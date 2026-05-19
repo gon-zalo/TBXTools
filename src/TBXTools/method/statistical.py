@@ -49,7 +49,6 @@ class StatisticalExtractor(BaseExtractor):
                 
                 ngrams = compute_ngrams(tokens, n) 
 
-
                 for ngram in ngrams:
                     ngramsFD[ngram] += 1 
 
@@ -72,7 +71,6 @@ class StatisticalExtractor(BaseExtractor):
 
                 ngrams_output.append(ngrams_row)
                            
-
         self.ngrams = ngrams_output
 
         tokens_output = []                
