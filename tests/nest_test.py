@@ -4,7 +4,7 @@ extractor = Extractor(
     method=StatisticalExtractor(
         nmin=2,
         nmax=3),
-    project_name= "finale",
+    project_name= "prova_3",
     corpus="Mental_disorder.txt",
     language= "english"
 )

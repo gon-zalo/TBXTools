@@ -54,9 +54,7 @@ class Processor:
             if candidate_term_n not in terms_by_n:
                 terms_by_n[candidate_term_n] = []
 
-            terms_by_n[candidate_term_n].append(
-            (candidate_term, candidate_term_freq)
-            )
+            terms_by_n[candidate_term_n].append((candidate_term, candidate_term_freq))
    
         for row in candidate_terms:
             candidate_term = row[0]
@@ -94,13 +92,8 @@ class Processor:
             # compute the normalized frequency
             normalized_freq = max(candidate_term_freq - nested_frequency, 0)
        
-            updated_row = (
-            candidate_term,
-            candidate_term_n,
-            normalized_freq,
-            "frequency",
-            normalized_freq
-        )
+            updated_row = (candidate_term, candidate_term_n, normalized_freq, "frequency", normalized_freq)
+
             # remove terms whose normalized frequency becomes 0
             if normalized_freq > 0:
                 updated_terms.append(updated_row)
@@ -168,3 +161,23 @@ class Processor:
         token = tokenizer.tokenize(segment)
 
         return token
+    
+
+    def filter_by_stopwords(self, term, stopwords, inner_stopwords):
+        """
+        Removes terms containing invalid stopwords.
+        Returns the term if valid, otherwise None.
+        """
+        split_term = term.lower().split()
+
+    #stopwords at boundaries
+    
+        if (split_term[0] in stopwords or split_term[-1] in stopwords):
+            return None
+
+    # inner stopwords
+        for token in split_term[1:-1]:
+            if token in inner_stopwords:
+                return None
+
+        return term
