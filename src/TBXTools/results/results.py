@@ -35,14 +35,12 @@ class Results:
         else:
             candidate_terms = self._terms
 
-            filtered_terms = []
-            normalized_terms = self._processor.nest_normalization(candidate_terms=candidate_terms, percent=percent, verbose=verbose)
-
-            filtered_terms = [row for row in candidate_terms if row[0] not in normalized_terms]
+            filtered_terms = self._processor.nest_normalization(candidate_terms=candidate_terms, percent= percent, verbose=verbose)
 
             self._sqlite.delete_candidate_terms()
             self._sqlite.insert_candidate_terms(filtered_terms)
             self._terms = filtered_terms
+            
 
     def regex_exclusion(self, verbose=False):
         '''

@@ -14,8 +14,10 @@ class Extractor:
         # self.corpus = corpus
         self.methodology = methodology
         self.lang, self._lang_code = get_lang(language.lower())
+        self._stopwords = stopwords or self._resources.fetch_stopwords()
+        self._inner_stopwords = inner_stopwords or self._resources.fetch_inner_stopwords()
 
-        self._processor = Processor()
+        self._processor = Processor(stopwords=self._stopwords, inner_stopwords=self._inner_stopwords)
         self._resources = Resources(lang_code=self._lang_code)
 
         # initializing the SQLite database
@@ -46,7 +48,6 @@ class Extractor:
         self._sqlite.insert_tokens(results._tokens)
 
         if case_normalization:
-
             normalized_terms = self._processor.case_normalization(candidate_terms=results._terms, verbose=verbose)
            
             results._terms = normalized_terms
@@ -54,6 +55,7 @@ class Extractor:
         # inserting data into the database
         self._sqlite.delete_candidate_terms() # keep an eye on this
         self._sqlite.insert_candidate_terms(results._terms)
+        
         # passing the sqlite connection to the Results object
         results._sqlite = self._sqlite
 
@@ -73,10 +75,10 @@ class Extractor:
         pass
 
     def stopwords(self):
-        return self._sqlite.get_stopwords()
+        return self._stopwords
 
     def inner_stopwords(self):
-        return self._sqlite.get_inner_stopwords()
+        return self._inner_stopwords
     
     def add_stopwords(self, stopwords_list):
         if isinstance(stopwords_list, list):
