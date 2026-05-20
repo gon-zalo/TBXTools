@@ -128,7 +128,7 @@ class Processor:
                     candidates_to_exclude.append(candidate)
 
                     if verbose:
-                        print(f"{candidate} removed by {regex}")
+                        print(f"'{candidate}' removed by: {regex}")
 
         return candidates_to_exclude
 
