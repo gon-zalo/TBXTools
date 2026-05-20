@@ -1,7 +1,7 @@
 from TBXTools import Extractor, StatisticalExtractor
 
 extractor = Extractor(
-    method=StatisticalExtractor(
+    methodology=StatisticalExtractor(
         nmin=2,
         nmax=3),
     project_name="test",

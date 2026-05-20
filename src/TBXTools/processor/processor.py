@@ -1,13 +1,14 @@
 from nltk.tokenize import RegexpTokenizer
 import re
+from ..sqlite import SQLite
 
 
 class Processor:
 
-    def __init__(self, stopwords=None, inner_stopwords=None):
+    def __init__(self):
 
-        self.stopwords = stopwords 
-        self.inner_stopwords = inner_stopwords 
+        self.stopwords = None
+        self.inner_stopwords = None
     
     def case_normalization(self, candidate_terms, verbose=False):
         '''
@@ -109,49 +110,30 @@ class Processor:
 # NO FUNCIONA CORRECTAMENTE, REVISAR
     def regex_exclusion(self, regexes, candidate_terms, verbose=False):
         '''
-        Deletes term candidates matching a set of regular expresions loaded with the load_sl_exclusion_regexps method.
+        Remove candidate terms that match regex expressions. It takes data in tuples as rows and outputs a list of candidate terms to exclude.
         '''
         import re
-        
+
         candidates_to_exclude = []
-        for row in regexes:
-            regex = row[0]
-            regex_n= len(row[0].split())
+        for candidate_row in candidate_terms:
+            candidate = candidate_row[0]
+            candidate_n = candidate_row[1]
+            candidate_n = int(candidate_n)
 
-            compiled_regexes = re.compile(regex)
-
-            for candidate_row in candidate_terms:
-                candidate = candidate_row[0]
-                candidate_n = candidate_row[1]
-                
-                match = re.match(compiled_regexes, candidate)
-        
-                # codigo de prueba con \w+ disorder en el archivo de regexes
-                # if match:
-                #     print(regex_n, candidate_n)
-                #     print(candidate)
-
-                # if regex_n == candidate_n:
-                #     if match:
-                #         print("true match")
-                #         print(match)
-                #         print(candidate)
-                    # print("match")
-
-                # if match:
-                #     if regex_n == candidate_n:
-                #         candidates_to_exclude.append(candidate)
-                #         print(match)
+            for regex in regexes:
+                regex = regex[0]
+                regex_n = len(regex.split())
+                match = re.fullmatch(regex, candidate)
 
                 if match and regex_n == candidate_n:
-                    print("match")
                     candidates_to_exclude.append(candidate)
 
                     if verbose:
-                        print(regex,"-->",candidate)
-                    
-                    return set(list(candidates_to_exclude))
+                        print(f"{candidate} removed by {regex}")
 
+        return candidates_to_exclude
+
+            
     def tokenize(self, segment):
         """
         Tokenizes a text segment into word tokens, removing punctuation outside words while preserving internal characters such as apostrophes and hyphens.
@@ -163,7 +145,7 @@ class Processor:
         return token
     
 
-    def filter_by_stopwords(self, term):
+    def filter_by_stopwords(self, term, stopwords, inner_stopwords):
         """
         Removes terms containing invalid stopwords.
         Returns the term if valid, otherwise None.
@@ -172,12 +154,12 @@ class Processor:
 
     #stopwords at boundaries
     
-        if (split_term[0] in self.stopwords or split_term[-1] in self.stopwords):
+        if (split_term[0] in stopwords or split_term[-1] in stopwords):
             return None
 
     # inner stopwords
         for token in split_term[1:-1]:
-            if token in self.inner_stopwords:
+            if token in inner_stopwords:
                 return None
 
         return term

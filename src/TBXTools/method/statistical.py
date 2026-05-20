@@ -14,18 +14,16 @@ class StatisticalExtractor(BaseExtractor):
         self._processor= Processor()
         
 # MAIN FUNCTION
-    def extract(self, segments, verbose):
-        print("Running statistical extraction")
-        nmin = self.nmin
-        nmax = self.nmax
+    def extract(self, segments, stopwords, inner_stopwords, verbose=False):
+        print("Methodology: statistical")
         
-        ngrams, tokens, candidate_terms = self._statistical_extraction(segments, nmin, nmax)
+        ngrams, tokens, candidate_terms = self._statistical_extraction(segments=segments, stopwords=stopwords, inner_stopwords=inner_stopwords)
 
         return Results(terms=candidate_terms, ngrams=ngrams, tokens=tokens, extractor_info=self.extractor_info)
     
 # COMPUTING FUNCTIONS
 
-    def _statistical_extraction (self, segments, minfreq=2, corpus=None):
+    def _statistical_extraction (self, segments, stopwords, inner_stopwords, minfreq=2):
         '''
         Extract ngrams and tokens, computes their frequencies and performs statistical term extraction.
         '''
@@ -70,7 +68,7 @@ class StatisticalExtractor(BaseExtractor):
  
         for full_term, n, freq in ngrams_output:
 
-            full_term = self._processor.filter_by_stopwords(full_term)
+            full_term = self._processor.filter_by_stopwords(term=full_term, stopwords=stopwords, inner_stopwords=inner_stopwords)
 
             if full_term is None:
                 continue

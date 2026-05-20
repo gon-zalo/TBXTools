@@ -9,26 +9,26 @@ from pathlib import Path
 
 class Extractor:
 
-    def __init__(self, project_name, method, corpus, stopwords=None, inner_stopwords=None, exclusion_regexes=None, language=None, overwrite_project=False):
+    def __init__(self, project_name, methodology, corpus, stopwords=None, inner_stopwords=None, exclusion_regexes=None, language=None, overwrite_project=False):
         # self.project_name = project_name
         # self.corpus = corpus
-        self.method = method
+        self.methodology = methodology
         self.lang, self._lang_code = get_lang(language.lower())
+
+        self._resources = Resources(lang_code=self._lang_code)
         self._stopwords = stopwords or self._resources.fetch_stopwords()
         self._inner_stopwords = inner_stopwords or self._resources.fetch_inner_stopwords()
 
-        self._processor = Processor(stopwords=self._stopwords, inner_stopwords=self._inner_stopwords)
-        self._resources = Resources(lang_code=self._lang_code)
+        self._processor = Processor()
 
         # initializing the SQLite database
         self._sqlite = SQLite(
             corpus=corpus, 
             project_name=project_name, 
-            stopwords=self._stopwords, 
-            inner_stopwords=self._inner_stopwords, 
-            exclusion_regexes=None,
+            stopwords=stopwords or self._resources.fetch_stopwords(), 
+            inner_stopwords=inner_stopwords or self._resources.fetch_inner_stopwords(), 
+            exclusion_regexes=exclusion_regexes or None,
             overwrite_project=overwrite_project)
-        
 
 # EXTRACTION FUNCTIONS
     def extract(self, case_normalization=False, regex_exclusion=False, verbose=False) -> Results:
@@ -40,14 +40,16 @@ class Extractor:
         segments = self._sqlite.get_segments()
 
         # this returns a Results object
-        results = self.method.extract(segments=segments, verbose=verbose)
+        results = self.methodology.extract(segments=segments, verbose=verbose, stopwords=self._stopwords, inner_stopwords=self._inner_stopwords)
         self._sqlite.insert_tokens(results._tokens)
 
         if case_normalization:
             normalized_terms = self._processor.case_normalization(candidate_terms=results._terms, verbose=verbose)
+           
             results._terms = normalized_terms
-            
-        # inserting data into the database        
+
+        # inserting data into the database
+        self._sqlite.delete_candidate_terms() # keep an eye on this
         self._sqlite.insert_candidate_terms(results._terms)
         
         # passing the sqlite connection to the Results object

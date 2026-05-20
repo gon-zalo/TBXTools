@@ -2,7 +2,7 @@ from TBXTools import Extractor, BertExtractor
 
 extractor = Extractor(
     project_name="bert-test",
-    method=BertExtractor(),
+    methodology=BertExtractor(),
     corpus='Mental_health.txt'
 )
 
