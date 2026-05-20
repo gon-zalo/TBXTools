@@ -14,11 +14,12 @@ class Extractor:
         # self.corpus = corpus
         self.methodology = methodology
         self.lang, self._lang_code = get_lang(language.lower())
+
+        self._resources = Resources(lang_code=self._lang_code)
         self._stopwords = stopwords or self._resources.fetch_stopwords()
         self._inner_stopwords = inner_stopwords or self._resources.fetch_inner_stopwords()
 
-        self._processor = Processor(stopwords=self._stopwords, inner_stopwords=self._inner_stopwords)
-        self._resources = Resources(lang_code=self._lang_code)
+        self._processor = Processor()
 
         # initializing the SQLite database
         self._sqlite = SQLite(
@@ -44,7 +45,7 @@ class Extractor:
         segments = self._sqlite.get_segments()
 
         # this returns a Results object
-        results = self.methodology.extract(segments=segments, verbose=verbose)
+        results = self.methodology.extract(segments=segments, verbose=verbose, stopwords=self._stopwords, inner_stopwords=self._inner_stopwords)
         self._sqlite.insert_tokens(results._tokens)
 
         if case_normalization:

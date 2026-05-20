@@ -1,13 +1,14 @@
 from nltk.tokenize import RegexpTokenizer
 import re
+from ..sqlite import SQLite
 
 
 class Processor:
 
-    def __init__(self, stopwords=None, inner_stopwords=None):
+    def __init__(self):
 
-        self.stopwords = stopwords 
-        self.inner_stopwords = inner_stopwords 
+        self.stopwords = None
+        self.inner_stopwords = None
     
     def case_normalization(self, candidate_terms, verbose=False):
         '''
@@ -144,7 +145,7 @@ class Processor:
         return token
     
 
-    def filter_by_stopwords(self, term):
+    def filter_by_stopwords(self, term, stopwords, inner_stopwords):
         """
         Removes terms containing invalid stopwords.
         Returns the term if valid, otherwise None.
@@ -153,12 +154,12 @@ class Processor:
 
     #stopwords at boundaries
     
-        if (split_term[0] in self.stopwords or split_term[-1] in self.stopwords):
+        if (split_term[0] in stopwords or split_term[-1] in stopwords):
             return None
 
     # inner stopwords
         for token in split_term[1:-1]:
-            if token in self.inner_stopwords:
+            if token in inner_stopwords:
                 return None
 
         return term
