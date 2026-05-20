@@ -8,7 +8,7 @@ class SQLite:
     Manage SQLite functions.
     '''
 
-    def __init__(self, corpus, project_name, stopwords, inner_stopwords, exclusion_regexes, overwrite_project):
+    def __init__(self, corpus, project_name, stopwords, inner_stopwords, exclusion_regexes=None, overwrite_project=False):
         self.cur = None
         self.MAX_INSERTS = 10000
         # self.punctuation = string.punctuation
@@ -23,7 +23,8 @@ class SQLite:
                 self.load_corpus(corpus=corpus)
                 self.load_stopwords(stopwords=stopwords)
                 self.load_inner_stopwords(inner_stopwords=inner_stopwords)
-                self.load_exclusion_regexes(exclusion_regexes=exclusion_regexes)
+                if exclusion_regexes:
+                    self.load_exclusion_regexes(exclusion_regexes=exclusion_regexes)
 
     def add_extension(self, project_name):
         '''Adds the extension .sqlite to the database file.'''

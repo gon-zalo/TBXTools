@@ -88,16 +88,21 @@ class Results:
         '''
         print("Applying regex exclusion")
         regexes = self._sqlite.get_exclusion_regexes()
-        candidate_terms = self._sqlite.get_candidate_terms()
 
-        candidates_to_exclude = self._processor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms, verbose=verbose)
+        if not regexes:
+            print("Exclusion regexes not found. Not applying regex exclusion.")
 
-        if candidates_to_exclude:
-            for candidate in candidates_to_exclude:
-                self._sqlite.delete_specific_candidate_term(candidate=candidate)
-            print(f"Excluded {len(candidates_to_exclude)} terms")
         else:
-            print("No candidate terms excluded")
+            candidate_terms = self._sqlite.get_candidate_terms()
+
+            candidates_to_exclude = self._processor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms, verbose=verbose)
+
+            if candidates_to_exclude:
+                for candidate in candidates_to_exclude:
+                    self._sqlite.delete_specific_candidate_term(candidate=candidate)
+                print(f"Excluded {len(candidates_to_exclude)} terms")
+            else:
+                print("No candidate terms excluded")
 
     def save_candidates(self, file_name):
         '''
