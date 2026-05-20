@@ -110,7 +110,7 @@ class Processor:
 # NO FUNCIONA CORRECTAMENTE, REVISAR
     def regex_exclusion(self, regexes, candidate_terms, verbose=False):
         '''
-        Deletes term candidates matching a set of regular expresions loaded with the load_sl_exclusion_regexps method.
+        Remove candidate terms that match regex expressions. It takes data in tuples as rows and outputs a list of candidate terms to exclude.
         '''
         import re
 
