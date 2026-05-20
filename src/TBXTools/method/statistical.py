@@ -5,19 +5,12 @@ from ..results import Results
 from ..processor import Processor 
 
 class StatisticalExtractor(BaseExtractor):
-
-    def __init__(self, nmin, nmax, nest_normalization=False, nest_normalization_percent=10, stopwords=None, inner_stopwords=None):
+    def __init__(self, nmin, nmax):
         
         self.nmin = nmin
         self.nmax = nmax
-        self.stopwords = stopwords 
-        self.inner_stopwords = inner_stopwords 
 
-        self.n_grams = None
-        self.tokens = None
         self.extractor_info = "statistical"
-        self.nest_normalization = nest_normalization
-        self.nest_normalization_percent = nest_normalization_percent
         self._processor= Processor()
         
 # MAIN FUNCTION
@@ -77,11 +70,10 @@ class StatisticalExtractor(BaseExtractor):
  
         for full_term, n, freq in ngrams_output:
 
-            full_term = self._processor.filter_by_stopwords(full_term, self.stopwords,self.inner_stopwords)
+            full_term = self._processor.filter_by_stopwords(full_term)
 
             if full_term is None:
                 continue
-
 
             candidate_terms.append((full_term, n, freq, "frequency", freq))
 

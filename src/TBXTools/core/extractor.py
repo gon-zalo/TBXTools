@@ -14,23 +14,20 @@ class Extractor:
         # self.corpus = corpus
         self.method = method
         self.lang, self._lang_code = get_lang(language.lower())
+        self._stopwords = stopwords or self._resources.fetch_stopwords()
+        self._inner_stopwords = inner_stopwords or self._resources.fetch_inner_stopwords()
 
-        self._processor = Processor()
+        self._processor = Processor(stopwords=self._stopwords, inner_stopwords=self._inner_stopwords)
         self._resources = Resources(lang_code=self._lang_code)
 
         # initializing the SQLite database
         self._sqlite = SQLite(
             corpus=corpus, 
             project_name=project_name, 
-            stopwords=stopwords or self._resources.fetch_stopwords(), 
-            inner_stopwords=inner_stopwords or self._resources.fetch_inner_stopwords(), 
+            stopwords=self._stopwords, 
+            inner_stopwords=self._inner_stopwords, 
             exclusion_regexes=None,
             overwrite_project=overwrite_project)
-
-        # setting the extractor stopwords here
-        # this is temporary until Resources and Preprocessor class is implemented, these stopwords can also be passed in extract()
-        self.method.stopwords = self._sqlite.get_stopwords() 
-        self.method.inner_stopwords = self._sqlite.get_inner_stopwords()
         
 
 # EXTRACTION FUNCTIONS
@@ -72,10 +69,10 @@ class Extractor:
         pass
 
     def stopwords(self):
-        return self._sqlite.get_stopwords()
+        return self._stopwords
 
     def inner_stopwords(self):
-        return self._sqlite.get_inner_stopwords()
+        return self._inner_stopwords
     
     def add_stopwords(self, stopwords_list):
         if isinstance(stopwords_list, list):

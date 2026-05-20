@@ -163,7 +163,7 @@ class Processor:
         return token
     
 
-    def filter_by_stopwords(self, term, stopwords, inner_stopwords):
+    def filter_by_stopwords(self, term):
         """
         Removes terms containing invalid stopwords.
         Returns the term if valid, otherwise None.
@@ -172,12 +172,12 @@ class Processor:
 
     #stopwords at boundaries
     
-        if (split_term[0] in stopwords or split_term[-1] in stopwords):
+        if (split_term[0] in self.stopwords or split_term[-1] in self.stopwords):
             return None
 
     # inner stopwords
         for token in split_term[1:-1]:
-            if token in inner_stopwords:
+            if token in self.inner_stopwords:
                 return None
 
         return term
