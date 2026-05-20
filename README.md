@@ -20,7 +20,9 @@ extractor = Extractor(
         nmin=2,
         nmax=3),
     project_name="example",
-    corpus="example-corpus.txt"
+    corpus="example-corpus.txt",
+    language="english",
+    overwrite_project=True
 )
 
 results = extractor.extract(case_normalization=True, verbose=False)
