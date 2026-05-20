@@ -107,7 +107,6 @@ class Processor:
     
         return updated_terms
     
-# NO FUNCIONA CORRECTAMENTE, REVISAR
     def regex_exclusion(self, regexes, candidate_terms, verbose=False):
         '''
         Remove candidate terms that match regex expressions. It takes data in tuples as rows and outputs a list of candidate terms to exclude.
