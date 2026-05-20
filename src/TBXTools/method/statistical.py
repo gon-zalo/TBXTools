@@ -26,102 +26,68 @@ class StatisticalExtractor(BaseExtractor):
         nmin = self.nmin
         nmax = self.nmax
         
-        print("Computing n grams")
-        ngrams, tokens = self._ngram_calculation(segments, nmin, nmax)
-        candidate_terms = self._statistical_term_extraction(ngrams=ngrams)
+        ngrams, tokens, candidate_terms = self._statistical_extraction(segments, nmin, nmax)
 
         return Results(terms=candidate_terms, ngrams=ngrams, tokens=tokens, extractor_info=self.extractor_info)
+    
 # COMPUTING FUNCTIONS
 
-#it works
-    def _ngram_calculation (self, segments, minfreq=2, corpus=None):
-        '''Performs the calculation of ngrams.'''
-        ngramsFD= nltk.probability.FreqDist() #object to count ngrams frequence - it workks like a dictionary- {'machine learning': 5, 'deep learning': 3}
+    def _statistical_extraction (self, segments, minfreq=2, corpus=None):
+        '''
+        Extract ngrams and tokens, computes their frequencies and performs statistical term extraction.
+        '''
+        ngramsFD= nltk.probability.FreqDist() 
         tokensFD= nltk.probability.FreqDist()
         nmin = self.nmin
         nmax = self.nmax
             
         for segment in segments:
-            for n in range(nmin, nmax+1): #we DON'T calculate one order bigger in order to detect nested candidates
-                #for each segment it tries every dimension of ngram 
 
                 tokens= self._processor.tokenize(segment)
                 
-                ngrams = compute_ngrams(tokens, n) 
+                #token frequencies
+                for token in tokens:
+                    tokensFD[token] += 1
+                
+                #ngram frequencies
+                for n in range(nmin, nmax+1):  
+                    ngrams = compute_ngrams(tokens, n) 
 
-
-                for ngram in ngrams:
-                    ngramsFD[ngram] += 1 
-
-            for token in tokens:
-                tokensFD[token] += 1
+                    for ngram in ngrams:
+                        ngramsFD[ngram] += 1 
 
         ngrams_output = []
-        for tuple_ngram_freq in ngramsFD.most_common(): 
-            # print(ngramsFD.most_common())
-
-            ngrama= tuple_ngram_freq[0]
-            freq= tuple_ngram_freq[1]
+        for ngram, freq in ngramsFD.most_common(): 
 
             if freq>=minfreq:
-                ngrams_row=(
-                    " ".join(ngrama), 
-                    len(ngrama), 
-                    freq
-                ) 
-
+                ngrams_row=(" ".join(ngram), len(ngram), freq) 
                 ngrams_output.append(ngrams_row)
                            
-
         self.ngrams = ngrams_output
 
         tokens_output = []                
-        for tuple_token_freq in tokensFD.most_common(): 
-
-            the_token= tuple_token_freq[0]
-            freq_token= tuple_token_freq[1]
-
-            tokens_row=(the_token,
-                        freq_token)
-    
+        for token, freq in tokensFD.most_common(): 
+            tokens_row=(token, freq)   
             tokens_output.append(tokens_row)
 
         self.tokens = tokens_output
 
-        return ngrams_output, tokens_output
-
-
-    def _statistical_term_extraction(self, ngrams, min_freq=2):
-        '''Performs an statistical term extraction using the extracted ngrams (ngram_calculation should be executed first). Loading stop-words is advisable. '''
-
+        #statistical filtering
         candidate_terms = []
-        for row in ngrams:
+ 
+        for full_term, n, freq in ngrams_output:
 
-            # row is (full_term, n, freq)
-            full_term = row[0]
-            n = row[1]
-            freq = row[2]
+            full_term = self._processor.filter_by_stopwords(full_term, self.stopwords,self.inner_stopwords)
 
-            split_term = full_term.lower().split()
-            first_word = split_term[0]
-
-
-
-            # ignoring terms that contain stopwords at the beginning or end
-            if split_term[0] in self.stopwords or split_term[-1] in self.stopwords:
+            if full_term is None:
                 continue
-#
-        
-            for element in range(1, len(split_term)):
-                if split_term[element] in self.inner_stopwords:
-                    continue
 
-            terms_row = (full_term, n, freq, "frequency", freq)
 
-            candidate_terms.append(terms_row)
+            candidate_terms.append((full_term, n, freq, "frequency", freq))
 
-            if freq < min_freq:
-                break
+        return ngrams_output, tokens_output, candidate_terms
 
-        return candidate_terms
+
+
+    
     

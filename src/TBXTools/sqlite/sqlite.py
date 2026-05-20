@@ -97,7 +97,6 @@ class SQLite:
                 data = []
                 continserts = 0
 
-            print(data)
             self.insert_segments(data)
 
     # LOAD METHODS
@@ -111,7 +110,7 @@ class SQLite:
             print(f"{len(corpus)} corpora loaded")
         
         else:
-            self.read_corpus(corpus_file=corpus_file, encoding=encoding)
+            self.read_corpus(corpus_file=corpus, encoding=encoding)
             print(f"Corpus loaded")
 
     def load_stopwords(self, stopwords , encoding="utf-8"):

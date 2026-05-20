@@ -4,18 +4,15 @@ extractor = Extractor(
     method=StatisticalExtractor(
         nmin=2,
         nmax=3),
-    project_name="test_no_nest",
+    project_name="prova_case_normalization_new_versione_true",
     corpus="Mental_disorder.txt",
-    language="english"
+    language= "english"
 )
 
 results = extractor.extract(case_normalization=True, verbose=False)
 
 #results.nest_normalization()
-results.regex_exclusion()
-results.save_candidates("save-test.txt")
+#results.regex_exclusion()
+#results.save_candidates("test.txt")
 
-# Results can be inspected with the following methods:
-print(results.terms())
-print(results.ngrams())
-print(results.tokens())
+print(results.tokens(limit=50))

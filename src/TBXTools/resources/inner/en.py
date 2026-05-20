@@ -11,5 +11,4 @@ does
 to
 don't
 but
-of
 '''.split())
