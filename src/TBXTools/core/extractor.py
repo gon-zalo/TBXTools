@@ -49,11 +49,10 @@ class Extractor:
 
             normalized_terms = self._processor.case_normalization(candidate_terms=results._terms, verbose=verbose)
            
-
             results._terms = normalized_terms
 
-
         # inserting data into the database
+        self._sqlite.delete_candidate_terms() # keep an eye on this
         self._sqlite.insert_candidate_terms(results._terms)
         # passing the sqlite connection to the Results object
         results._sqlite = self._sqlite
