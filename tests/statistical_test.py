@@ -3,17 +3,9 @@ from TBXTools import Extractor, StatisticalExtractor
 corpora = ["Mental_health.txt", "Mental_disorder.txt"]
 
 extractor = Extractor(
-<<<<<<< HEAD
     methodology=StatisticalExtractor(nmin=2, nmax=3),
     project_name="test-example",
     corpus=corpora,
-=======
-    method=StatisticalExtractor(
-        nmin=2,
-        nmax=3),
-    project_name="test_no_nest",
-    corpus="Mental_disorder.txt",
->>>>>>> master
     language="english"
 )
 
