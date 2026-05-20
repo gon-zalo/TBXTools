@@ -125,7 +125,6 @@ class SQLite:
         with self.conn:
             self.cur.executemany("INSERT INTO stopwords (stopword) VALUES (?)",data) 
 
-
     def load_inner_stopwords(self, inner_stopwords , encoding="utf-8"):
         data=[]
         
@@ -143,7 +142,6 @@ class SQLite:
         with self.conn:
             self.cur.executemany("INSERT INTO inner_stopwords (inner_stopword) VALUES (?)",data) 
 
-
     def load_exclusion_regexes(self, exclusion_regexes, encoding='utf-8'):
         '''Loads the exclusion regular expressions for the source language.'''
         data=[]
@@ -151,14 +149,15 @@ class SQLite:
         if isinstance(exclusion_regexes, list):
             data = [(regex,) for regex in exclusion_regexes]
 
+            print("Exclusion regexes loaded")
         else:
             with open(exclusion_regexes, "r", encoding=encoding) as f:
                 data = [(line.rstrip(),) for line in f]
+            print("Exclusion regexes loaded from file")
 
         with self.conn:
             self.cur.executemany('INSERT INTO exclusion_regexes (exclusion_regex) VALUES (?)',data)
 
-        print("Exclusion regexes loaded")
 
     # INSERT METHODS
     def insert_segments(self, data):
