@@ -27,7 +27,6 @@ class StatisticalExtractor(BaseExtractor):
         nmax = self.nmax
         
         ngrams, tokens, candidate_terms = self._statistical_extraction(segments, nmin, nmax)
-        #candidate_terms = self._statistical_term_extraction(ngrams=ngrams)
 
         return Results(terms=candidate_terms, ngrams=ngrams, tokens=tokens, extractor_info=self.extractor_info)
     
