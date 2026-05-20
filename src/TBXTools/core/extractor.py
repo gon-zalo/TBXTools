@@ -30,11 +30,6 @@ class Extractor:
             exclusion_regexes=exclusion_regexes or None,
             overwrite_project=overwrite_project)
 
-        # this is temporary until Resources and Preprocessor class is implemented, these stopwords can also be passed in extract()
-        self.methodology.stopwords = self._sqlite.get_stopwords() 
-        self.methodology.inner_stopwords = self._sqlite.get_inner_stopwords()
-        
-
 # EXTRACTION FUNCTIONS
     def extract(self, case_normalization=False, regex_exclusion=False, verbose=False) -> Results:
         '''
