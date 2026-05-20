@@ -1,18 +1,18 @@
 from TBXTools import Extractor, StatisticalExtractor
 
-corpora = ["Mental_health.txt", "Mental_disorder.txt"]
+corpus = ["Mental_health.txt"]
 
 extractor = Extractor(
     methodology=StatisticalExtractor(nmin=2, nmax=3),
     project_name="test-example",
-    corpus=corpora,
+    corpus=corpus,
     language="english",
     overwrite_project=True
 )
 
 results = extractor.extract(case_normalization=True, verbose=False)
 
-results.nest_normalization(verbose=False)
+results.nest_normalization(verbose=True)
 results.regex_exclusion(verbose=False)
 results.save_candidates("save-test.txt")
 
