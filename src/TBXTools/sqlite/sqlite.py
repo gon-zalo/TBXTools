@@ -5,7 +5,7 @@ import string
 
 class SQLite:
     '''
-    Class to manage SQLite functions.
+    Manage SQLite functions.
     '''
 
     def __init__(self, corpus, project_name, stopwords, inner_stopwords, exclusion_regexes, overwrite_project):
@@ -26,10 +26,11 @@ class SQLite:
                 self.load_exclusion_regexes(exclusion_regexes=exclusion_regexes)
 
     def add_extension(self, project_name):
+        '''Adds the extension .sqlite to the database file.'''
         return Path(project_name).with_suffix('.sqlite')
 
     def initialize_project(self, project_name, overwrite_project):
-
+        '''Initialize the SQLite project, either opening an existing one or creating a new one.'''
         file_name = self.add_extension(project_name=project_name)
     
         if file_name.exists() and not overwrite_project:
@@ -81,6 +82,7 @@ class SQLite:
             self.cur = self.conn.cursor() 
 
     def read_corpus(self, corpus_file, encoding):
+        '''Read a corpus file.'''
         data = []
         continserts = 0
         with open(corpus_file, "r", encoding=encoding, errors="ignore") as file:
@@ -96,7 +98,7 @@ class SQLite:
 
     # LOAD METHODS
     def load_corpus(self, corpus, encoding="utf-8", compoundify=False, comp_symbol="▁"):
-        '''Loads a monolingual corpus for the source language. It's recommended, but not compulsory, that the corpus is segmented (one segment per line). Use external tools to segment the corpus. A plain text corpus (not segmented), can be also used.'''
+        '''Loads a corpus. It's recommended, but not compulsory, that the corpus is segmented (one segment per line). Use external tools to segment the corpus. A plain text corpus (not segmented), can be also used.'''
 
         if isinstance(corpus, list):
             for corpus_file in corpus:
@@ -109,6 +111,12 @@ class SQLite:
             print(f"Corpus loaded")
 
     def load_stopwords(self, stopwords , encoding="utf-8"):
+        '''Load the stopwords into the database.
+        
+        Args:
+        
+            stopwords: A stopwords list or file.
+        '''
         data=[]
 
         if isinstance(stopwords, set):
@@ -126,6 +134,12 @@ class SQLite:
             self.cur.executemany("INSERT INTO stopwords (stopword) VALUES (?)",data) 
 
     def load_inner_stopwords(self, inner_stopwords , encoding="utf-8"):
+        '''Load the inner stopwords into the database.
+        
+        Args:
+        
+            stopwords: A inner stopwords list or file.
+        '''
         data=[]
         
         if isinstance(inner_stopwords, set):
@@ -161,20 +175,24 @@ class SQLite:
 
     # INSERT METHODS
     def insert_segments(self, data):
+        '''Inserts the segmented corpus into the database.'''
         with self.conn:
             self.cur.executemany("INSERT INTO corpus (segment) VALUES (?)", data)
 
     def insert_ngrams(self, data):
+        '''Inserts Ngrams into the database.'''
         if not self.table_is_populated("ngrams"):
             with self.conn:
                 self.cur.executemany("INSERT INTO ngrams (ngram, n, frequency) VALUES (?,?,?)", data)
     
     def insert_tokens(self, data):
+        '''Inserts tokens into the database'''
         if not self.table_is_populated("tokens"):
             with self.conn:
                 self.cur.executemany("INSERT INTO tokens (token, frequency) VALUES (?,?)", data)
 
     def insert_candidate_terms(self, data):
+        '''Inserts candidate terms into the database'''
         if not self.table_is_populated("candidate_terms"):
             with self.conn:
                 self.cur.executemany("INSERT INTO candidate_terms (candidate, n, frequency, measure, value) VALUES (?,?,?,?,?)", data)
@@ -184,7 +202,8 @@ class SQLite:
             self.cur.executemany("INSERT INTO filtered_candidate_terms (candidate, n, frequency, measure, value) VALUES (?,?,?,?,?)", data)
 
     # GET METHODS
-    def get_segments(self, corpus=None): # corpus in case we want to implement SL and TL
+    def get_segments(self):
+        '''Gets the segmented corpus as a list of segments from the database.'''
         segments = []
         with self.conn:
             self.cur.execute("SELECT segment from corpus")
@@ -196,6 +215,7 @@ class SQLite:
         return segments
 
     def get_stopwords(self):
+        '''Gets the list of stopwords from the database'''
         stopwords = []
         with self.conn:
             self.cur.execute("SELECT stopword FROM stopwords")
@@ -206,6 +226,7 @@ class SQLite:
         return stopwords
     
     def get_inner_stopwords(self):
+        '''Gets the list of inner stopwords from the database'''
         inner_stopwords = []
         with self.conn:
             self.cur.execute("SELECT inner_stopword FROM inner_stopwords")
@@ -216,6 +237,7 @@ class SQLite:
         return inner_stopwords
     
     def get_ngrams(self):
+        '''Gets the list of Ngrams from the database'''
         ngrams = []
         with self.conn:
             self.cur.execute("SELECT ngram, n, frequency FROM ngrams ORDER BY frequency DESC")
@@ -226,6 +248,7 @@ class SQLite:
         return ngrams
 
     def get_candidate_terms(self):
+        '''Gets the list of candidate terms from the database'''
         candidate_terms = []
         with self.conn:
             self.cur.execute("SELECT candidate, n, frequency FROM candidate_terms ORDER BY frequency DESC")
@@ -236,6 +259,7 @@ class SQLite:
         return candidate_terms
         
     def get_exclusion_regexes(self):
+        '''Gets the list of exclusion regexes from the database'''
         regexes = []
         with self.conn:
             self.cur.execute("SELECT exclusion_regex FROM exclusion_regexes")
@@ -272,6 +296,7 @@ class SQLite:
 
 # ADD FUNCTIONS
     def add_stopwords(self, stopwords_list):
+        '''Add stopwords to the database that do not exist already.'''
         current_stopwords = self.get_stopwords()
         data = []
         for stopword in stopwords_list:
@@ -284,6 +309,7 @@ class SQLite:
             self.cur.executemany("INSERT INTO stopwords (stopword) VALUES (?)",data) 
 
     def add_inner_stopwords(self, inner_stopwords_list):
+        '''Add inner stopwords to the database that do not exist already.'''
         current_inner_stopwords = self.get_inner_stopwords()
         data = []
         for inner_stopword in inner_stopwords_list:
@@ -297,6 +323,7 @@ class SQLite:
 
 # CHECK FUNCTIONS
     def table_is_populated(self, table_name):
+        '''Checks if a table in the database contains data.'''
         with self.conn:
             self.cur.execute(f"SELECT COUNT(*) FROM {table_name}")
             count = self.cur.fetchone()[0]
