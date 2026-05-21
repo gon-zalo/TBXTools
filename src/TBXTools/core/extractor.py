@@ -1,25 +1,21 @@
-# main class
 from ..sqlite import SQLite
 from ..processor import Processor
 from ..results import Results
 from ..utils import get_lang
 from ..resources import Resources
 
-from pathlib import Path
-
 class Extractor:
 
     def __init__(self, project_name, methodology, corpus, stopwords=None, inner_stopwords=None, exclusion_regexes=None, language=None, overwrite_project=False):
-        # self.project_name = project_name
-        # self.corpus = corpus
         self.methodology = methodology
         self.lang, self._lang_code = get_lang(language.lower())
 
         self._resources = Resources(lang_code=self._lang_code)
-        self._stopwords = stopwords or self._resources.fetch_stopwords()
-        self._inner_stopwords = inner_stopwords or self._resources.fetch_inner_stopwords()
 
         self._processor = Processor()
+        self._processor.stopwords = stopwords or self._resources.fetch_stopwords()
+        self._processor.inner_stopwords = inner_stopwords or self._resources.fetch_inner_stopwords()
+
         self.methodology._processor = self._processor
 
         # initializing the SQLite database
@@ -41,7 +37,7 @@ class Extractor:
         segments = self._sqlite.get_segments()
 
         # this returns a Results object
-        results = self.methodology.extract(segments=segments, verbose=verbose, stopwords=self._stopwords, inner_stopwords=self._inner_stopwords)
+        results = self.methodology.extract(segments=segments, verbose=verbose)
         self._sqlite.insert_tokens(results._tokens)
 
         # passing the sqlite connection and Processor()to the Results object
@@ -74,17 +70,17 @@ class Extractor:
         pass
 
     def stopwords(self):
-        return self._stopwords
-
+        return self._processor.stopwords
+    
     def inner_stopwords(self):
-        return self._inner_stopwords
+        return self._processor.inner_stopwords
     
     def add_stopwords(self, stopwords_list):
         if isinstance(stopwords_list, list):
             self._sqlite.add_stopwords(stopwords_list=stopwords_list)
-            self._stopwords = self._sqlite.get_stopwords() # updating the attribute of the class
+            self._processor.stopwords = self._sqlite.get_stopwords() # updating the attribute of the class
 
     def add_inner_stopwords(self, inner_stopwords_list):
         if isinstance(inner_stopwords_list, list):
             self._sqlite.add_inner_stopwords(inner_stopwords_list=inner_stopwords_list)
-            self._inner_stopwords = self._sqlite.get_inner_stopwords()
+            self._processor.inner_stopwords = self._sqlite.get_inner_stopwords()
