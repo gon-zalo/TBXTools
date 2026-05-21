@@ -20,6 +20,7 @@ class Extractor:
         self._inner_stopwords = inner_stopwords or self._resources.fetch_inner_stopwords()
 
         self._processor = Processor()
+        self.methodology._processor = self._processor
 
         # initializing the SQLite database
         self._sqlite = SQLite(
@@ -43,6 +44,10 @@ class Extractor:
         results = self.methodology.extract(segments=segments, verbose=verbose, stopwords=self._stopwords, inner_stopwords=self._inner_stopwords)
         self._sqlite.insert_tokens(results._tokens)
 
+        # passing the sqlite connection and Processor()to the Results object
+        results._sqlite = self._sqlite
+        results._processor = self._processor
+        
         if case_normalization:
             normalized_terms = self._processor.case_normalization(candidate_terms=results._terms, verbose=verbose)
            
@@ -52,8 +57,6 @@ class Extractor:
         self._sqlite.delete_candidate_terms() # keep an eye on this
         self._sqlite.insert_candidate_terms(results._terms)
         
-        # passing the sqlite connection to the Results object
-        results._sqlite = self._sqlite
 
         if not results._extractor_info:
             print("Error: Unknown extractor")
@@ -79,7 +82,9 @@ class Extractor:
     def add_stopwords(self, stopwords_list):
         if isinstance(stopwords_list, list):
             self._sqlite.add_stopwords(stopwords_list=stopwords_list)
+            self._stopwords = self._sqlite.get_stopwords() # updating the attribute of the class
 
     def add_inner_stopwords(self, inner_stopwords_list):
         if isinstance(inner_stopwords_list, list):
             self._sqlite.add_inner_stopwords(inner_stopwords_list=inner_stopwords_list)
+            self._inner_stopwords = self._sqlite.get_inner_stopwords()
