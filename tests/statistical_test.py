@@ -1,6 +1,6 @@
 from TBXTools import Extractor, StatisticalExtractor
 
-corpus = ["Mental_health.txt"]
+corpus = ["Mental_disorder.txt"]
 
 extractor = Extractor(
     methodology=StatisticalExtractor(nmin=2, nmax=3),
@@ -20,3 +20,7 @@ results.save_candidates("save-test.txt")
 print(f"\nTerms: {results.terms()}")
 print(f"\nNgrams: {results.ngrams()}")
 print(f"\nTokens: {results.tokens()}")
+
+
+
+
