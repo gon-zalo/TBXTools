@@ -22,7 +22,7 @@ class StatisticalExtractor(BaseExtractor):
         self.nmax = nmax
 
         self.extractor_info = "statistical"
-        self._processor= Processor()
+        self._processor = None # passed from Extractor()
         
 # MAIN FUNCTION
     def extract(self, segments, stopwords, inner_stopwords, verbose=False):
