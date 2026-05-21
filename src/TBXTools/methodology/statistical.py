@@ -2,7 +2,6 @@ import nltk
 from nltk.util import ngrams as compute_ngrams
 from .base import BaseExtractor
 from ..results import Results
-from ..processor import Processor 
 
 class StatisticalExtractor(BaseExtractor):
     '''
@@ -25,7 +24,7 @@ class StatisticalExtractor(BaseExtractor):
         self._processor = None # passed from Extractor()
         
 # MAIN FUNCTION
-    def extract(self, segments, stopwords, inner_stopwords, verbose=False):
+    def extract(self, segments, verbose=False):
         '''
         Extracts candidate terms from text segments using a statistical methodology. This methodology is based on calculating n-grams and filtering candidates using stopwords and inner stopwords. Specifically, it removes any terms that start or end with a word in the stopword list, as well as terms that contain an inner stopword. The actual extraction logic is delegated to the '_statistical_extraction' method.
 
@@ -40,13 +39,13 @@ class StatisticalExtractor(BaseExtractor):
         '''
         print("Methodology: statistical")
         
-        ngrams, tokens, candidate_terms = self._statistical_extraction(segments=segments, stopwords=stopwords, inner_stopwords=inner_stopwords)
+        ngrams, tokens, candidate_terms = self._statistical_extraction(segments=segments)
 
         return Results(terms=candidate_terms, ngrams=ngrams, tokens=tokens, extractor_info=self.extractor_info)
     
 # COMPUTING FUNCTIONS
 
-    def _statistical_extraction (self, segments, stopwords, inner_stopwords, minfreq=2):
+    def _statistical_extraction (self, segments, minfreq=2):
         '''
         Handles the core computation of the statistical extraction pipeline. It processes the text segments to generate tokens and n-grams, calculates their frequency distributions, and applies stopword filtering (both boundary and inner) alongside a minimum frequency threshold to isolate the final candidate terms. 
 
@@ -104,7 +103,7 @@ class StatisticalExtractor(BaseExtractor):
  
         for full_term, n, freq in ngrams_output:
 
-            full_term = self._processor.filter_by_stopwords(term=full_term, stopwords=stopwords, inner_stopwords=inner_stopwords)
+            full_term = self._processor.filter_by_stopwords(term=full_term)
 
             if full_term is None:
                 continue

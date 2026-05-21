@@ -1,6 +1,3 @@
-
-from ..processor import Processor
-from ..sqlite import SQLite
 import sys
 
 class Results:
