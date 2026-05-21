@@ -12,7 +12,7 @@ extractor = Extractor(
 
 results = extractor.extract(case_normalization=True, verbose=False)
 
-results.nest_normalization(verbose=True)
+results.nest_normalization(verbose=False)
 results.regex_exclusion(verbose=False)
 results.save_candidates("save-test.txt")
 
