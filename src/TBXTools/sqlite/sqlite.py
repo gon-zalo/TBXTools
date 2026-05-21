@@ -11,20 +11,12 @@ class SQLite:
     def __init__(self, corpus, project_name, stopwords, inner_stopwords, exclusion_regexes=None, overwrite_project=False):
         self.cur = None
         self.MAX_INSERTS = 10000
-        # self.punctuation = string.punctuation
 
-        self.INITIALIZE_TABLES = ["corpus", "stopwords", "inner_stopwords", "exclusion_regexes"]
+        self.TABLES_TO_LOAD_AT_START = ["corpus", "stopwords", "inner_stopwords", "exclusion_regexes"]
 
     # Initializing project, corpus, stopwords, etc.
         self.initialize_project(project_name=project_name, overwrite_project=overwrite_project)
-
-        for table in self.INITIALIZE_TABLES:
-            if not self.table_is_populated(table):
-                self.load_corpus(corpus=corpus)
-                self.load_stopwords(stopwords=stopwords)
-                self.load_inner_stopwords(inner_stopwords=inner_stopwords)
-                if exclusion_regexes:
-                    self.load_exclusion_regexes(exclusion_regexes=exclusion_regexes)
+        self.load_data_to_tables(table_names=self.TABLES_TO_LOAD_AT_START, corpus=corpus, stopwords=stopwords, inner_stopwords=inner_stopwords, exclusion_regexes=exclusion_regexes)
 
     def add_extension(self, project_name):
         '''Adds the extension .sqlite to the database file.'''
@@ -33,12 +25,12 @@ class SQLite:
     def initialize_project(self, project_name, overwrite_project):
         '''Initialize the SQLite project, either opening an existing one or creating a new one.'''
         file_name = self.add_extension(project_name=project_name)
-    
-        if file_name.exists() and not overwrite_project:
+
+        if file_name.exists() and overwrite_project==False:
             self.open_project(project_name=project_name)
 
-        elif file_name.exists and overwrite_project:
-            self.create_project(project_name=project_name, overwrite=overwrite_project)
+        elif file_name.exists() and overwrite_project==True:
+            self.create_project(project_name=project_name, overwrite=True)
         
         else:
             self.create_project(project_name=project_name)
@@ -48,17 +40,11 @@ class SQLite:
 
         project_name = self.add_extension(project_name)
         print(f"Creating project: {project_name}")
-        # if os.path.isfile(project_name) and not overwrite:
-        #         raise Exception("This project already exists. Use open_project().")
         
-        # else:
         if os.path.isfile(project_name) and overwrite:
             os.remove(project_name)
 
         self.conn = sqlite3.connect(project_name)
-
-        # for table in self.TABLE_NAMES:
-        #     self.check_if_table_is_populated(table)
 
         with self.conn:
             self.cur = self.conn.cursor()
@@ -163,18 +149,18 @@ class SQLite:
     def load_exclusion_regexes(self, exclusion_regexes, encoding='utf-8'):
         '''Loads the exclusion regular expressions for the source language.'''
         data=[]
+        if exclusion_regexes:
+            if isinstance(exclusion_regexes, list):
+                data = [(regex,) for regex in exclusion_regexes]
 
-        if isinstance(exclusion_regexes, list):
-            data = [(regex,) for regex in exclusion_regexes]
+                print("Exclusion regexes loaded")
+            else:
+                with open(exclusion_regexes, "r", encoding=encoding) as f:
+                    data = [(line.rstrip(),) for line in f]
+                print("Exclusion regexes loaded from file")
 
-            print("Exclusion regexes loaded")
-        else:
-            with open(exclusion_regexes, "r", encoding=encoding) as f:
-                data = [(line.rstrip(),) for line in f]
-            print("Exclusion regexes loaded from file")
-
-        with self.conn:
-            self.cur.executemany('INSERT INTO exclusion_regexes (exclusion_regex) VALUES (?)',data)
+            with self.conn:
+                self.cur.executemany('INSERT INTO exclusion_regexes (exclusion_regex) VALUES (?)',data)
 
 
     # INSERT METHODS
@@ -331,4 +317,22 @@ class SQLite:
         with self.conn:
             self.cur.execute(f"SELECT COUNT(*) FROM {table_name}")
             count = self.cur.fetchone()[0]
-            return count > 0
+            if count > 0:
+                return True
+            else:
+                return False
+            
+    def load_data_to_tables(self, table_names, corpus, stopwords, inner_stopwords, exclusion_regexes):
+
+        loaders = {
+            "corpus": lambda: self.load_corpus(corpus=corpus),
+            "stopwords": lambda: self.load_stopwords(stopwords=stopwords),
+            "inner_stopwords": lambda: self.load_inner_stopwords(inner_stopwords=inner_stopwords),
+            "exclusion_regexes": lambda: self.load_exclusion_regexes(exclusion_regexes=exclusion_regexes)
+        }
+
+        for table in table_names:
+            loader = loaders.get(table)
+            # if the table does not have data, it is loaded in
+            if loader and not self.table_is_populated(table_name=table):
+                loader()
