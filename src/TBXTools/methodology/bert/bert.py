@@ -1,22 +1,20 @@
-from .base import BaseExtractor
+from ..base import BaseExtractor
+from ...results import Results
+import nltk
 
 class BertExtractor(BaseExtractor):
 
-    def __init__(self, model=None, tokenizer=None, external_terms=None, lr=None, batch_size=None, epochs=None, weight_decay=None):
-        
+    def __init__(self, model, labels):
         from transformers import AutoTokenizer
 
-        self.model = model or 'distilbert/distilbert-base-uncased'
-        self.tokenizer = tokenizer or AutoTokenizer.from_pretrained(self.model, max_length=512, force_download=False, do_lower_case=False)
-        self.external_terms = external_terms
+        # self.biobert = 'dmis-lab/biobert-base-cased-v1.2'
+        self.model = model
 
-        self.lr = lr or 5e-05 # learning rate
-        self.batch_size = batch_size or 16
-        self.epochs = epochs or 3
-        self.weight_decay = weight_decay or 0.03
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model, max_length=512, force_download=False, do_lower_case=False)
 
-        self.tokens = None
-        self.labels = None
+        self.labels = labels.lower()
+        self.extractor_info = "bert"
+        self._processor = None
         
     def _flatten_list(self, list_of_lists): # needed for bio_tag
 
@@ -80,6 +78,12 @@ class BertExtractor(BaseExtractor):
             tokenized_terms.append(self.tokenizer.tokenize(term))
 
         return tokenized_terms
+    
+    # def _tokenize(self, segments):
+    #     data = []
+    #     for segment in segments:
+    #         tokenized_segment = self.tokenizer(segment)
+    #         data.append(tokenized_segment)
 
     def _merge_tokens(predicted_terms):
         import re
@@ -135,16 +139,30 @@ class BertExtractor(BaseExtractor):
             
         return merged_terms
 
-    def _train(self):
+    def extract(self, segments, verbose): 
+        # get data
+        # get terms
+        # annotate data
+        # fine tune model
+        # use the model for predictions
+
+        tokensFD = nltk.probability.FreqDist()
+        tokenized_corpus = []
+        token_ids = []
+        for segment in segments:
+            tokens = self.tokenizer.tokenize(segment)
+            tokenized_corpus.append(tokens)
+            for token in tokens:
+                tokensFD[token] += 1
+
+        tokens_output = []
+        for token, freq in tokensFD.most_common():
+            tokens_row = (token, freq)
+            tokens_output.append(tokens_row)
+
+
+        # print(tokens_output)
+        return Results(tokens=tokens_output, extractor_info=self.extractor_info)
+
+    def tag(self, labels):
         pass
-
-    def _preprocess(self, text, external_terms):
-        tokenized_external_terms = self._tokenize_terms(external_terms)
-
-    def extract(self, segments): 
-        # from datasets import Dataset
-        # from transformers import BertTokenizer, Trainer, BertForTokenClassification, DataCollatorForTokenClassification
-
-
-        for segment in segments[:1]:
-            print(segment)
