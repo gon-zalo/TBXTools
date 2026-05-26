@@ -8,8 +8,8 @@ class StatisticalExtractor(BaseExtractor):
     Manages statistical terminology extraction.
     
     Attributes:
-        nmin (int): The minimum length for the extracted n-grams.
-        nmax (int): The maximum length for the extracted n-grams.
+        nmin (int): The minimum number of words a candidate term can contain.
+        nmax (int): The maximum number of words a candidate term can contain.
         extractor_info (str): A string identifier for the extraction methodology used (defaults to "statistical").
         _processor (Processor): An internal instance of the Processor class used to handle text preprocessing tasks.
 
@@ -30,9 +30,7 @@ class StatisticalExtractor(BaseExtractor):
 
     Args:
         segments: A list of text segments to process.
-        stopwords: A collection of words to ignore during extraction.
-        inner_stopwords: A collection of words to ignore if they appear inside a term.
-        verbose (bool, optional): If True, prints processing details. Defaults to False.
+        verbose (bool, optional): If True, enables detailed logging. Defaults to False.
 
     Returns:
         Results: An object containing the candidate terms, n-grams, tokens, and extractor information. 
@@ -51,8 +49,6 @@ class StatisticalExtractor(BaseExtractor):
 
         Args:
             segments: A list of text segments to process.
-            stopwords: A collection of words to ignore at the boundaries (start/end) of extraction.
-            inner_stopwords: A collection of words to ignore if they appear inside a term.
             minfreq (int, optional): The minimum frequency required for an n-gram to be considered a candidate term. Defaults to 2.
 
         Returns:

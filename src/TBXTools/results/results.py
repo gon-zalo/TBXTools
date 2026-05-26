@@ -12,9 +12,10 @@ class Results:
         _processor: Class to process data.
         _sqlite: Class to manage the SQLite database.
     '''
-    def __init__(self, *, terms=None, ngrams=None, tokens=None, extractor_info=None):
+    def __init__(self, *, terms=None, ngrams=None, tagged_ngrams=None, tokens=None, extractor_info=None):
         self._terms = terms or []
         self._ngrams = ngrams or []
+        self._tagged_ngrams= tagged_ngrams or []
         self._tokens = tokens or []
         self._extractor_info = extractor_info or None
 
@@ -48,7 +49,7 @@ class Results:
         tokens = [token[0] for token in self._tokens]
         return tokens[:limit]
     
-    def ngrams(self, limit=20):
+    def ngrams(self, limit=20): 
         '''Gets the list of Ngrams
 
         Args:
@@ -60,6 +61,18 @@ class Results:
         ngrams = [ngram[0] for ngram in self._ngrams]
         return ngrams[:limit]
     
+    def tagged_ngrams(self, limit=20): 
+        '''Gets the list of Tagged Ngrams
+        
+        Args:
+            limit: The number of Tagged Ngrams accessed. Default is 20.
+            
+        Return:
+            list: a list of Tagged Ngrams.
+        '''
+        tagged_ngrams= [tagged_ngram[0] for tagged_ngram in self._tagged_ngrams]
+        return tagged_ngrams[:limit]
+    
     def nest_normalization(self, percent=10, verbose=False):
         '''Performs nest normalization of the terms.
 
@@ -67,18 +80,18 @@ class Results:
             percent: The frequency compatibility interval that is used to calculate if a term is nested inside another.
             verbose (bool): Print the process in the console. 
         '''
-        if self._extractor_info != "statistical":
-            print(f"Error: Nest normalization cannot be run with {self._extractor_info} extractor")
-            sys.exit()
+        #if self._extractor_info != "statistical": #questa parte la devi cambiare- usiamo nest anche per il linguistic
+            #print(f"Error: Nest normalization cannot be run with {self._extractor_info} extractor")
+            #sys.exit()
 
-        else:
-            candidate_terms = self._terms
+        #else:
+        candidate_terms = self._terms
 
-            filtered_terms = self._processor.nest_normalization(candidate_terms=candidate_terms, percent= percent, verbose=verbose)
+        filtered_terms = self._processor.nest_normalization(candidate_terms=candidate_terms, percent= percent, verbose=verbose)
 
-            self._sqlite.delete_candidate_terms()
-            self._sqlite.insert_candidate_terms(filtered_terms)
-            self._terms = filtered_terms
+        self._sqlite.delete_candidate_terms()
+        self._sqlite.insert_candidate_terms(filtered_terms)
+        self._terms = filtered_terms
             
 
     def regex_exclusion(self, verbose=False):
@@ -102,6 +115,11 @@ class Results:
                 print(f"Excluded {len(candidates_to_exclude)} terms")
             else:
                 print("No candidate terms excluded")
+    
+    #forse da fare la prossima- non sono sicura serva- dipende come gestirai le funzioni tagged_ngram extraction e linguistic extraction
+    def linguistic_patterns(self, verbose= False):
+        pass
+
 
     def save_candidates(self, file_name):
         '''

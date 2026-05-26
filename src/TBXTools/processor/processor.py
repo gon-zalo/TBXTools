@@ -2,14 +2,28 @@ from nltk.tokenize import RegexpTokenizer
 
 class Processor:
 
+    '''Manages the text preprocessing pipeline for terminology extraction. This class provides methods for tokenizing text segments, applying case and nest normalizations, and filtering candidate terms using stopwords and regular expressions.
+
+    Attributes:
+        stopwords (list/set): A collection of standard words to filter out.
+        inner_stopwords (list/set): A collection of words to filter out when found inside a term.   
+    '''
+
     def __init__(self):
 
         self.stopwords = None
         self.inner_stopwords = None
     
-    def case_normalization(self, candidate_terms, verbose=False):
+    def case_normalization(self, candidate_terms, verbose=False): 
         '''
         Performs case normalization. If a capitalized term exists as non-capitalized, the capitalized one will be deleted and the frequency of the non-capitalized one will be increased by the frequency of the capitalized.
+
+        Args:
+          candidate_terms: a list of tuple containing the candidate terms 
+          verbose: If True, enables detailed logging. Defaults to False.
+        
+        Returns:
+          normalized_terms: A new list of tuple after applying case normalization.
         '''
         print("Applying case normalization")
 
@@ -37,7 +51,17 @@ class Processor:
     
     def nest_normalization(self, candidate_terms, percent=10, verbose=False):
         """
-        Normalize candidate term frequencies by reducing the frequency of terms that occur as nested subterms inside longer candidate terms. A percentage threshold (percent parameter) defines a frequency compatibility interval around each candidate term frequency (±percent%). Only nested terms whose frequency falls within this interval are subtracted from the frequency of the base (candidate) term. Terms whose normalized frequency becomes 0 are removed from the final candidate list.
+        Normalizes candidate term frequencies by accounting for nested subterms. Reduces the frequency of terms that appear inside longer candidate terms. A frequency compatibility interval (±percent%) is defined around each candidate term's frequency. The frequency of a nested term is only subtracted from the base term if it falls within this interval. Terms whose normalized frequency drops to 0 are removed from the final list.
+
+        Args:
+          candidate_terms: a list of tuple containing the candidate terms 
+          percent (int or float, optional): The percentage threshold defining the compatibility interval around each frequency. Defaults to 10.
+          verbose: If True, enables detailed logging. Defaults to False.
+        
+        Returns:
+          updated_terms: A new list of tuple after applying nest normalization.
+
+
         """
         print("Applying nested frequency normalization")
 
@@ -107,6 +131,15 @@ class Processor:
     def regex_exclusion(self, regexes, candidate_terms, verbose=False):
         '''
         Remove candidate terms that match regex expressions. It takes data in tuples as rows and outputs a list of candidate terms to exclude.
+
+        Args:
+          regexes: regular expression patterns used to match and filter out unwanted terms.
+          candidate_terms: a list of tuple containing the candidate terms.
+          verbose: If True, enables detailed logging. Defaults to False.
+        
+        Returns:
+          candidates_to_exclude: a list of candidate terms to exclude
+
         '''
         import re
 
@@ -133,6 +166,12 @@ class Processor:
     def tokenize(self, segment):
         """
         Tokenizes a text segment into word tokens, removing punctuation outside words while preserving internal characters such as apostrophes and hyphens.
+
+        Args: 
+          segment (str): A text segment to be tokenized.
+
+        Returns: 
+          list[str]: A list of tokens extracted from the segment.
         """
         
         tokenizer = RegexpTokenizer(r"\b\w(?:[\w'‘’.,-]*\w)?\b")
@@ -143,8 +182,13 @@ class Processor:
 
     def filter_by_stopwords(self, term):
         """
-        Removes terms containing invalid stopwords.
-        Returns the term if valid, otherwise None.
+        Filters a candidate term by checking for invalid stopwords. A term is rejected (returns None) if it contains a standard stopword at its boundaries (start/end) or an inner stopword in its middle tokens.
+
+        Args: 
+          term(str): The candidate term string to validate.
+        
+        Returns:
+          str or None: The original term string if it passes all stopword filters, otherwise None.
         """
         split_term = term.lower().split()
 
@@ -159,6 +203,32 @@ class Processor:
                 return None
 
         return term
+    
+#non credo funzioni- vedrai poi
+#funzione di filtro per stopwords con il linguistic- vediamo se funziona
+    def filter_by_stopwords_linguistic(self, term):
+        
+        split_term = term.lower().split()
+        
+        first_word = split_term[0].split("|")[0]
+        if first_word in self.stopwords:
+            return None
+        
+        last_word = split_term[-1].split("|")[0]
+        if last_word in self.stopwords:
+            return None
+        
+        for token in split_term[1:-1]:
+            inner_word = token.split("|")[0]
+            if inner_word in self.inner_stopwords:
+                return None
+            
+        return term
+    
+
+       
+    
+
     
 
     
