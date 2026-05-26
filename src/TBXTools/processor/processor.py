@@ -161,8 +161,8 @@ class Processor:
                         print(f"'{candidate}' removed by: {regex}")
 
         return candidates_to_exclude
-
-            
+    
+               
     def tokenize(self, segment):
         """
         Tokenizes a text segment into word tokens, removing punctuation outside words while preserving internal characters such as apostrophes and hyphens.
@@ -210,19 +210,14 @@ class Processor:
         
         split_term = term.lower().split()
         
-        first_word = split_term[0].split("|")[0]
+        first_word = split_term[0].split("|")[1]
         if first_word in self.stopwords:
             return None
         
-        last_word = split_term[-1].split("|")[0]
+        last_word = split_term[-1].split("|")[1]
         if last_word in self.stopwords:
             return None
         
-        for token in split_term[1:-1]:
-            inner_word = token.split("|")[0]
-            if inner_word in self.inner_stopwords:
-                return None
-            
         return term
     
 

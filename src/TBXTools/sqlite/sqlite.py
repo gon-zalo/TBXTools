@@ -155,8 +155,6 @@ class SQLite:
         else:
             with open(stopwords, "r", encoding=encoding) as f:
                 data = [(line.rstrip(),) for line in f]
-            
-            # data.extend((punct,) for punct in self.punctuation) # remove this at some point?
 
             print("Stopwords loaded from file") 
         with self.conn:
@@ -179,30 +177,13 @@ class SQLite:
             with open(inner_stopwords, "r", encoding=encoding) as f:
                 data = [(line.rstrip(),) for line in f]
             
-            # data.extend((punct,) for punct in self.punctuation) # remove this at some point?
             print("Inner stopwords loaded from file") 
 
         with self.conn:
             self.cur.executemany("INSERT INTO inner_stopwords (inner_stopword) VALUES (?)",data) 
 
-    def load_linguistic_patterns(self,file, encoding="utf-8"):
-        '''Loads the linguistic patterns to use with linguistic terminology extraction.'''
-        entrada= open(file,"r",encoding=encoding) 
-        data=[]
-        record=[]
-        for linia in entrada:
-            linia=linia.rstrip()
-            npattern=len(linia.split(" "))
-            if npattern<self.n_min_pos_patterns: self.n_min_pos_patterns=npattern
-            if npattern>self.n_max_pos_patterns: self.n_max_pos_patterns=npattern
-            pattern=self.translate_linguistic_pattern(linia)
-            record.append(pattern)
-            data.append(record)
-            record=[]
-        with self.conn:
-            self.cur.executemany("INSERT INTO linguistic_patterns (linguistic_pattern) VALUES (?)",data)
 
-    
+    #how to improve this function- where should we put the inner function?
     def load_linguistic_patterns(self, linguistic_patterns, encoding="utf-8"):
         def translate_pattern(pattern_str):
             aux = []
@@ -223,14 +204,12 @@ class SQLite:
             tp = "(" + " ".join(aux) + ")"
             return tp
 
-    # 2. LOGICA PRINCIPALE DI CARICAMENTO
         data = []
     
         if not linguistic_patterns:
             print("Statistical extraction: no linguistic patterns to load into the database.")
             return
     
-    # Caso A: Viene passata una lista di pattern
         if isinstance(linguistic_patterns, list):
             print("Processing linguistic patterns from list...")
             for pattern in linguistic_patterns:
@@ -239,7 +218,6 @@ class SQLite:
                     data.append((translated,))
             print("Linguistic patterns loaded")
     
-    # Caso B: Viene passato il percorso di un file
         elif isinstance(linguistic_patterns, str):
             print(f"Loading linguistic patterns from file: {linguistic_patterns}")
             with open(linguistic_patterns, "r", encoding=encoding) as f:
@@ -250,7 +228,6 @@ class SQLite:
                         data.append((translated,))
             print("Linguistic patterns loaded from file")
 
-    # 3. SCRITTURA NEL DATABASE
         if data:
             with self.conn:
                 self.cur.executemany('INSERT INTO linguistic_patterns (linguistic_pattern) VALUES (?)', data)

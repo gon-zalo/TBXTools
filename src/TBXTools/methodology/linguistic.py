@@ -27,19 +27,19 @@ class LinguisticExtractor(BaseExtractor):
 
     # MAIN FUNCTION
 
-    def ling_extract(self, tagged_segments, linguistic_patterns, stopwords, minfreq=2): #in teoria la funzione qui dovrebbe avere come argomento solo tagged_ngrams come la linguistic
+    def ling_extract(self, tagged_segments, linguistic_patterns, minfreq=2): 
         
         print("Methodology: linguistic")
-        tagged_ngrams= self.tagged_ngram_calculation(tagged_segments, minfreq=minfreq)
 
-        candidate_terms= self.linguistic_term_extraction(tagged_ngrams=tagged_ngrams, linguistic_patterns=linguistic_patterns, stopwords=stopwords, minfreq=minfreq)
+        candidate_terms, tagged_ngrams= self._linguistic_extraction(tagged_segments=tagged_segments, linguistic_patterns=linguistic_patterns, minfreq=minfreq)
 
         return Results(tagged_ngrams=tagged_ngrams, terms=candidate_terms, extractor_info="linguistic")
 
-    #questa in teoria funziona
-    def tagged_ngram_calculation (self, tagged_segments, minfreq=2):
+    #qui da qualche parte mi mette insieme singolari e plurali- es mental disorder- cerca di capire perché
+    #tieni in conto che però questo lo faceva anche nel codice vecchio quindi bo
+    def _linguistic_extraction(self, tagged_segments, linguistic_patterns, minfreq=2):
 
-        '''Calculates the tagged ngrams.'''
+        '''Calculates the tagged ngrams and extract candidate terms using the linguistic methodology'''
 
         ngramsFD=nltk.probability.FreqDist()
         nmin= self.nmin
@@ -61,12 +61,7 @@ class LinguisticExtractor(BaseExtractor):
                 tagged_ngrams_output.append(tagged_ngram_row)
                            
         self.ngrams = tagged_ngrams_output
-
-        return tagged_ngrams_output
-
-
-    def linguistic_term_extraction(self, tagged_ngrams, linguistic_patterns, stopwords, minfreq=2):
-        '''Performs an linguistic term extraction using the extracted tagged ngrams (tagged_ngram_calculation should be executed first). '''
+        
         processed_patterns=[]
         controlpatterns=[]
 
@@ -79,40 +74,30 @@ class LinguisticExtractor(BaseExtractor):
 
         raw_candidates=[] 
 
-        for tagged_ngram in tagged_ngrams:
-            include=True
-            ngram=tagged_ngram[0]
-            n=tagged_ngram[1]
-            frequency=tagged_ngram[2]
+        for ngram, n, frequency in tagged_ngrams_output:
 
-            if frequency<minfreq:
-                break
-           
-            try:
-                if ngram.split()[0].split("|")[1].lower() in stopwords: include=False
-            except:
-                pass
-            try:
-                if ngram.split()[-1].split("|")[1].lower() in stopwords: include=False
-            except:
-                pass
+            ngram= self._processor.filter_by_stopwords_linguistic(term= ngram)
 
-           
-            if include:
-                for pattern in processed_patterns:
-                    match=re.search(pattern, ngram)
-                    if match:
-                        if match.group(0)==ngram:          
-                            candidate=" ".join(match.groups()[1:])
-                            record=[]
-                            record.append(candidate)     
-                            record.append(n)
-                            record.append(frequency)   
-                            record.append("freq")
-                            record.append(frequency)   
-                            raw_candidates.append(record)
-                            break
-            
+            if ngram is None:
+                continue
+
+ #questa potrebbe diventare una funzione a parte da mettere nel processing
+ #vedila          
+            for pattern in processed_patterns:
+                match=re.search(pattern, ngram)
+                if match:
+                     if match.group(0)==ngram:
+                        candidate=" ".join(match.groups()[1:])
+                        record=[]
+                        record.append(candidate)     
+                        record.append(n)
+                        record.append(frequency)   
+                        record.append("freq")
+                        record.append(frequency)   
+                        raw_candidates.append(record)
+                        break
+
+#cerca di capire cosa sta facendo esattamente questa e vedi se la puoi ottimizzare o altro           
         tcaux={}
         for a in raw_candidates:
             cand_name=a[0]
@@ -132,6 +117,6 @@ class LinguisticExtractor(BaseExtractor):
             record.append(tcaux[tc])   
             data.append(record)
         
-        return data
+        return data, tagged_ngrams_output
             
 

@@ -76,8 +76,7 @@ class Extractor:
             # Chiamata originale
             results = self.methodology.ling_extract(
                 tagged_segments=tagged_segments,
-                linguistic_patterns=linguistic_patterns,
-                stopwords=self.stopwords
+                linguistic_patterns=linguistic_patterns
             )
 
         else:
