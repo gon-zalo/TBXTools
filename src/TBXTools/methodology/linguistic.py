@@ -61,7 +61,7 @@ class LinguisticExtractor(BaseExtractor):
                 tagged_ngrams_output.append(tagged_ngram_row)
                            
         self.ngrams = tagged_ngrams_output
-        
+
         processed_patterns=[]
         controlpatterns=[]
 
@@ -71,7 +71,8 @@ class LinguisticExtractor(BaseExtractor):
                 if not transformedpattern in controlpatterns:
                     processed_patterns.append(transformedpattern)
                     controlpatterns.append(transformedpattern)   
-
+        
+        
         raw_candidates=[] 
 
         for ngram, n, frequency in tagged_ngrams_output:
@@ -80,9 +81,8 @@ class LinguisticExtractor(BaseExtractor):
 
             if ngram is None:
                 continue
-
- #questa potrebbe diventare una funzione a parte da mettere nel processing
- #vedila          
+            
+#questa potrebbe diventare una funzione a parte da mettere nel processing
             for pattern in processed_patterns:
                 match=re.search(pattern, ngram)
                 if match:
@@ -96,7 +96,7 @@ class LinguisticExtractor(BaseExtractor):
                         record.append(frequency)   
                         raw_candidates.append(record)
                         break
-
+         
 #cerca di capire cosa sta facendo esattamente questa e vedi se la puoi ottimizzare o altro           
         tcaux={}
         for a in raw_candidates:

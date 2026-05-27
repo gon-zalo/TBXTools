@@ -1,4 +1,5 @@
 from nltk.tokenize import RegexpTokenizer
+import re
 
 class Processor:
 
@@ -141,7 +142,6 @@ class Processor:
           candidates_to_exclude: a list of candidate terms to exclude
 
         '''
-        import re
 
         candidates_to_exclude = []
         for candidate_row in candidate_terms:
@@ -221,7 +221,6 @@ class Processor:
         return term
     
 
-       
     
 
     

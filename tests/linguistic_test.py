@@ -7,7 +7,7 @@ tagged_corpus = ["mental_ling.txt"]
 
 extractor = Extractor(
     methodology=LinguisticExtractor(nmin=2, nmax=3),
-    project_name="linguistic_5",
+    project_name="linguistic_provissima",
     tagged_corpus=tagged_corpus,
     language="english",
     linguistic_patterns= "ling_pat-en.txt",
@@ -16,7 +16,7 @@ extractor = Extractor(
 
 results = extractor.extract(case_normalization=True, verbose=False)
 
-results.nest_normalization(verbose=True)
+results.nest_normalization(verbose=False)
 results.regex_exclusion(verbose=False)
 results.save_candidates("test.txt")
 
