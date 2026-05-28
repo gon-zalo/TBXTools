@@ -1,7 +1,8 @@
 import sqlite3
 import os
 from pathlib import Path
-import string
+import string #so far we are not using it- take it off in the final version
+
 
 class SQLite:
     '''
@@ -119,14 +120,12 @@ class SQLite:
             self.read_corpus(corpus_file=corpus, encoding=encoding)
             print(f"Corpus loaded")
     
-    #so far we implemented it only for spacy format (see old for more possibilities)
+    
     def load_tagged_corpus(self, tagged_corpus, encoding="utf-8"):
 
         if tagged_corpus is None:
             print("No tagged corpus provided. Skipping 'tagged_corpus' table load.")
             return
-
-
 
         if isinstance(tagged_corpus, list):
             for corpus_file in tagged_corpus:
@@ -471,3 +470,5 @@ class SQLite:
             # if the table does not have data, it is loaded in
             if loader and not self.table_is_populated(table_name=table):
                 loader()
+
+    

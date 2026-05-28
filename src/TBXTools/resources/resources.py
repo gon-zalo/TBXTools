@@ -17,3 +17,8 @@ class Resources:
     def fetch_inner_stopwords(self):
         module = import_module(f"TBXTools.resources.inner.{self.lang_code}")
         return module.INNER_STOPWORDS
+    
+    #tests for the implementation of spacy models
+    #def fetch_spacy_model(self):
+        #module = import_module(f"TBXTools.resources.spacy_model.{self.lang_code}")
+        #return module.SPACY_MODELS

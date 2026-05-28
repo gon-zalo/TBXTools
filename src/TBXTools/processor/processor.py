@@ -14,6 +14,7 @@ class Processor:
 
         self.stopwords = None
         self.inner_stopwords = None
+        #self.spacy_model= None could be useful for the spacy models- you'll see
     
     def case_normalization(self, candidate_terms, verbose=False): 
         '''
@@ -219,6 +220,13 @@ class Processor:
             return None
         
         return term
+    
+
+
+           
+            
+
+
     
 
     

@@ -1,10 +1,11 @@
 from ..sqlite import SQLite
 from ..processor import Processor
 from ..results import Results
+from ..methodology.tagger import LinguisticTagger
 from ..utils import get_lang
 from ..resources import Resources
 
-class Extractor:
+class Extractor: #remember to add the attributes that you added while implementing the linguistic extractor
     """
     Orchestrates the terminology extraction pipeline.
 
@@ -22,7 +23,7 @@ class Extractor:
         _processor (Processor): Internal component to handle text preprocessing tasks.
     """
 
-    def __init__(self, project_name, methodology, corpus= None, tagged_corpus= None, stopwords=None, inner_stopwords=None, exclusion_regexes=None, linguistic_patterns=None, language=None, overwrite_project=False):
+    def __init__(self, project_name, methodology, corpus= None, tagged_corpus= None, stopwords=None, inner_stopwords=None, exclusion_regexes=None, linguistic_patterns=None, language=None, input_is_tagged=False, overwrite_project=False):
         self.methodology = methodology
         self.lang, self._lang_code = get_lang(language.lower())
 
@@ -32,18 +33,25 @@ class Extractor:
         self._processor.stopwords = stopwords or self._resources.fetch_stopwords()
         self._processor.inner_stopwords = inner_stopwords or self._resources.fetch_inner_stopwords()
 
+        #the following lines could be helpful for when you want to implement the possibility to choose between models
+        #so far es_core.. is the default model
+        #if spacy_model is None:
+            #spacy_model= SPACY_MODELS.get(self._lang_code, "en_core_web_sm")
+
+        self._tagger = LinguisticTagger()
+
         self.methodology._processor = self._processor
 
+        is_ling = (methodology.extractor_info == "linguistic") #checks if the methodology used is the linguistic
         input_data = tagged_corpus if tagged_corpus is not None else corpus
     
-
         # initializing the SQLite database
         self._sqlite = SQLite(
             project_name=project_name, 
             stopwords=stopwords or self._resources.fetch_stopwords(), 
             inner_stopwords=inner_stopwords or self._resources.fetch_inner_stopwords(), 
-            corpus=input_data if methodology.extractor_info != "linguistic" else None,
-            tagged_corpus=input_data if methodology.extractor_info == "linguistic" else None,
+            corpus= None if (is_ling and input_is_tagged) else input_data, #corpus with both methodology- always wuth statistical vs linguistic- only if input_is_tagged= None
+            tagged_corpus=input_data if (is_ling and input_is_tagged) else None , #tagged corpus only if input_is_tagged= True and linguistic methodology
             exclusion_regexes=exclusion_regexes or None,
             linguistic_patterns=linguistic_patterns or None,
             overwrite_project=overwrite_project)
@@ -68,12 +76,34 @@ class Extractor:
 
         extractor_type = self.methodology.extractor_info
 
-        if extractor_type == "linguistic":
-            tagged_segments = self._sqlite.get_tagged_segments() 
+        if extractor_type == "linguistic": 
+            tagged_segments = self._sqlite.get_tagged_segments() #we check if there is a corpus in the database´s table "tagged_corpus"
+        
+        #the idea is to make the following part more pythonic and synthetic since we are in the extractor
+        #but for now it works
+            if not tagged_segments: #if tagged corpus table is empty- we proceed as follows
+                print("Corpus is not tagged. Starting POS tagging process")
 
+                segments = self._sqlite.get_segments() #we extract the segments from the table corpus- that contains the raw corpus
+
+                all_tagged_segments = []
+                db_data_to_insert = []
+
+                for segment in segments:
+                    single_tagged_segment= self._tagger.tag_segment(segment) #we pos tag every segment in the raw corpus
+
+                    if single_tagged_segment:
+                        all_tagged_segments.append(single_tagged_segment)
+                    
+                        db_data_to_insert.append((single_tagged_segment,))
+                
+                if db_data_to_insert: #we insert the new tagged corpus in the tagged corpus table
+                    self._sqlite.insert_tagged_segments(db_data_to_insert)
+                
+                tagged_segments= all_tagged_segments
+            #from here the linguistic extraction is the same
             linguistic_patterns = self._sqlite.get_linguistic_pattern() 
 
-            # Chiamata originale
             results = self.methodology.ling_extract(
                 tagged_segments=tagged_segments,
                 linguistic_patterns=linguistic_patterns
@@ -96,14 +126,11 @@ class Extractor:
 
         # passing the sqlite connection and Processor()to the Results object
         results._sqlite = self._sqlite
-        results._processor = self._processor
-        
-        
+        results._processor = self._processor    
 
         # inserting data into the database
         self._sqlite.delete_candidate_terms() # keep an eye on this
-        self._sqlite.insert_candidate_terms(results._terms)
-        
+        self._sqlite.insert_candidate_terms(results._terms)   
 
         if not results._extractor_info:
             print("Error: Unknown extractor")
@@ -113,7 +140,6 @@ class Extractor:
         
         elif results._extractor_info == "linguistic":
             self._sqlite.insert_tagged_ngrams(results._tagged_ngrams)
-
 
         return results
 
@@ -151,5 +177,10 @@ class Extractor:
         if isinstance(inner_stopwords_list, list):
             self._sqlite.add_inner_stopwords(inner_stopwords_list=inner_stopwords_list)
             self._processor.inner_stopwords = self._sqlite.get_inner_stopwords()
+
+    #maybe you'll need to use this for the spacy models
+    def add_spacy_models(self):
+        pass
+    
 
             
