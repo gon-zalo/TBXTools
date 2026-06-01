@@ -1,7 +1,7 @@
 from ..sqlite import SQLite
 from ..processor import Processor
 from ..results import Results
-from ..methodology.tagger import LinguisticTagger
+from ..methodology.tagger import LinguisticTagger, get_model_from_code
 from ..utils import get_lang
 from ..resources import Resources
 
@@ -33,12 +33,9 @@ class Extractor: #remember to add the attributes that you added while implementi
         self._processor.stopwords = stopwords or self._resources.fetch_stopwords()
         self._processor.inner_stopwords = inner_stopwords or self._resources.fetch_inner_stopwords()
 
-        #the following lines could be helpful for when you want to implement the possibility to choose between models
-        #so far es_core.. is the default model
-        #if spacy_model is None:
-            #spacy_model= SPACY_MODELS.get(self._lang_code, "en_core_web_sm")
+        chosen_spacy_model = get_model_from_code(self._lang_code)
 
-        self._tagger = LinguisticTagger()
+        self._tagger = LinguisticTagger(model_name= chosen_spacy_model)
 
         self.methodology._processor = self._processor
 
@@ -96,7 +93,7 @@ class Extractor: #remember to add the attributes that you added while implementi
                         all_tagged_segments.append(single_tagged_segment)
                     
                         db_data_to_insert.append((single_tagged_segment,))
-                
+
                 if db_data_to_insert: #we insert the new tagged corpus in the tagged corpus table
                     self._sqlite.insert_tagged_segments(db_data_to_insert)
                 
@@ -178,9 +175,7 @@ class Extractor: #remember to add the attributes that you added while implementi
             self._sqlite.add_inner_stopwords(inner_stopwords_list=inner_stopwords_list)
             self._processor.inner_stopwords = self._sqlite.get_inner_stopwords()
 
-    #maybe you'll need to use this for the spacy models
-    def add_spacy_models(self):
-        pass
+
     
 
             

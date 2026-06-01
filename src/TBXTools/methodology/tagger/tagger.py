@@ -1,15 +1,30 @@
 import sys
 import subprocess
-import spacy #attenta perché hai dovuto fare pip install- magari lo dovrai mettere tra i requirements
+import spacy  #requirements?
 
 #class to perform pos tagging of a raw corpus
 
-#maybe you'll need to change the en_core - prende questo di default
+#where do you want to put it? 
+def get_model_from_code(lang_code):
+        """
+        Takes a language code and returns the correct spaCy model name.
+        """
+        spacy_models = {
+        "en": "en_core_web_sm",
+        "ca": "ca_core_news_sm",
+        "fr": "fr_core_news_sm",
+        "es": "es_core_news_sm"
+        }
+    
+    #maybe we don´t need a default one- discuss!
+        return spacy_models.get(lang_code, "en_core_web_sm")
+
 class LinguisticTagger:
     def __init__(self, model_name="en_core_web_sm"):
         self.model_name = model_name
         self.nlp = None
         self._load_model()
+
     
     #you know how it works- maybe add some comments
     def _load_model(self): 
@@ -19,14 +34,18 @@ class LinguisticTagger:
             try:
                 subprocess.check_call([sys.executable, "-m", "spacy", "download", self.model_name])
                 print(f"\nModel {self.model_name} downloaded successfully.")
-                print("Please restart the program to apply changes.")
-                sys.exit(0)
+                
+                #Note: Loading directly avoids a restart, but a manual rerun may still be required if the environment fails to refresh internal package links instantly.
+                print(f"Initializing Tagger with the newly downloaded model: {self.model_name}")
+                self.nlp = spacy.load(self.model_name)
+
             except Exception as e:
                 print(f"Error downloading model '{self.model_name}': {e}")
                 sys.exit(1)
         else:
             print(f"Initializing POSTagger with model: {self.model_name}")
             self.nlp = spacy.load(self.model_name)
+    
 
     def tag_segment(self, segment: str) -> str:
         """
