@@ -4,6 +4,7 @@ from ..results import Results
 from ..methodology.tagger import LinguisticTagger, get_model_from_code
 from ..utils import get_lang
 from ..resources import Resources
+from ..methodology.pos_learning import PatternsLearning
 
 class Extractor: #remember to add the attributes that you added while implementing the linguistic extractor
     """
@@ -23,7 +24,7 @@ class Extractor: #remember to add the attributes that you added while implementi
         _processor (Processor): Internal component to handle text preprocessing tasks.
     """
 
-    def __init__(self, project_name, methodology, corpus= None, tagged_corpus= None, stopwords=None, inner_stopwords=None, exclusion_regexes=None, linguistic_patterns=None, language=None, input_is_tagged=False, overwrite_project=False):
+    def __init__(self, project_name, methodology, corpus= None, tagged_corpus= None, stopwords=None, inner_stopwords=None, exclusion_regexes=None, linguistic_patterns=None, evaluation_terms=None, language=None, input_is_tagged=False, overwrite_project=False):
         self.methodology = methodology
         self.lang, self._lang_code = get_lang(language.lower())
 
@@ -51,6 +52,7 @@ class Extractor: #remember to add the attributes that you added while implementi
             tagged_corpus=input_data if (is_ling and input_is_tagged) else None , #tagged corpus only if input_is_tagged= True and linguistic methodology
             exclusion_regexes=exclusion_regexes or None,
             linguistic_patterns=linguistic_patterns or None,
+            evaluation_terms= evaluation_terms or None,
             overwrite_project=overwrite_project)
 
 # EXTRACTION FUNCTIONS
@@ -70,36 +72,65 @@ class Extractor: #remember to add the attributes that you added while implementi
             Results: An instance of the Results class.
         '''
         print("Running term extraction")
-
+        
+        #Determine the extraction strategy
         extractor_type = self.methodology.extractor_info
 
         if extractor_type == "linguistic": 
-            tagged_segments = self._sqlite.get_tagged_segments() #we check if there is a corpus in the database´s table "tagged_corpus"
+            #Check if a pre-tagged corpus exists in the "tagged_corpus" table
+            tagged_segments = self._sqlite.get_tagged_segments() 
         
         #the idea is to make the following part more pythonic and synthetic since we are in the extractor
         #but for now it works
-            if not tagged_segments: #if tagged corpus table is empty- we proceed as follows
+            if not tagged_segments: #If the tagged corpus table is empty, fall back to raw segments and run the tagger
                 print("Corpus is not tagged. Starting POS tagging process")
-
-                segments = self._sqlite.get_segments() #we extract the segments from the table corpus- that contains the raw corpus
-
+                
+                #Fetch raw data from the raw corpus table
+                segments = self._sqlite.get_segments() 
                 all_tagged_segments = []
                 db_data_to_insert = []
-
+                
+                #Process and tag each raw text segment sequentially
                 for segment in segments:
-                    single_tagged_segment= self._tagger.tag_segment(segment) #we pos tag every segment in the raw corpus
+                    single_tagged_segment= self._tagger.tag_segment(segment)
 
                     if single_tagged_segment:
                         all_tagged_segments.append(single_tagged_segment)
-                    
+                        #Prepare data payload for batch database insertion
                         db_data_to_insert.append((single_tagged_segment,))
 
                 if db_data_to_insert: #we insert the new tagged corpus in the tagged corpus table
                     self._sqlite.insert_tagged_segments(db_data_to_insert)
-                
                 tagged_segments= all_tagged_segments
-            #from here the linguistic extraction is the same
+            
+            # Check if n-grams are already calculated for the automatic pattern learning process
+            if not self._sqlite.table_is_populated("tagged_ngrams"):
+                print("Tagged ngrams table is empty. Pre-calculating ngrams for pattern learning...")
+                ngrams_data= self.methodology.tagged_ngram_calculation(tagged_segments, minfreq=2)
+
+                if ngrams_data:
+                    self._sqlite.insert_tagged_ngrams(ngrams_data)
+                
+            #Retrieve available linguistic POS patterns from the database
             linguistic_patterns = self._sqlite.get_linguistic_pattern() 
+            
+            #If no patterns exist, initialize the automatic learning phase
+            if not linguistic_patterns:
+                print("Table is empty. Starting automatic pattern learning")
+                outputfile= "new_patterns.txt"
+
+                pattern_learner= PatternsLearning(db_manager=self._sqlite)
+                learn_dict= pattern_learner.learn_linguistic_patterns(outputfile=outputfile)
+
+                if learn_dict:
+                    # Extract the raw pattern strings and persist them to the database
+                    raw_patterns_list=list(learn_dict.keys())
+                    self._sqlite.load_linguistic_patterns(linguistic_patterns=raw_patterns_list)
+                    
+                    # Reload the freshly learned patterns from the DB
+                    linguistic_patterns = self._sqlite.get_linguistic_pattern()
+                else:
+                    print("Warning: Learning process produced no patterns. Please verify database data.")
 
             results = self.methodology.ling_extract(
                 tagged_segments=tagged_segments,
@@ -107,6 +138,7 @@ class Extractor: #remember to add the attributes that you added while implementi
             )
 
         else:
+            #statistical extraction strategy
             segments = self._sqlite.get_segments()
             results = self.methodology.extract(segments=segments, verbose=verbose)
 
@@ -115,8 +147,7 @@ class Extractor: #remember to add the attributes that you added while implementi
         #this is a temporary solution- discuss!
 
             if case_normalization:
-                normalized_terms = self._processor.case_normalization(candidate_terms=results._terms, verbose=verbose)
-           
+                normalized_terms = self._processor.case_normalization(candidate_terms=results._terms, verbose=verbose)  
                 results._terms = normalized_terms
 
             self._sqlite.insert_tokens(results._tokens)

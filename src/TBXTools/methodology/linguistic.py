@@ -31,15 +31,14 @@ class LinguisticExtractor(BaseExtractor):
         
         print("Methodology: linguistic")
 
-        candidate_terms, tagged_ngrams= self._linguistic_extraction(tagged_segments=tagged_segments, linguistic_patterns=linguistic_patterns, minfreq=minfreq)
+        tagged_ngrams= self.tagged_ngram_calculation(tagged_segments, minfreq=minfreq)
+        candidate_terms= self._linguistic_extraction(tagged_ngrams_output=tagged_ngrams, linguistic_patterns=linguistic_patterns, minfreq=minfreq)
 
         return Results(tagged_ngrams=tagged_ngrams, terms=candidate_terms, extractor_info="linguistic")
-
-    #qui da qualche parte mi mette insieme singolari e plurali- es mental disorder- cerca di capire perché
-    #tieni in conto che però questo lo faceva anche nel codice vecchio quindi bo
-    def _linguistic_extraction(self, tagged_segments, linguistic_patterns, minfreq=2):
-
-        '''Calculates the tagged ngrams and extract candidate terms using the linguistic methodology'''
+    
+    # Implemented to separate tagged n-gram calculation from linguistic extraction,
+    # which is required for the automatic learning of POS patterns.
+    def tagged_ngram_calculation(self, tagged_segments, minfreq=2):
 
         ngramsFD=nltk.probability.FreqDist()
         nmin= self.nmin
@@ -57,10 +56,22 @@ class LinguisticExtractor(BaseExtractor):
         for tagged_ngram, freq in ngramsFD.most_common(): 
 
             if freq>=minfreq:
-                tagged_ngram_row=(" ".join(tagged_ngram), len(tagged_ngram), freq) 
+                candidate_words = []
+                for ngt in tagged_ngram:
+                    candidate_words.append(ngt.split("|")[0])
+                    clean_ngram = " ".join(candidate_words)
+
+                tagged_ngram_row=(clean_ngram, " ".join(tagged_ngram), len(tagged_ngram), freq) 
                 tagged_ngrams_output.append(tagged_ngram_row)
                            
         self.ngrams = tagged_ngrams_output
+
+        return tagged_ngrams_output
+  
+
+    def _linguistic_extraction(self, linguistic_patterns, tagged_ngrams_output, minfreq=2):
+
+        '''Extracts candidate terms using the linguistic methodology'''
 
         processed_patterns=[]
         controlpatterns=[]
@@ -70,23 +81,22 @@ class LinguisticExtractor(BaseExtractor):
                 transformedpattern="^"+linguistic_pattern+"$"
                 if not transformedpattern in controlpatterns:
                     processed_patterns.append(transformedpattern)
-                    controlpatterns.append(transformedpattern)   
-        
-        
+                    controlpatterns.append(transformedpattern)  
+
         raw_candidates=[] 
 
-        for ngram, n, frequency in tagged_ngrams_output:
+        for clean_ngram, tagged_ngram, n, frequency in tagged_ngrams_output:
 
-            ngram= self._processor.filter_by_stopwords_linguistic(term= ngram)
+            filtered_ngram= self._processor.filter_by_stopwords_linguistic(term= tagged_ngram)
 
-            if ngram is None:
+            if filtered_ngram is None:
                 continue
             
-#questa potrebbe diventare una funzione a parte da mettere nel processing
+#you could move Move this logic into a separate function within the processor
             for pattern in processed_patterns:
-                match=re.search(pattern, ngram)
+                match=re.search(pattern, tagged_ngram)
                 if match:
-                     if match.group(0)==ngram:
+                     if match.group(0)== tagged_ngram:
                         candidate=" ".join(match.groups()[1:])
                         record=[]
                         record.append(candidate)     
@@ -97,7 +107,7 @@ class LinguisticExtractor(BaseExtractor):
                         raw_candidates.append(record)
                         break
          
-#cerca di capire cosa sta facendo esattamente questa e vedi se la puoi ottimizzare o altro           
+#make this more pythonic        
         tcaux={}
         for a in raw_candidates:
             cand_name=a[0]
@@ -117,6 +127,6 @@ class LinguisticExtractor(BaseExtractor):
             record.append(tcaux[tc])   
             data.append(record)
         
-        return data, tagged_ngrams_output
+        return data
             
 
