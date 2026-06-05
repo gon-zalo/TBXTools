@@ -4,11 +4,10 @@ corpus = ["Mental_disorder.txt"]
 #regexes = [".+ health"]
 
 extractor = Extractor(
-    methodology=StatisticalExtractor(nmin=2, nmax=3),
-    project_name="test-example",
+    methodology=StatisticalExtractor(nmin=2, nmax=3, exclusion_regexes= "regex_english.txt"),
+    project_name="test-example_new_regexes",
     corpus=corpus,
     language="english",
-    exclusion_regexes= "regex_english.txt",
     overwrite_project=True,
 )
 
@@ -22,7 +21,3 @@ results.save_candidates("save-test.txt")
 print(f"\nTerms: {results.terms()}")
 print(f"\nNgrams: {results.ngrams()}")
 print(f"\nTokens: {results.tokens()}") 
-
-
-
-

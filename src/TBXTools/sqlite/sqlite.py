@@ -207,7 +207,7 @@ class SQLite:
         data = []
     
         if not linguistic_patterns:
-            print("Statistical extraction: no linguistic patterns to load into the database.")
+            print("No linguistic patterns to load into the database.")
             return
     
         if isinstance(linguistic_patterns, list):
@@ -239,7 +239,7 @@ class SQLite:
         data= []
 
         if not evaluation_terms:
-            print("POS patterns list already exists: no evaluation terms to load into the database")
+            print("No evaluation terms to load into the database")
             return 
         
         if isinstance(evaluation_terms, list):

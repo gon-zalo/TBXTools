@@ -4,7 +4,7 @@ import re
 from .base import BaseExtractor
 from ..results import Results
 
-class LinguisticExtractor(BaseExtractor):
+class LinguisticExtractor(BaseExtractor): #add the attributes that you added to the doc string
 
     '''
     Manages linguistic terminology extraction.
@@ -17,10 +17,13 @@ class LinguisticExtractor(BaseExtractor):
 
     '''
 
-    def __init__(self, nmin, nmax):
+    def __init__(self, nmin, nmax, input_is_tagged= False, linguistic_patterns= None, evaluation_terms= None):
         
         self.nmin = nmin
         self.nmax = nmax
+        self.input_is_tagged= input_is_tagged
+        self.linguistic_patterns= linguistic_patterns
+        self.evaluation_terms= evaluation_terms
 
         self.extractor_info = "linguistic"
         self._processor= None

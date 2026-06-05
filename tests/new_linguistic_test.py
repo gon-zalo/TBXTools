@@ -1,17 +1,11 @@
 from TBXTools import Extractor, LinguisticExtractor
 
-#corpus = ["Mental_disorder.txt"]
-
-#linguistic_pat = ["|#|NOUN |#|NOUN"]
-
 
 extractor = Extractor(
-    methodology=LinguisticExtractor(nmin=2, nmax=3),
-    project_name="prova_no_tagged",
-    corpus="Mental_disorder.txt",
+    methodology=LinguisticExtractor(nmin=2, nmax=3, input_is_tagged= True, linguistic_patterns= "ling_pat-en.txt"),
+    project_name="prova_argomenti_diversi_tagged_e_patterns",
+    corpus="mental_ling.txt",
     language="english",
-    evaluation_terms= "evaluation_terms.txt",
-    input_is_tagged= False,
     overwrite_project=True
 )
 

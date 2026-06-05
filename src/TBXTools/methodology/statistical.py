@@ -15,10 +15,11 @@ class StatisticalExtractor(BaseExtractor):
 
     '''
     
-    def __init__(self, nmin, nmax):
+    def __init__(self, nmin, nmax, exclusion_regexes= None):
         
         self.nmin = nmin
         self.nmax = nmax
+        self.exclusion_regexes = exclusion_regexes
 
         self.extractor_info = "statistical"
         self._processor = None # passed from Extractor()

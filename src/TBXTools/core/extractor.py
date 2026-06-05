@@ -24,7 +24,7 @@ class Extractor: #remember to add the attributes that you added while implementi
         _processor (Processor): Internal component to handle text preprocessing tasks.
     """
 
-    def __init__(self, project_name, methodology, corpus= None, tagged_corpus= None, stopwords=None, inner_stopwords=None, exclusion_regexes=None, linguistic_patterns=None, evaluation_terms=None, language=None, input_is_tagged=False, overwrite_project=False):
+    def __init__(self, project_name, methodology, corpus= None, tagged_corpus= None, stopwords=None, inner_stopwords=None, language=None, overwrite_project=False):
         self.methodology = methodology
         self.lang, self._lang_code = get_lang(language.lower())
 
@@ -41,6 +41,15 @@ class Extractor: #remember to add the attributes that you added while implementi
         self.methodology._processor = self._processor
 
         is_ling = (methodology.extractor_info == "linguistic") #checks if the methodology used is the linguistic
+        is_statistical= (methodology.extractor_info == "statistical")
+        #takes the parameters from the linguistic extractor
+        input_is_tagged = methodology.input_is_tagged if is_ling else False
+        linguistic_patterns = methodology.linguistic_patterns if is_ling else None
+        evaluation_terms = methodology.evaluation_terms if is_ling else None
+
+        #takes the parameters from the statistical extractor
+        exclusion_regexes= methodology.exclusion_regexes if is_statistical else None
+
         input_data = tagged_corpus if tagged_corpus is not None else corpus
     
         # initializing the SQLite database
@@ -105,7 +114,7 @@ class Extractor: #remember to add the attributes that you added while implementi
             
             # Check if n-grams are already calculated for the automatic pattern learning process
             if not self._sqlite.table_is_populated("tagged_ngrams"):
-                print("Tagged ngrams table is empty. Pre-calculating ngrams for pattern learning...")
+                print("Tagged ngrams table is empty. Calculating ngrams")
                 ngrams_data= self.methodology.tagged_ngram_calculation(tagged_segments, minfreq=2)
 
                 if ngrams_data:
