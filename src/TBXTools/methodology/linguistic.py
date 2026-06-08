@@ -30,7 +30,7 @@ class LinguisticExtractor(BaseExtractor): #add the attributes that you added to 
 
     # MAIN FUNCTION
 
-    def ling_extract(self, tagged_segments, linguistic_patterns, minfreq=2): 
+    def extract(self, tagged_segments, linguistic_patterns, minfreq=2): 
         
         print("Methodology: linguistic")
 

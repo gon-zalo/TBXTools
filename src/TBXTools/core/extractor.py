@@ -141,7 +141,7 @@ class Extractor: #remember to add the attributes that you added while implementi
                 else:
                     print("Warning: Learning process produced no patterns. Please verify database data.")
 
-            results = self.methodology.ling_extract(
+            results = self.methodology.extract(
                 tagged_segments=tagged_segments,
                 linguistic_patterns=linguistic_patterns
             )
