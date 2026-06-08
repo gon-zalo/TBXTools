@@ -1,15 +1,12 @@
 
-#from ...sqlite import SQLite #not here in the future
-
 import operator
 
 class PatternsLearning:
     '''
     Manages automatic learning of POS patterns to perform linguistic extraction
     '''
-    def __init__(self, db_manager): 
-        #you want to change this- where to put the manager?
-        self.db_manager= db_manager
+    def __init__(self): 
+        self._sqlite = None
          
     #almost the same as the old code- it works but you'll have to make it more pythonic
     def learn_linguistic_patterns(self,outputfile,showfrequencies=False,encoding="utf-8",verbose=True,representativity=100):
@@ -17,12 +14,12 @@ class PatternsLearning:
         sortida = open(outputfile, "w", encoding=encoding)
         acufreq=0 
 
-        evaluation_terms= self.db_manager.get_evaluation_terms()
+        evaluation_terms= self._sqlite.get_evaluation_terms()
 
         print(f"[DEBUG] Found {len(evaluation_terms)} evaluation terms in DB.")
 
         for evaluation_term in evaluation_terms:
-            results = self.db_manager.get_tagged_ngrams(ngram_filter=evaluation_term[0])
+            results = self._sqlite.get_tagged_ngrams(ngram_filter=evaluation_term[0])
             
             if len(results)>0: 
 

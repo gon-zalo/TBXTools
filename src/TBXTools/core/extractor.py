@@ -1,10 +1,9 @@
 from ..sqlite import SQLite
 from ..processor import Processor
 from ..results import Results
-from ..methodology.tagger import LinguisticTagger, get_model_from_code
-from ..utils import get_lang
+from ..methodology.tagger import LinguisticTagger
+from ..utils import get_lang, get_model_from_code
 from ..resources import Resources
-from ..methodology.pos_learning import PatternsLearning
 
 class Extractor: #remember to add the attributes that you added while implementing the linguistic extractor
     """
@@ -34,10 +33,9 @@ class Extractor: #remember to add the attributes that you added while implementi
         self._processor.stopwords = stopwords or self._resources.fetch_stopwords()
         self._processor.inner_stopwords = inner_stopwords or self._resources.fetch_inner_stopwords()
 
-        chosen_spacy_model = get_model_from_code(self._lang_code)
-
-        self._tagger = LinguisticTagger(model_name= chosen_spacy_model)
-
+        self.chosen_spacy_model = get_model_from_code(self._lang_code)
+        
+        self._tagger= None
         self.methodology._processor = self._processor
 
         is_ling = (methodology.extractor_info == "linguistic") #checks if the methodology used is the linguistic
@@ -86,65 +84,17 @@ class Extractor: #remember to add the attributes that you added while implementi
         extractor_type = self.methodology.extractor_info
 
         if extractor_type == "linguistic": 
+
+            if self._tagger is None:
+                self._tagger = LinguisticTagger(self.chosen_spacy_model)
+
             #Check if a pre-tagged corpus exists in the "tagged_corpus" table
-            tagged_segments = self._sqlite.get_tagged_segments() 
-        
-        #the idea is to make the following part more pythonic and synthetic since we are in the extractor
-        #but for now it works
-            if not tagged_segments: #If the tagged corpus table is empty, fall back to raw segments and run the tagger
-                print("Corpus is not tagged. Starting POS tagging process")
-                
-                #Fetch raw data from the raw corpus table
-                segments = self._sqlite.get_segments() 
-                all_tagged_segments = []
-                db_data_to_insert = []
-                
-                #Process and tag each raw text segment sequentially
-                for segment in segments:
-                    single_tagged_segment= self._tagger.tag_segment(segment)
 
-                    if single_tagged_segment:
-                        all_tagged_segments.append(single_tagged_segment)
-                        #Prepare data payload for batch database insertion
-                        db_data_to_insert.append((single_tagged_segment,))
+            self.methodology._sqlite = self._sqlite
+            self.methodology._processor = self._processor
+            self.methodology._tagger = self._tagger
 
-                if db_data_to_insert: #we insert the new tagged corpus in the tagged corpus table
-                    self._sqlite.insert_tagged_segments(db_data_to_insert)
-                tagged_segments= all_tagged_segments
-            
-            # Check if n-grams are already calculated for the automatic pattern learning process
-            if not self._sqlite.table_is_populated("tagged_ngrams"):
-                print("Tagged ngrams table is empty. Calculating ngrams")
-                ngrams_data= self.methodology.tagged_ngram_calculation(tagged_segments, minfreq=2)
-
-                if ngrams_data:
-                    self._sqlite.insert_tagged_ngrams(ngrams_data)
-                
-            #Retrieve available linguistic POS patterns from the database
-            linguistic_patterns = self._sqlite.get_linguistic_pattern() 
-            
-            #If no patterns exist, initialize the automatic learning phase
-            if not linguistic_patterns:
-                print("Table is empty. Starting automatic pattern learning")
-                outputfile= "new_patterns.txt"
-
-                pattern_learner= PatternsLearning(db_manager=self._sqlite)
-                learn_dict= pattern_learner.learn_linguistic_patterns(outputfile=outputfile)
-
-                if learn_dict:
-                    # Extract the raw pattern strings and persist them to the database
-                    raw_patterns_list=list(learn_dict.keys())
-                    self._sqlite.load_linguistic_patterns(linguistic_patterns=raw_patterns_list)
-                    
-                    # Reload the freshly learned patterns from the DB
-                    linguistic_patterns = self._sqlite.get_linguistic_pattern()
-                else:
-                    print("Warning: Learning process produced no patterns. Please verify database data.")
-
-            results = self.methodology.extract(
-                tagged_segments=tagged_segments,
-                linguistic_patterns=linguistic_patterns
-            )
+            results = self.methodology.extract()
 
         else:
             #statistical extraction strategy

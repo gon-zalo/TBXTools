@@ -4,27 +4,6 @@ import spacy  #requirements?
 
 #class to perform pos tagging of a raw corpus
 
-#where do you want to put it? !!!- ponlo en utils
-def get_model_from_code(lang_code):
-        """
-        Takes a language code and returns the correct spaCy model name.
-
-        Args:
-          lang_code: the language ISO code
-
-        Returns:
-          The corresponding spaCy model name, or 'en_core_web_sm' as default.
-        """
-        spacy_models = {
-        "en": "en_core_web_sm",
-        "ca": "ca_core_news_sm",
-        "fr": "fr_core_news_sm",
-        "es": "es_core_news_sm"
-        }
-    
-    #maybe we don´t need a default one- discuss!
-        return spacy_models.get(lang_code, "en_core_web_sm")
-
 class LinguisticTagger:
     '''Manages linguistic POS-tagging
     

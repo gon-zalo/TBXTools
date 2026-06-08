@@ -204,8 +204,7 @@ class Processor:
 
         return term
     
-#non credo funzioni- vedrai poi
-#funzione di filtro per stopwords con il linguistic- vediamo se funziona
+
     def filter_by_stopwords_linguistic(self, term):
         
         split_term = term.lower().split()
@@ -220,6 +219,33 @@ class Processor:
         
         return term
     
+    def translate_pattern(self, linguistic_patterns):
+
+        translated_patterns= []
+
+        for row in linguistic_patterns:
+            pattern_str= row[0]
+
+            aux = []
+            for ptoken in pattern_str.split():
+                auxtoken = []
+                ptoken = ptoken.replace(".*", "[^\s]+") 
+                for pelement in ptoken.split("|"):
+                    if pelement == "#":
+                        auxtoken.append("([^\s]+?)")                    
+                    elif pelement == "":
+                        auxtoken.append("[^\s]+?")
+                    else:
+                        if pelement.startswith("#"):
+                            auxtoken.append("(" + pelement.replace("#", "") + ")")
+                        else:
+                            auxtoken.append(pelement)
+                aux.append("\|".join(auxtoken))
+            tp = "(" + " ".join(aux) + ")"
+            
+            translated_patterns.append(tp)
+            
+        return translated_patterns
 
 
            

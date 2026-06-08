@@ -115,10 +115,6 @@ class Results:
                 print(f"Excluded {len(candidates_to_exclude)} terms")
             else:
                 print("No candidate terms excluded")
-    
-    #forse da fare la prossima- non sono sicura serva- dipende come gestirai le funzioni tagged_ngram extraction e linguistic extraction
-    def linguistic_patterns(self, verbose= False):
-        pass
 
 
     def save_candidates(self, file_name):

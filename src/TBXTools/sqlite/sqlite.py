@@ -183,56 +183,24 @@ class SQLite:
             self.cur.executemany("INSERT INTO inner_stopwords (inner_stopword) VALUES (?)",data) 
 
 
-    #how to improve this function- where should we put the inner function?
+    
     def load_linguistic_patterns(self, linguistic_patterns, encoding="utf-8"):
-        def translate_pattern(pattern_str):
-            aux = []
-            for ptoken in pattern_str.split():
-                auxtoken = []
-                ptoken = ptoken.replace(".*", "[^\s]+") 
-                for pelement in ptoken.split("|"):
-                    if pelement == "#":
-                        auxtoken.append("([^\s]+?)")                    
-                    elif pelement == "":
-                        auxtoken.append("[^\s]+?")
-                    else:
-                        if pelement.startswith("#"):
-                            auxtoken.append("(" + pelement.replace("#", "") + ")")
-                        else:
-                            auxtoken.append(pelement)
-                aux.append("\|".join(auxtoken))
-            tp = "(" + " ".join(aux) + ")"
-            return tp
 
-        data = []
-    
-        if not linguistic_patterns:
-            print("No linguistic patterns to load into the database.")
-            return
-    
-        if isinstance(linguistic_patterns, list):
-            print("Processing linguistic patterns from list...")
-            for pattern in linguistic_patterns:
-                if pattern.strip():
-                    translated = translate_pattern(pattern.rstrip())
-                    data.append((translated,))
-            print("Linguistic patterns loaded")
-    
-        elif isinstance(linguistic_patterns, str):
-            print(f"Loading linguistic patterns from file: {linguistic_patterns}")
-            with open(linguistic_patterns, "r", encoding=encoding) as f:
-                for line in f:
-                    raw_pattern = line.rstrip()
-                    if raw_pattern: 
-                        translated = translate_pattern(raw_pattern)
-                        data.append((translated,))
-            print("Linguistic patterns loaded from file")
+        data= []
+        if linguistic_patterns:
+            if isinstance(linguistic_patterns, list):
+                data = [(linguistic_pattern,) for linguistic_pattern in linguistic_patterns]
+                print("Linguistic Patterns loaded")
+            else:
+                with open(linguistic_patterns, "r", encoding=encoding) as f:
+                    data = [(line.rstrip(),) for line in f]
+                print("Linguistic Patterns loaded from file")
 
-        if data:
+            
             with self.conn:
-                self.cur.executemany('INSERT INTO linguistic_patterns (linguistic_pattern) VALUES (?)', data)
-                self.conn.commit()
-   
+                self.cur.executemany("INSERT INTO linguistic_patterns (linguistic_pattern) VALUES (?)",data) 
+
+
     def load_evaluation_terms(self, evaluation_terms, encoding='utf-8'):
         '''Loads the evaluation terms for the automatic learning of POS patterns'''
 
@@ -251,8 +219,8 @@ class SQLite:
                 data = [(line.rstrip(),) for line in f]        
             print("Evaluation terms loaded from file")
 
-            with self.conn:
-                self.cur.executemany('INSERT INTO evaluation_terms (evaluation_term) VALUES (?)',data)
+        with self.conn:
+            self.cur.executemany('INSERT INTO evaluation_terms (evaluation_term) VALUES (?)',data)
 
 
     def load_exclusion_regexes(self, exclusion_regexes, encoding='utf-8'):
@@ -444,6 +412,12 @@ class SQLite:
         with self.conn:
             self.cur.execute('DELETE FROM tokens')
             self.cur.execute("DELETE FROM sqlite_sequence WHERE name='tokens'")
+
+    def delete_linguistic_patterns(self):
+        with self.conn:
+            self.cur.execute('DELETE FROM linguistic_patterns')
+            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='linguistic_patterns'")
+
 
     def delete_candidate_terms(self):
         with self.conn:
