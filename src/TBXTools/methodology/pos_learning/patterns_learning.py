@@ -1,7 +1,6 @@
 
-from ...sqlite import SQLite #not here in the future
+#from ...sqlite import SQLite #not here in the future
 
-import codecs
 import operator
 
 class PatternsLearning:
@@ -15,7 +14,7 @@ class PatternsLearning:
     #almost the same as the old code- it works but you'll have to make it more pythonic
     def learn_linguistic_patterns(self,outputfile,showfrequencies=False,encoding="utf-8",verbose=True,representativity=100):
         learntpatterns={}
-        sortida = codecs.open(outputfile, "w", encoding=encoding)
+        sortida = open(outputfile, "w", encoding=encoding)
         acufreq=0 
 
         evaluation_terms= self.db_manager.get_evaluation_terms()

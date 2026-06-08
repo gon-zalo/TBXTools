@@ -4,7 +4,7 @@ import re
 from .base import BaseExtractor
 from ..results import Results
 
-class LinguisticExtractor(BaseExtractor): #add the attributes that you added to the doc string
+class LinguisticExtractor(BaseExtractor): #add the attributes that you added to the doc string- mira si quitart cosas internas como extractor info y processor- el usuario no lo tiene que importar
 
     '''
     Manages linguistic terminology extraction.
@@ -12,7 +12,7 @@ class LinguisticExtractor(BaseExtractor): #add the attributes that you added to 
     Attributes:
         nmin (int): The minimum number of words a candidate term can contain.
         nmax (int): The maximum number a candidate term can contain.
-        extractor_info (str): A string identifier for the extraction methodology used (defaults to "linguistic").
+        _extractor_info (str): A string identifier for the extraction methodology used (defaults to "linguistic").
         _processor (Processor): An internal instance of the Processor class used to handle text preprocessing tasks.
 
     '''

@@ -4,7 +4,7 @@ import spacy  #requirements?
 
 #class to perform pos tagging of a raw corpus
 
-#where do you want to put it? !!!
+#where do you want to put it? !!!- ponlo en utils
 def get_model_from_code(lang_code):
         """
         Takes a language code and returns the correct spaCy model name.

@@ -9,7 +9,9 @@ extractor = Extractor(
     overwrite_project=True
 )
 
-results = extractor.extract(case_normalization=True, verbose=False)
+results = extractor.extract(verbose=False)
 
 results.nest_normalization(verbose=False)
 results.save_candidates("test.txt")
+
+print(f"\nTerms: {results.terms()}")
