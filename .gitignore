@@ -6,3 +6,4 @@ tests/__init__.py
 tests/*.txt
 old/TBXTools_old.py
 biobert_detech_run2
+biobert_detech
