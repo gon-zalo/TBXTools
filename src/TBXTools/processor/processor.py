@@ -1,5 +1,9 @@
 from nltk.tokenize import RegexpTokenizer
-import re
+from ..methodology.linguistic_methodology.tagger import LinguisticTagger
+from ..utils.utils import get_model_from_code
+import nltk
+from nltk.util import ngrams as compute_ngrams
+import re 
 
 class Processor:
 
@@ -14,8 +18,13 @@ class Processor:
 
         self.stopwords = None
         self.inner_stopwords = None
+        self.nmin = None
+        self.nmax = None
+        self._lang_code = None
+        self.chosen_spacy_model = get_model_from_code(self._lang_code)
+        self._tagger = LinguisticTagger(self.chosen_spacy_model)
     
-    def case_normalization(self, candidate_terms, verbose=False): 
+    def apply_case_normalization(self, candidate_terms, verbose=False): 
         '''
         Performs case normalization. If a capitalized term exists as non-capitalized, the capitalized one will be deleted and the frequency of the non-capitalized one will be increased by the frequency of the capitalized.
 
@@ -48,7 +57,6 @@ class Processor:
                 print(term, "->", freq)
 
         return normalized_terms
-    
     
     def nest_normalization(self, candidate_terms, percent=10, verbose=False):
         """
@@ -161,8 +169,7 @@ class Processor:
                         print(f"'{candidate}' removed by: {regex}")
 
         return candidates_to_exclude
-    
-               
+             
     def tokenize(self, segment):
         """
         Tokenizes a text segment into word tokens, removing punctuation outside words while preserving internal characters such as apostrophes and hyphens.
@@ -179,7 +186,6 @@ class Processor:
 
         return token
     
-
     def filter_by_stopwords(self, term):
         """
         Filters a candidate term by checking for invalid stopwords. A term is rejected (returns None) if it contains a standard stopword at its boundaries (start/end) or an inner stopword in its middle tokens.
@@ -204,9 +210,7 @@ class Processor:
 
         return term
     
-
     def filter_by_stopwords_linguistic(self, term):
-        
         split_term = term.lower().split()
         
         first_word = split_term[0].split("|")[1]
@@ -222,9 +226,12 @@ class Processor:
     def translate_pattern(self, linguistic_patterns):
 
         translated_patterns= []
-
-        for row in linguistic_patterns:
-            pattern_str= row[0]
+        #for pattern_str in linguistic_patterns:
+            #pattern_str= row[0]
+        
+        for pattern_str in linguistic_patterns:
+            if isinstance(pattern_str, tuple):
+                pattern_str = pattern_str[0]
 
             aux = []
             for ptoken in pattern_str.split():
@@ -246,16 +253,48 @@ class Processor:
             translated_patterns.append(tp)
             
         return translated_patterns
-
-
-           
-            
-
-
     
+    # linguistic processing
+    def create_tagged_segments(self, segments):
+        print("Starting...")
+                
+        tagged_segments = []
+        for segment in segments:
 
-    
+            single_tagged_segment = self._tagger.tag_segment(segment)
 
-    
+            if single_tagged_segment:
+                tagged_segments.append((single_tagged_segment,))
 
-    
+        return tagged_segments
+
+    def tagged_ngram_calculation(self, tagged_segments, minfreq=2):
+
+        ngramsFD=nltk.probability.FreqDist()
+        nmin = self.nmin
+        nmax = self.nmax
+
+        for tagged_segment in tagged_segments: # first column where segment is
+            for n in range(nmin, nmax+1):  
+                    tagged_ngrams = compute_ngrams(tagged_segment[0].split(), n) 
+
+                    for tagged_ngram in tagged_ngrams:
+                        ngramsFD[tagged_ngram] += 1 
+
+        tagged_ngrams_output = []
+        for tagged_ngram, freq in ngramsFD.most_common(): 
+
+            if freq>=minfreq:
+                candidate_words = []
+                for ngt in tagged_ngram:
+                    candidate_words.append(ngt.split("|")[0])
+                    clean_ngram = " ".join(candidate_words)
+
+                tagged_ngram_row=(clean_ngram, " ".join(tagged_ngram), len(tagged_ngram), freq) 
+                tagged_ngrams_output.append(tagged_ngram_row)
+                           
+        self.ngrams = tagged_ngrams_output
+
+        return tagged_ngrams_output
+  
+

@@ -1,4 +1,4 @@
-from .base import BaseExtractor
+from ....base import BaseExtractor
 
 class BertExtractor(BaseExtractor):
 

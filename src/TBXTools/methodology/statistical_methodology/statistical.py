@@ -1,7 +1,7 @@
 import nltk
 from nltk.util import ngrams as compute_ngrams
-from .base import BaseExtractor
-from ..results import Results
+from ..base_extractor.base import BaseExtractor
+from ...results import Results
 
 class StatisticalExtractor(BaseExtractor):
     '''
@@ -15,15 +15,15 @@ class StatisticalExtractor(BaseExtractor):
 
     '''
     
-    def __init__(self, nmin, nmax, exclusion_regexes= None):
+    def __init__(self, nmin, nmax, exclusion_regexes= None, case_normalization= False):
         
         self.nmin = nmin
         self.nmax = nmax
         self.exclusion_regexes = exclusion_regexes
+        self.case_normalization = case_normalization
 
         self.extractor_info = "statistical"
-        self._processor = None # passed from Extractor()
-        
+        self._processor = None #passed from Extractor()
 # MAIN FUNCTION
     def extract(self, segments, verbose=False):
         '''
@@ -91,7 +91,7 @@ class StatisticalExtractor(BaseExtractor):
         tokens_output = []                
         for token, freq in tokensFD.most_common(): 
             tokens_row=(token, freq)   
-            tokens_output.append(tokens_row)
+            tokens_output.append((token, freq))
 
         self.tokens = tokens_output
 

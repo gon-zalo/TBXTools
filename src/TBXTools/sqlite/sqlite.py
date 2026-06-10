@@ -17,7 +17,7 @@ class SQLite:
 
     # Initializing project, corpus, stopwords, etc.
         self.initialize_project(project_name=project_name, overwrite_project=overwrite_project)
-        self.load_data_to_tables(table_names=self.TABLES_TO_LOAD_AT_START, corpus=corpus, tagged_corpus= tagged_corpus, stopwords=stopwords, inner_stopwords=inner_stopwords, linguistic_patterns=linguistic_patterns, evaluation_terms= evaluation_terms, exclusion_regexes=exclusion_regexes)
+        self.load_data_to_tables(table_names=self.TABLES_TO_LOAD_AT_START, corpus=corpus, tagged_corpus=tagged_corpus, stopwords=stopwords, inner_stopwords=inner_stopwords, linguistic_patterns=linguistic_patterns, evaluation_terms=evaluation_terms, exclusion_regexes=exclusion_regexes)
 
     def add_extension(self, project_name):
         '''Adds the extension .sqlite to the database file.'''
@@ -377,7 +377,7 @@ class SQLite:
         
         return regexes
     
-    def get_linguistic_pattern(self):
+    def get_linguistic_patterns(self):
         linguistic_patterns= []
         with self.conn:
             self.cur.execute("SELECT linguistic_pattern FROM linguistic_patterns")
@@ -393,7 +393,7 @@ class SQLite:
             self.cur.execute("SELECT evaluation_term FROM evaluation_terms")
 
             for evaluation_term_row in self.cur.fetchall():
-                evaluation_terms.append(evaluation_term_row)
+                evaluation_terms.append(evaluation_term_row[0])
 
         return evaluation_terms
 
