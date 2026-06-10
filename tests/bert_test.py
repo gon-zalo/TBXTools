@@ -1,10 +1,13 @@
 from TBXTools import Extractor, BertExtractor
 
 corpus = 'bert-corpus.txt'
+# model_name = 'dmis-lab/biobert-base-cased-v1.2'
+model = 'biobert_detech_run2'
+methodology = BertExtractor(model=model)
 
 extractor = Extractor(
     project_name="bert-test",
-    methodology=BertExtractor(model='dmis-lab/biobert-base-cased-v1.2',labels="BIO"),
+    methodology=methodology,
     corpus=corpus,
     language="english",
     overwrite_project=True
@@ -12,4 +15,4 @@ extractor = Extractor(
 
 results = extractor.extract(verbose=False)
 
-print(results._tokens)
+# print(results._tokens)

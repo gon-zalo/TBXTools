@@ -35,6 +35,7 @@ class Extractor:
         '''
         print("Running term extraction")
         segments = self._sqlite.get_segments()
+        self.methodology.stop_words = self._processor.stopwords
 
         # this returns a Results object
         results = self.methodology.extract(segments=segments, verbose=verbose)
@@ -53,21 +54,16 @@ class Extractor:
         self._sqlite.delete_candidate_terms() # keep an eye on this
         self._sqlite.insert_candidate_terms(results._terms)
         
-
         if not results._extractor_info:
             print("Error: Unknown extractor")
 
         if results._extractor_info == "statistical":
             self._sqlite.insert_ngrams(results._ngrams)
 
+        if results._extractor_info == "bert":
+            self._sqlite.insert_tokenized_segments(results._tokenized_corpus)
+
         return results
-
-    def preprocess(self):
-        pass
-
-    # nest norm?
-    def postprocess(self):
-        pass
 
     def stopwords(self):
         return self._processor.stopwords

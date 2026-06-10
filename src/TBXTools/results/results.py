@@ -12,10 +12,11 @@ class Results:
         _processor: Class to process data.
         _sqlite: Class to manage the SQLite database.
     '''
-    def __init__(self, *, terms=None, ngrams=None, tokens=None, extractor_info=None):
+    def __init__(self, *, terms=None, ngrams=None, tokens=None, tokenized_corpus=None, extractor_info=None):
         self._terms = terms or []
         self._ngrams = ngrams or []
         self._tokens = tokens or []
+        self._tokenized_corpus = tokenized_corpus or []
         self._extractor_info = extractor_info or None
 
         # passed from Extractor()

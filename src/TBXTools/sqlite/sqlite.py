@@ -49,9 +49,11 @@ class SQLite:
         with self.conn:
             self.cur = self.conn.cursor()
             self.cur.execute("CREATE TABLE corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, segment TEXT)")
+            self.cur.execute("CREATE TABLE tokenized_corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, tokenized_segment TEXT)")
             self.cur.execute("CREATE TABLE tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT, frequency INTEGER)")
             self.cur.execute("CREATE TABLE ngrams (id INTEGER PRIMARY KEY AUTOINCREMENT, ngram TEXT, n INTEGER, frequency INTEGER)")
-            self.cur.execute("CREATE TABLE candidate_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, candidate TEXT, n INTEGER, frequency INTEGER, measure TEXT, value FLOAT)")
+            self.cur.execute("CREATE TABLE candidate_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, candidate TEXT, n INTEGER, measure TEXT, value INTEGER)")
+            # self.cur.execute("CREATE TABLE external_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, external_term TEXT)")
             self.cur.execute("CREATE TABLE stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, stopword TEXT)")
             self.cur.execute("CREATE TABLE inner_stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, inner_stopword TEXT)")
             self.cur.execute("CREATE TABLE exclusion_regexes (id INTEGER PRIMARY KEY AUTOINCREMENT, exclusion_regex TEXT)")
@@ -159,12 +161,31 @@ class SQLite:
             with self.conn:
                 self.cur.executemany('INSERT INTO exclusion_regexes (exclusion_regex) VALUES (?)',data)
 
+    def load_external_terms(self, external_terms, encoding='utf-8'):
+        data = []
+        if external_terms:
+            if isinstance(external_terms, list):
+                data = [(external_term,) for external_term in external_terms]
+
+                print("External terms loaded")
+            else:
+                with open(external_terms, "r", encoding=encoding) as f:
+                    data = [(line.rstrip(),) for line in f]
+                print("External terms loaded from file")
+
+            with self.conn:
+                self.cur.executemany('INSERT INTO external_terms (external_term) VALUES (?)', data)
 
     # INSERT METHODS
     def insert_segments(self, data):
         '''Inserts the segmented corpus into the database.'''
         with self.conn:
             self.cur.executemany("INSERT INTO corpus (segment) VALUES (?)", data)
+
+    def insert_tokenized_segments(self, data):
+        '''Inserts the tokenized segmented corpus into the database.'''
+        with self.conn:
+            self.cur.executemany("INSERT INTO tokenized_corpus (tokenized_segment) VALUES (?)", data)
 
     def insert_ngrams(self, data):
         '''Inserts Ngrams into the database.'''
@@ -182,7 +203,7 @@ class SQLite:
         '''Inserts candidate terms into the database'''
         if not self.table_is_populated("candidate_terms"):
             with self.conn:
-                self.cur.executemany("INSERT INTO candidate_terms (candidate, n, frequency, measure, value) VALUES (?,?,?,?,?)", data)
+                self.cur.executemany("INSERT INTO candidate_terms (candidate, n, measure, value) VALUES (?,?,?,?)", data)
             
     def insert_filtered_candidate_terms(self, data):
         with self.conn:

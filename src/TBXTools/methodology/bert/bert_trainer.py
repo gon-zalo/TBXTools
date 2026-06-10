@@ -1,27 +1,35 @@
+from transformers import Trainer, TrainingArguments, BertForTokenClassification, DataCollatorForTokenClassification, AutoTokenizer, set_seed
+import torch
+from sklearn.model_selection import train_test_split
+from datasets import Dataset
+import numpy as np
+set_seed(123)
+
 class BertTrainer:
 
-    def __init__(self, model=None, tokenizer=None, external_terms=None, lr=None, batch_size=None, epochs=None, weight_decay=None):
-        from transformers import AutoTokenizer
+    def __init__(self, model=None, external_terms=None, lr=None, batch_size=None, epochs=None, weight_decay=None, labels=None):
 
-        self.tokenizer = tokenizer or AutoTokenizer.from_pretrained(self.model, max_length=512, force_download=False, do_lower_case=False)
+        self.model_name = model
+        self.model = BertForTokenClassification.from_pretrained(self.model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, max_length=512, force_download=False, do_lower_case=False)
         self.external_terms = external_terms
+        self.labels = labels.lower()
 
         self.lr = lr or 5e-05 # learning rate
         self.batch_size = batch_size or 16
         self.epochs = epochs or 3
         self.weight_decay = weight_decay or 0.03
 
-    def prepare_data(data):
+    def prepare_data(self, data):
         import pandas as pd
         df = pd.read_json(data, orient='records', lines=True)
 
         return df
 
-    def prepare_pretokenized_inputs(batch):
+    def prepare_pretokenized_inputs(self, batch):
         from transformers import BertTokenizer
 
-        model_name = 'dmis-lab/biobert-base-cased-v1.2'
-        tokenizer = BertTokenizer.from_pretrained(model_name, max_length=512)
+        tokenizer = self.tokenizer
 
         bio_labels = ['O', 'B', 'I']
         label2id = {l: i for i, l in enumerate(bio_labels)}
@@ -69,30 +77,21 @@ class BertTrainer:
         return batch
 
     def train(self):
-        from transformers import Trainer, TrainingArguments, BertForTokenClassification, DataCollatorForTokenClassification, BertTokenizer, set_seed
-        import torch
-        from sklearn.model_selection import train_test_split
-        from datasets import Dataset
-        import numpy as np
-
-        set_seed(123)
-
         print('Not splitting data. Training model on the full training data.')
         train_df = self.prepare_data(train_data)
 
         train_data = Dataset.from_pandas(train_df) # huggingface format
         train_data = train_data.map(self.prepare_pretokenized_inputs, batched=True)
 
-        model_name = model
-        print(f'\nInitializing model:  {model_name}')
-        tokenizer = BertTokenizer.from_pretrained(model_name, max_length=512)
+        print(f'\nInitializing model:  {self.model_name}')
+        tokenizer = self.tokenizer
         bio_labels = ['O', 'B', 'I']
         label2id = {l: i for i, l in enumerate(bio_labels)}
         id2label = {i: l for l, i in label2id.items()}
 
         device = torch.device("cuda")
         model = BertForTokenClassification.from_pretrained(
-            model_name,
+            self.model_name,
             num_labels=len(bio_labels),
             id2label=id2label,
             label2id=label2id).to(device)
