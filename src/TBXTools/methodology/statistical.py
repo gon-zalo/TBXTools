@@ -108,7 +108,7 @@ class StatisticalExtractor(BaseExtractor):
             if full_term is None:
                 continue
 
-            candidate_terms.append((full_term, n, freq, "frequency", freq))
+            candidate_terms.append((full_term, n, "frequency", freq))
 
         return ngrams_output, tokens_output, candidate_terms
 
