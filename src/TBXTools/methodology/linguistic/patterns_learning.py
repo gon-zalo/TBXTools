@@ -20,7 +20,7 @@ class PatternsLearning:
             # results = self._sqlite.get_tagged_ngrams(ngram_filter=evaluation_term[0])
 
         results = filtered_tagged_ngrams
-        # aplanar la lista / flatten list
+        # aplanar la lista / flatten list y cambiar nombres a las variables
         if len(results)>0: 
             for a in results:
                 if a:

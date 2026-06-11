@@ -12,7 +12,7 @@ methodology = StatisticalExtractor(
 
 extractor = Extractor(
     methodology=methodology,
-    project_name="test-example_new_regexes",
+    project_name="prova_statistical",
     corpus=corpus,
     language="english",
     overwrite_project=True,

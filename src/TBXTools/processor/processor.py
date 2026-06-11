@@ -1,5 +1,5 @@
 from nltk.tokenize import RegexpTokenizer
-from ..methodology.linguistic_methodology.tagger import LinguisticTagger
+from ..methodology.linguistic.tagger import LinguisticTagger
 from ..utils.utils import get_model_from_code
 import nltk
 from nltk.util import ngrams as compute_ngrams
@@ -223,11 +223,11 @@ class Processor:
         
         return term
     
+    # linguistic processing
+
     def translate_pattern(self, linguistic_patterns):
 
         translated_patterns= []
-        #for pattern_str in linguistic_patterns:
-            #pattern_str= row[0]
         
         for pattern_str in linguistic_patterns:
             if isinstance(pattern_str, tuple):
@@ -254,9 +254,8 @@ class Processor:
             
         return translated_patterns
     
-    # linguistic processing
     def create_tagged_segments(self, segments):
-        print("Starting...")
+        print("Starting POS tagging")
                 
         tagged_segments = []
         for segment in segments:
@@ -267,34 +266,43 @@ class Processor:
                 tagged_segments.append((single_tagged_segment,))
 
         return tagged_segments
+    
 
-    def tagged_ngram_calculation(self, tagged_segments, minfreq=2):
-
-        ngramsFD=nltk.probability.FreqDist()
+    def ngrams_calculation(self, segments, corpus_is_tagged= False, minfreq=2):
+        
+        ngramsFD = nltk.probability.FreqDist()
         nmin = self.nmin
         nmax = self.nmax
 
-        for tagged_segment in tagged_segments: # first column where segment is
-            for n in range(nmin, nmax+1):  
-                    tagged_ngrams = compute_ngrams(tagged_segment[0].split(), n) 
-
-                    for tagged_ngram in tagged_ngrams:
-                        ngramsFD[tagged_ngram] += 1 
-
-        tagged_ngrams_output = []
-        for tagged_ngram, freq in ngramsFD.most_common(): 
-
-            if freq>=minfreq:
-                candidate_words = []
-                for ngt in tagged_ngram:
-                    candidate_words.append(ngt.split("|")[0])
+        for segment in segments:
+            if corpus_is_tagged:
+                tokens = segment[0].split()
+            else:
+                tokens = self.tokenize(segment)
+            
+            for n in range(nmin, nmax + 1):  
+                ngrams_list = compute_ngrams(tokens, n) 
+                for ngram in ngrams_list:
+                    ngramsFD[ngram] += 1
+        
+        ngrams_output = []
+        for ngram, freq in ngramsFD.most_common(): 
+            if freq >= minfreq:
+                if corpus_is_tagged:
+                    candidate_words = [ngt.split("|")[0] for ngt in ngram]
+                    #parte incriminata
                     clean_ngram = " ".join(candidate_words)
+                    ngram_row = (clean_ngram, " ".join(ngram), len(ngram), freq)
+                else:
+                    ngram_row = (" ".join(ngram), len(ngram), freq) 
+                
+                ngrams_output.append(ngram_row)
+            
+        return ngrams_output
+    
 
-                tagged_ngram_row=(clean_ngram, " ".join(tagged_ngram), len(tagged_ngram), freq) 
-                tagged_ngrams_output.append(tagged_ngram_row)
-                           
-        self.ngrams = tagged_ngrams_output
-
-        return tagged_ngrams_output
+    
+    
+    
   
 

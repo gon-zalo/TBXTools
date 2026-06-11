@@ -2,8 +2,15 @@ from TBXTools import Extractor, LinguisticExtractor
 
 #patterns= ["|#|ADJ |#|NOUN"]
 
+methodology = LinguisticExtractor(
+    nmin=2,
+    nmax=3,
+    corpus_is_tagged=False,
+    linguistic_patterns="ling_pat-en.txt"
+)
+
 extractor = Extractor(
-    methodology=LinguisticExtractor(nmin=2, nmax=3, input_is_tagged=False, evaluation_terms="evaluation_terms.txt"),
+    methodology=methodology,
     project_name="prova",
     corpus="Mental_disorder.txt",
     language="english",

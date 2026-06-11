@@ -1,7 +1,7 @@
 import sqlite3
 import os
 from pathlib import Path
-import string #so far we are not using it- take it off in the final version
+#import string #so far we are not using it- take it off in the final version
 
 
 class SQLite:
@@ -104,39 +104,27 @@ class SQLite:
             self.insert_tagged_segments(data)
 
     # LOAD METHODS
-    def load_corpus(self, corpus, encoding="utf-8", compoundify=False, comp_symbol="▁"):
-        '''Loads a corpus. It's recommended, but not compulsory, that the corpus is segmented (one segment per line). Use external tools to segment the corpus. A plain text corpus (not segmented), can be also used.'''
+    
+    def load_corpus(self, corpus, encoding="utf-8", corpus_is_tagged=False, compoundify=False, comp_symbol="▁"):
 
         if corpus is None:
-            print("No standard corpus provided. Skipping 'corpus' table load.")
+            table_name = 'tagged_corpus' if corpus_is_tagged else 'corpus'
+            print(f"No {table_name.replace('_', ' ')} provided. Skipping '{table_name}' table load.")
             return
 
-        if isinstance(corpus, list):
-            for corpus_file in corpus:
+        corpora_list = corpus if isinstance(corpus, list) else [corpus]
+
+        for corpus_file in corpora_list:
+            if corpus_is_tagged:
+                self.read_tagged_corpus(corpus_file=corpus_file, encoding=encoding)
+            else:
                 self.read_corpus(corpus_file=corpus_file, encoding=encoding)
 
-            print(f"{len(corpus)} corpora loaded")
-        
+        status_prefix = "Tagged " if corpus_is_tagged else ""
+        if isinstance(corpus, list):
+            print(f"{len(corpus)} {status_prefix.lower()}corpora loaded")
         else:
-            self.read_corpus(corpus_file=corpus, encoding=encoding)
-            print(f"Corpus loaded")
-    
-    
-    def load_tagged_corpus(self, tagged_corpus, encoding="utf-8"):
-
-        if tagged_corpus is None:
-            print("No tagged corpus provided. Skipping 'tagged_corpus' table load.")
-            return
-
-        if isinstance(tagged_corpus, list):
-            for corpus_file in tagged_corpus:
-                self.read_tagged_corpus(corpus_file=corpus_file, encoding=encoding)
-
-            print(f"{len(tagged_corpus)} tagged corpora loaded")
-        
-        else:
-            self.read_tagged_corpus(corpus_file=tagged_corpus, encoding=encoding)
-            print(f"Tagged Corpus loaded")
+            print(f"{status_prefix}Corpus loaded")
 
 
     def load_stopwords(self, stopwords , encoding="utf-8"):
@@ -249,6 +237,7 @@ class SQLite:
     def insert_tagged_segments(self, data):
         '''Inserts a batch of tagged segments into the tagged_corpus table.'''
         with self.conn:
+
             self.cur.executemany("INSERT INTO tagged_corpus (tagged_segment) VALUES (?)", data)
 
     def insert_ngrams(self, data):
@@ -261,6 +250,9 @@ class SQLite:
         '''Inserts Tagged Ngrams into the database.'''
         if not self.table_is_populated("tagged_ngrams"):
             with self.conn:
+                ngrams_data = [(row[0], row[2], row[3]) for row in data]
+                self.cur.executemany("INSERT INTO ngrams (ngram, n, frequency) VALUES (?, ?, ?)", ngrams_data)
+
                 self.cur.executemany("INSERT INTO tagged_ngrams (ngram, tagged_ngram, n, frequency) VALUES (?,?,?, ?)", data)
     
     def insert_tokens(self, data):
@@ -336,7 +328,7 @@ class SQLite:
                 ngrams.append(ngram_row)
 
         return ngrams
-    
+       
     def get_tagged_ngrams(self, ngram_filter= None): 
         '''
         Retrieve the list of tagged n-grams from the database.
@@ -469,8 +461,8 @@ class SQLite:
     def load_data_to_tables(self, table_names, corpus, tagged_corpus, stopwords, inner_stopwords, linguistic_patterns, evaluation_terms, exclusion_regexes):
 
         loaders = {
-            "corpus": lambda: self.load_corpus(corpus=corpus),
-            "tagged_corpus": lambda: self.load_tagged_corpus(tagged_corpus=tagged_corpus),
+            "corpus": lambda: self.load_corpus(corpus=corpus, corpus_is_tagged=False),
+            "tagged_corpus": lambda: self.load_corpus(corpus=tagged_corpus, corpus_is_tagged=True),
             "stopwords": lambda: self.load_stopwords(stopwords=stopwords),
             "inner_stopwords": lambda: self.load_inner_stopwords(inner_stopwords=inner_stopwords),
             "exclusion_regexes": lambda: self.load_exclusion_regexes(exclusion_regexes=exclusion_regexes),

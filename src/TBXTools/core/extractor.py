@@ -1,7 +1,7 @@
 from ..sqlite import SQLite
 from ..processor import Processor
 from ..results import Results
-from ..methodology.linguistic_methodology.tagger import LinguisticTagger
+from ..methodology.linguistic.tagger import LinguisticTagger
 from ..utils import get_lang, get_model_from_code
 from ..resources import Resources
 
@@ -23,22 +23,34 @@ class Extractor: #remember to add the attributes that you added while implementi
         _processor (Processor): Internal component to handle text preprocessing tasks.
     """
 
-    def __init__(self, project_name, methodology, corpus= None, tagged_corpus= None, stopwords=None, inner_stopwords=None, language=None, overwrite_project=False):
+    def __init__(self, project_name, methodology, corpus= None, stopwords=None, inner_stopwords=None, language=None, overwrite_project=False):
         
         self.methodology = methodology
         self.lang, self._lang_code = get_lang(language.lower())
         self._resources = Resources(lang_code=self._lang_code)
 
-        is_ling = (methodology.extractor_info == "linguistic") #checks if the methodology used is the linguistic
-        is_statistical= (methodology.extractor_info == "statistical")
+        case_normalization = False
+        exclusion_regexes = None
+        corpus_is_tagged = False
+        linguistic_patterns = None
+        evaluation_terms = None
 
-        case_normalization= methodology.case_normalization if is_statistical else False
-        exclusion_regexes= methodology.exclusion_regexes if is_statistical else None
+        final_corpus = None
+        final_tagged_corpus = None
+  
+        if methodology.extractor_info == "statistical":
+            case_normalization= methodology.case_normalization
+            exclusion_regexes= methodology.exclusion_regexes
+            final_corpus = corpus
 
-        #takes the parameters from the linguistic extractor
-        input_is_tagged = methodology.input_is_tagged if is_ling else False
-        linguistic_patterns = methodology.linguistic_patterns if is_ling else None
-        evaluation_terms = methodology.evaluation_terms if is_ling else None
+        if methodology.extractor_info == "linguistic":
+            corpus_is_tagged = methodology.corpus_is_tagged 
+            linguistic_patterns = methodology.linguistic_patterns 
+            evaluation_terms = methodology.evaluation_terms
+            if corpus_is_tagged:
+                final_tagged_corpus = corpus
+            else:
+                final_corpus = corpus
 
         self._processor = Processor()
         self._processor.stopwords = stopwords or self._resources.fetch_stopwords()
@@ -46,17 +58,16 @@ class Extractor: #remember to add the attributes that you added while implementi
         self._processor.case_normalization= case_normalization
         self._processor._lang_code = self._lang_code
         self.methodology._processor = self._processor
-        
-        
-        input_data = tagged_corpus if tagged_corpus is not None else corpus
+        self._processor.nmin= self.methodology.nmin
+        self._processor.nmax = self.methodology.nmax
     
         # initializing the SQLite database
         self._sqlite = SQLite(
             project_name=project_name, 
             stopwords=stopwords or self._resources.fetch_stopwords(), 
             inner_stopwords=inner_stopwords or self._resources.fetch_inner_stopwords(), 
-            corpus= None if (is_ling and input_is_tagged) else input_data, #corpus with both methodology- always wuth statistical vs linguistic- only if input_is_tagged= None
-            tagged_corpus=input_data if (is_ling and input_is_tagged) else None , #tagged corpus only if input_is_tagged= True and linguistic methodology
+            corpus= final_corpus, 
+            tagged_corpus = final_tagged_corpus ,
             exclusion_regexes=exclusion_regexes or None,
             linguistic_patterns=linguistic_patterns or None,
             evaluation_terms=evaluation_terms or None,
@@ -97,11 +108,21 @@ class Extractor: #remember to add the attributes that you added while implementi
                 tagged_segments= self._processor.create_tagged_segments(segments=segments)
                 self._sqlite.insert_tagged_segments(tagged_segments)
 
-            tagged_ngrams= self._processor.tagged_ngram_calculation(tagged_segments=tagged_segments)        
+            tagged_ngrams= self._processor.ngrams_calculation(segments=tagged_segments, corpus_is_tagged=True)        
             
             self._sqlite.insert_tagged_ngrams(tagged_ngrams)
+            
+            #Fetch any pre-existing linguistic POS patterns stored in the SQLite database
+            existing_patterns= self._sqlite.get_linguistic_patterns()
 
-            self.methodology.linguistic_patterns = self._sqlite.get_linguistic_patterns()    
+            if existing_patterns:
+                self.methodology.linguistic_patterns= existing_patterns
+            
+            else:
+                # If no patterns are found, set the attribute to None
+                # this acts as a trigger for 'methodology.extract()' to automatically invoke the PatternsLearning pipeline and generate new patterns.
+                self.methodology.linguistic_patterns = None
+
             evaluation_terms = self._sqlite.get_evaluation_terms()
             self.methodology.evaluation_terms = evaluation_terms
 
@@ -112,7 +133,12 @@ class Extractor: #remember to add the attributes that you added while implementi
                 filtered_tagged_ngrams.append(filtered_ngram)
 
             results = self.methodology.extract(tagged_segments=tagged_segments, tagged_ngrams=tagged_ngrams, filtered_tagged_ngrams=filtered_tagged_ngrams)
-
+            
+            #to save the learned linguistic patterns in to the database- chose if you want it or not
+            # Check if the database was originally empty (not existing_patterns) but the methodology has now successfully learned new patterns
+            if not existing_patterns and self.methodology.linguistic_patterns:
+                self._sqlite.delete_linguistic_patterns()
+                self._sqlite.load_linguistic_patterns(self.methodology.linguistic_patterns)
 
         if extractor_type == "statistical": 
             results = self.methodology.extract(segments=segments, verbose=verbose)

@@ -1,6 +1,5 @@
 import nltk
-from nltk.util import ngrams as compute_ngrams
-from ..base_extractor.base import BaseExtractor
+from ..base.base import BaseExtractor
 from ...results import Results
 
 class StatisticalExtractor(BaseExtractor):
@@ -59,52 +58,31 @@ class StatisticalExtractor(BaseExtractor):
                     - candidate_terms: The final filtered statistical candidate terms.
         '''
         
-        ngramsFD= nltk.probability.FreqDist() 
+        #tokens calculation
+
         tokensFD= nltk.probability.FreqDist()
-        nmin = self.nmin
-        nmax = self.nmax
-            
         for segment in segments:
-
-                tokens= self._processor.tokenize(segment)
-                
-                #token frequencies
-                for token in tokens:
+            tokens= self._processor.tokenize(segment)
+            for token in tokens:
                     tokensFD[token] += 1
-                
-                #ngram frequencies
-                for n in range(nmin, nmax+1):  
-                    ngrams = compute_ngrams(tokens, n) 
-
-                    for ngram in ngrams:
-                        ngramsFD[ngram] += 1 
-
-        ngrams_output = []
-        for ngram, freq in ngramsFD.most_common(): 
-
-            if freq>=minfreq:
-                ngrams_row=(" ".join(ngram), len(ngram), freq) 
-                ngrams_output.append(ngrams_row)
-                           
-        self.ngrams = ngrams_output
-
+        
         tokens_output = []                
-        for token, freq in tokensFD.most_common(): 
-            tokens_row=(token, freq)   
-            tokens_output.append((token, freq))
+        for token, freq in tokensFD.most_common():
+             tokens_output.append((token, freq))
 
         self.tokens = tokens_output
 
+        #ngrams calculation
+        ngrams_output= self._processor.ngrams_calculation(segments=segments)
+        self.ngrams = ngrams_output
+       
         #statistical filtering
         candidate_terms = []
- 
         for full_term, n, freq in ngrams_output:
-
             full_term = self._processor.filter_by_stopwords(term=full_term)
 
             if full_term is None:
                 continue
-
             candidate_terms.append((full_term, n, freq, "frequency", freq))
 
         return ngrams_output, tokens_output, candidate_terms

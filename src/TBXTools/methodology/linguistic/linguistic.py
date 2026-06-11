@@ -1,7 +1,7 @@
 import re
-from ...base_extractor.base import BaseExtractor
-from ....results import Results
-from ..pos_learning import PatternsLearning
+from ..base.base import BaseExtractor
+from ...results import Results
+from .patterns_learning import PatternsLearning
 import sys
 
 class LinguisticExtractor(BaseExtractor): #add the attributes that you added to the doc string- mira si quitart cosas internas como extractor info y processor- el usuario no lo tiene que importar
@@ -17,18 +17,16 @@ class LinguisticExtractor(BaseExtractor): #add the attributes that you added to 
 
     '''
 
-    def __init__(self, nmin, nmax, input_is_tagged= False, linguistic_patterns= None, evaluation_terms=None):
+    def __init__(self, nmin, nmax, corpus_is_tagged= False, linguistic_patterns= None, evaluation_terms=None):
         
         self.nmin = nmin
         self.nmax = nmax
-        self.input_is_tagged = input_is_tagged
+        self.corpus_is_tagged = corpus_is_tagged
         self.linguistic_patterns = linguistic_patterns
         self.evaluation_terms = evaluation_terms
         
         self.extractor_info = "linguistic"
         self._processor = None
-
-
 
     # MAIN FUNCTION
 
@@ -46,7 +44,7 @@ class LinguisticExtractor(BaseExtractor): #add the attributes that you added to 
             learn_dict = pattern_learner.learn_linguistic_patterns(outputfile="learned_linguistic_patterns.txt", evaluation_terms=self.evaluation_terms, filtered_tagged_ngrams=filtered_tagged_ngrams)
  
             if learn_dict:
-                print("Learning patterns")
+                print("Patterns learned")
                 linguistic_patterns = list(learn_dict.keys())
                 self.linguistic_patterns = linguistic_patterns
 
@@ -56,12 +54,12 @@ class LinguisticExtractor(BaseExtractor): #add the attributes that you added to 
      
         linguistic_patterns = self._processor.translate_pattern(self.linguistic_patterns)
 
-        candidate_terms = self._linguistic_extraction(tagged_ngrams_output=tagged_ngrams, linguistic_patterns=linguistic_patterns, minfreq=minfreq)
+        candidate_terms = self._linguistic_extraction(ngrams_output=tagged_ngrams, linguistic_patterns=linguistic_patterns, minfreq=minfreq)
 
         return Results(tagged_ngrams=tagged_ngrams, terms=candidate_terms, linguistic_patterns=linguistic_patterns, extractor_info="linguistic")
     
     
-    def _linguistic_extraction(self, linguistic_patterns, tagged_ngrams_output, minfreq=2):
+    def _linguistic_extraction(self, linguistic_patterns, ngrams_output, minfreq=2):
 
         '''Extracts candidate terms using the linguistic methodology'''
 
@@ -75,7 +73,7 @@ class LinguisticExtractor(BaseExtractor): #add the attributes that you added to 
                     controlpatterns.append(transformedpattern)  
 
         raw_candidates=[] 
-        for tupla in tagged_ngrams_output:
+        for tupla in ngrams_output:
             clean_ngram = tupla[0]
             tagged_ngram = tupla[1]
             n = tupla[2]
