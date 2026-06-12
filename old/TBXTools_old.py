@@ -2806,7 +2806,7 @@ class TBXTools:
     def load_linguistic_patterns(self,file, encoding="utf-8"):
         '''Loads the linguistic patterns to use with linguistic terminology extraction.'''
         entrada=codecs.open(file,"r",encoding=encoding)
-        linguistic_patterns=[]
+        linguistic_patterns= []
         data=[]
         record=[]
         for linia in entrada:
