@@ -5,14 +5,14 @@ from TBXTools import Extractor, LinguisticExtractor
 methodology = LinguisticExtractor(
     nmin=2,
     nmax=3,
-    corpus_is_tagged=False,
-    linguistic_patterns="ling_pat-en.txt"
+    corpus_is_tagged=True,
+    evaluation_terms="evaluation_terms.txt"
 )
 
 extractor = Extractor(
     methodology=methodology,
     project_name="prova",
-    corpus="Mental_disorder.txt",
+    corpus="tagged_corpus.txt",
     language="english",
     overwrite_project=True
 )

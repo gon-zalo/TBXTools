@@ -34,7 +34,6 @@ class Extractor: #remember to add the attributes that you added while implementi
         corpus_is_tagged = False
         linguistic_patterns = None
         evaluation_terms = None
-
         final_corpus = None
         final_tagged_corpus = None
   
@@ -112,15 +111,10 @@ class Extractor: #remember to add the attributes that you added while implementi
             
             self._sqlite.insert_tagged_ngrams(tagged_ngrams)
             
-            #Fetch any pre-existing linguistic POS patterns stored in the SQLite database
             existing_patterns= self._sqlite.get_linguistic_patterns()
-
             if existing_patterns:
-                self.methodology.linguistic_patterns= existing_patterns
-            
-            else:
-                # If no patterns are found, set the attribute to None
-                # this acts as a trigger for 'methodology.extract()' to automatically invoke the PatternsLearning pipeline and generate new patterns.
+                self.methodology.linguistic_patterns= existing_patterns    
+            else:                
                 self.methodology.linguistic_patterns = None
 
             evaluation_terms = self._sqlite.get_evaluation_terms()
@@ -129,13 +123,10 @@ class Extractor: #remember to add the attributes that you added while implementi
             filtered_tagged_ngrams = []
             for term in evaluation_terms:
                 filtered_ngram = self._sqlite.get_tagged_ngrams(ngram_filter=term)
-
                 filtered_tagged_ngrams.append(filtered_ngram)
 
             results = self.methodology.extract(tagged_segments=tagged_segments, tagged_ngrams=tagged_ngrams, filtered_tagged_ngrams=filtered_tagged_ngrams)
             
-            #to save the learned linguistic patterns in to the database- chose if you want it or not
-            # Check if the database was originally empty (not existing_patterns) but the methodology has now successfully learned new patterns
             if not existing_patterns and self.methodology.linguistic_patterns:
                 self._sqlite.delete_linguistic_patterns()
                 self._sqlite.load_linguistic_patterns(self.methodology.linguistic_patterns)
