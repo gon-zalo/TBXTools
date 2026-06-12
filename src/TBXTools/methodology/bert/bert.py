@@ -1,4 +1,4 @@
-from ..base import BaseExtractor
+from ..base import BaseMethodology
 from ...results import Results
 import nltk
 from transformers import logging
@@ -6,7 +6,7 @@ from collections import Counter
 
 logging.set_verbosity_error()
 
-class BertExtractor(BaseExtractor):
+class BertMethodology(BaseMethodology):
 
     def __init__(self, model, labels=None, external_terms=None):
         from transformers import AutoTokenizer, BertForTokenClassification, DataCollatorForTokenClassification, Trainer
