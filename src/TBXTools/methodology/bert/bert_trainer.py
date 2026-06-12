@@ -7,7 +7,7 @@ set_seed(123)
 
 class BertTrainer:
 
-    def __init__(self, model=None, external_terms=None, lr=None, batch_size=None, epochs=None, weight_decay=None, labels=None):
+    def __init__(self, model=None, external_terms=None, labels=None, lr=None, batch_size=None, epochs=None, weight_decay=None):
 
         self.model_name = model
         self.model = BertForTokenClassification.from_pretrained(self.model_name)
@@ -77,7 +77,6 @@ class BertTrainer:
         return batch
 
     def train(self):
-        print('Not splitting data. Training model on the full training data.')
         train_df = self.prepare_data(train_data)
 
         train_data = Dataset.from_pandas(train_df) # huggingface format

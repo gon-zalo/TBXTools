@@ -15,7 +15,7 @@ class BertExtractor(BaseExtractor):
         self.model = BertForTokenClassification.from_pretrained(self.model_name)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, max_length=512, force_download=False, do_lower_case=False)
         self.data_collator = DataCollatorForTokenClassification(tokenizer=self.tokenizer)
-        self.trainer = Trainer(model=self.model, data_collator=self.data_collator )
+        self.trainer = Trainer(model=self.model, data_collator=self.data_collator)
 
         self.external_terms = external_terms
         self.stop_words = None
@@ -26,6 +26,7 @@ class BertExtractor(BaseExtractor):
     def extract(self, segments, verbose):
         from datasets import Dataset
         import numpy as np
+        print("Methodology: BERT")
         tokens_output, tokenized_corpus, dataframe = self.preprocess(segments=segments, verbose=verbose)
 
         labels = self._choose_labels(self.labels)
