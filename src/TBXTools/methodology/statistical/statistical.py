@@ -1,28 +1,28 @@
 import nltk
-from nltk.util import ngrams as compute_ngrams
-from .base import BaseExtractor
-from ..results import Results
+from ..base.base import BaseExtractor
+from ...results import Results
 
 class StatisticalExtractor(BaseExtractor):
     '''
     Manages statistical terminology extraction.
     
     Attributes:
-        nmin (int): The minimum length for the extracted n-grams.
-        nmax (int): The maximum length for the extracted n-grams.
+        nmin (int): The minimum number of words a candidate term can contain.
+        nmax (int): The maximum number of words a candidate term can contain.
         extractor_info (str): A string identifier for the extraction methodology used (defaults to "statistical").
         _processor (Processor): An internal instance of the Processor class used to handle text preprocessing tasks.
 
     '''
     
-    def __init__(self, nmin, nmax):
+    def __init__(self, nmin, nmax, exclusion_regexes= None, case_normalization= False):
         
         self.nmin = nmin
         self.nmax = nmax
+        self.exclusion_regexes = exclusion_regexes
+        self.case_normalization = case_normalization
 
         self.extractor_info = "statistical"
-        self._processor = None # passed from Extractor()
-        
+        self._processor = None #passed from Extractor()
 # MAIN FUNCTION
     def extract(self, segments, verbose=False):
         '''
@@ -30,9 +30,7 @@ class StatisticalExtractor(BaseExtractor):
 
     Args:
         segments: A list of text segments to process.
-        stopwords: A collection of words to ignore during extraction.
-        inner_stopwords: A collection of words to ignore if they appear inside a term.
-        verbose (bool, optional): If True, prints processing details. Defaults to False.
+        verbose (bool, optional): If True, enables detailed logging. Defaults to False.
 
     Returns:
         Results: An object containing the candidate terms, n-grams, tokens, and extractor information. 
@@ -51,8 +49,6 @@ class StatisticalExtractor(BaseExtractor):
 
         Args:
             segments: A list of text segments to process.
-            stopwords: A collection of words to ignore at the boundaries (start/end) of extraction.
-            inner_stopwords: A collection of words to ignore if they appear inside a term.
             minfreq (int, optional): The minimum frequency required for an n-gram to be considered a candidate term. Defaults to 2.
 
         Returns:
@@ -62,47 +58,27 @@ class StatisticalExtractor(BaseExtractor):
                     - candidate_terms: The final filtered statistical candidate terms.
         '''
         
-        ngramsFD= nltk.probability.FreqDist() 
+        #tokens calculation
+
         tokensFD= nltk.probability.FreqDist()
-        nmin = self.nmin
-        nmax = self.nmax
-            
         for segment in segments:
-
-                tokens= self._processor.tokenize(segment)
-                
-                #token frequencies
-                for token in tokens:
+            tokens= self._processor.tokenize(segment)
+            for token in tokens:
                     tokensFD[token] += 1
-                
-                #ngram frequencies
-                for n in range(nmin, nmax+1):  
-                    ngrams = compute_ngrams(tokens, n) 
-
-                    for ngram in ngrams:
-                        ngramsFD[ngram] += 1 
-
-        ngrams_output = []
-        for ngram, freq in ngramsFD.most_common(): 
-
-            if freq>=minfreq:
-                ngrams_row=(" ".join(ngram), len(ngram), freq) 
-                ngrams_output.append(ngrams_row)
-                           
-        self.ngrams = ngrams_output
-
+        
         tokens_output = []                
-        for token, freq in tokensFD.most_common(): 
-            tokens_row=(token, freq)   
-            tokens_output.append(tokens_row)
+        for token, freq in tokensFD.most_common():
+             tokens_output.append((token, freq))
 
         self.tokens = tokens_output
 
+        #ngrams calculation
+        ngrams_output= self._processor.ngrams_calculation(segments=segments)
+        self.ngrams = ngrams_output
+       
         #statistical filtering
         candidate_terms = []
- 
         for full_term, n, freq in ngrams_output:
-
             full_term = self._processor.filter_by_stopwords(term=full_term)
 
             if full_term is None:

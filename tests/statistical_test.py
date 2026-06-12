@@ -1,22 +1,30 @@
 from TBXTools import Extractor, StatisticalExtractor
 
-corpus = ["Mental_health.txt"]
+corpus = ["Mental_disorder.txt"]
+regexes = [".+ health"]
 
-extractor = Extractor(
-    methodology=StatisticalExtractor(nmin=2, nmax=3),
-    project_name="test-example",
-    corpus=corpus,
-    language="english",
-    overwrite_project=True
+methodology = StatisticalExtractor(
+    nmin=2,
+    nmax=3,
+    exclusion_regexes=regexes,
+    case_normalization=True
 )
 
-results = extractor.extract(case_normalization=True, verbose=False)
+extractor = Extractor(
+    methodology=methodology,
+    project_name="prova_statistical",
+    corpus=corpus,
+    language="english",
+    overwrite_project=True,
+)
 
-results.nest_normalization(verbose=True)
-results.regex_exclusion(verbose=False)
+results = extractor.extract(verbose=False)
+
+results.nest_normalization(verbose=False)
+print(results.regex_exclusion(verbose=False))
 results.save_candidates("save-test.txt")
 
 # Results can be inspected with the following methods:
 print(f"\nTerms: {results.terms()}")
 print(f"\nNgrams: {results.ngrams()}")
-print(f"\nTokens: {results.tokens()}")
+print(f"\nTokens: {results.tokens()}") 

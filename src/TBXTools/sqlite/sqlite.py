@@ -1,22 +1,23 @@
 import sqlite3
 import os
 from pathlib import Path
-import string
+#import string #so far we are not using it- take it off in the final version
+
 
 class SQLite:
     '''
     Manage SQLite functions.
     '''
 
-    def __init__(self, corpus, project_name, stopwords, inner_stopwords, exclusion_regexes=None, overwrite_project=False):
+    def __init__(self, stopwords, inner_stopwords, project_name, corpus=None, tagged_corpus=None, linguistic_patterns=None, evaluation_terms=None, exclusion_regexes=None, overwrite_project=False):
         self.cur = None
         self.MAX_INSERTS = 10000
 
-        self.TABLES_TO_LOAD_AT_START = ["corpus", "stopwords", "inner_stopwords", "exclusion_regexes"]
+        self.TABLES_TO_LOAD_AT_START = ["corpus", "tagged_corpus", "stopwords", "inner_stopwords", "linguistic_patterns", "evaluation_terms", "exclusion_regexes"]
 
     # Initializing project, corpus, stopwords, etc.
         self.initialize_project(project_name=project_name, overwrite_project=overwrite_project)
-        self.load_data_to_tables(table_names=self.TABLES_TO_LOAD_AT_START, corpus=corpus, stopwords=stopwords, inner_stopwords=inner_stopwords, exclusion_regexes=exclusion_regexes)
+        self.load_data_to_tables(table_names=self.TABLES_TO_LOAD_AT_START, corpus=corpus, tagged_corpus=tagged_corpus, stopwords=stopwords, inner_stopwords=inner_stopwords, linguistic_patterns=linguistic_patterns, evaluation_terms=evaluation_terms, exclusion_regexes=exclusion_regexes)
 
     def add_extension(self, project_name):
         '''Adds the extension .sqlite to the database file.'''
@@ -57,6 +58,10 @@ class SQLite:
             self.cur.execute("CREATE TABLE stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, stopword TEXT)")
             self.cur.execute("CREATE TABLE inner_stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, inner_stopword TEXT)")
             self.cur.execute("CREATE TABLE exclusion_regexes (id INTEGER PRIMARY KEY AUTOINCREMENT, exclusion_regex TEXT)")
+            self.cur.execute("CREATE TABLE linguistic_patterns (id INTEGER PRIMARY KEY AUTOINCREMENT, linguistic_pattern TEXT)")
+            self.cur.execute("CREATE TABLE tagged_ngrams (id INTEGER PRIMARY KEY AUTOINCREMENT, ngram TEXT, tagged_ngram TEXT, n INTEGER, frequency INTEGER)")
+            self.cur.execute("CREATE TABLE tagged_corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, tagged_segment TEXT)")
+            self.cur.execute("CREATE TABLE evaluation_terms(id INTEGER PRIMARY KEY AUTOINCREMENT, evaluation_term TEXT)")
 
     def open_project(self,project_name):
         '''Opens an existing project. If the project doesn't exist it raises an exception.'''
@@ -85,19 +90,44 @@ class SQLite:
 
             self.insert_segments(data)
 
-    # LOAD METHODS
-    def load_corpus(self, corpus, encoding="utf-8", compoundify=False, comp_symbol="▁"):
-        '''Loads a corpus. It's recommended, but not compulsory, that the corpus is segmented (one segment per line). Use external tools to segment the corpus. A plain text corpus (not segmented), can be also used.'''
+    def read_tagged_corpus(self, corpus_file, encoding):
+        '''Reads a file line by line and inserts it into the 'tagged_corpus' table.'''
+        data = []
+        continserts = 0 
+        with open(corpus_file, "r", encoding=encoding, errors="ignore") as file:
+            data = [(line.rstrip(),) for line in file]
+            continserts += 1
 
-        if isinstance(corpus, list):
-            for corpus_file in corpus:
+            if continserts == self.MAX_INSERTS:
+                self.insert_tagged_segments(data)
+                data = []
+                continserts = 0
+
+            self.insert_tagged_segments(data)
+
+    # LOAD METHODS
+    
+    def load_corpus(self, corpus, encoding="utf-8", corpus_is_tagged=False, compoundify=False, comp_symbol="▁"):
+
+        if corpus is None:
+            table_name = 'tagged_corpus' if corpus_is_tagged else 'corpus'
+            print(f"No {table_name.replace('_', ' ')} provided. Skipping '{table_name}' table load.")
+            return
+
+        corpora_list = corpus if isinstance(corpus, list) else [corpus]
+
+        for corpus_file in corpora_list:
+            if corpus_is_tagged:
+                self.read_tagged_corpus(corpus_file=corpus_file, encoding=encoding)
+            else:
                 self.read_corpus(corpus_file=corpus_file, encoding=encoding)
 
-            print(f"{len(corpus)} corpora loaded")
-        
+        status_prefix = "Tagged " if corpus_is_tagged else ""
+        if isinstance(corpus, list):
+            print(f"{len(corpus)} {status_prefix.lower()}corpora loaded")
         else:
-            self.read_corpus(corpus_file=corpus, encoding=encoding)
-            print(f"Corpus loaded")
+            print(f"{status_prefix}Corpus loaded")
+
 
     def load_stopwords(self, stopwords , encoding="utf-8"):
         '''Load the stopwords into the database.
@@ -115,8 +145,6 @@ class SQLite:
         else:
             with open(stopwords, "r", encoding=encoding) as f:
                 data = [(line.rstrip(),) for line in f]
-            
-            # data.extend((punct,) for punct in self.punctuation) # remove this at some point?
 
             print("Stopwords loaded from file") 
         with self.conn:
@@ -139,11 +167,51 @@ class SQLite:
             with open(inner_stopwords, "r", encoding=encoding) as f:
                 data = [(line.rstrip(),) for line in f]
             
-            # data.extend((punct,) for punct in self.punctuation) # remove this at some point?
             print("Inner stopwords loaded from file") 
 
         with self.conn:
             self.cur.executemany("INSERT INTO inner_stopwords (inner_stopword) VALUES (?)",data) 
+
+
+    
+    def load_linguistic_patterns(self, linguistic_patterns, encoding="utf-8"):
+
+        data= []
+        if linguistic_patterns:
+            if isinstance(linguistic_patterns, list):
+                data = [(linguistic_pattern,) for linguistic_pattern in linguistic_patterns]
+                print("Linguistic Patterns loaded")
+            else:
+                with open(linguistic_patterns, "r", encoding=encoding) as f:
+                    data = [(line.rstrip(),) for line in f]
+                print("Linguistic Patterns loaded from file")
+
+            
+            with self.conn:
+                self.cur.executemany("INSERT INTO linguistic_patterns (linguistic_pattern) VALUES (?)",data) 
+
+
+    def load_evaluation_terms(self, evaluation_terms, encoding='utf-8'):
+        '''Loads the evaluation terms for the automatic learning of POS patterns'''
+
+        data= []
+
+        if not evaluation_terms:
+            print("No evaluation terms to load into the database")
+            return 
+        
+        if isinstance(evaluation_terms, list):
+            data = [(evaluation_term,) for evaluation_term in evaluation_terms]
+            print("Evaluation terms loaded")
+
+        else: 
+            with open(evaluation_terms, "r", encoding=encoding) as f:
+                data = [(line.rstrip(),) for line in f]        
+            print("Evaluation terms loaded from file")
+
+        with self.conn:
+            self.cur.executemany('INSERT INTO evaluation_terms (evaluation_term) VALUES (?)',data)
+
 
     def load_exclusion_regexes(self, exclusion_regexes, encoding='utf-8'):
         '''Loads the exclusion regular expressions for the source language.'''
@@ -182,16 +250,26 @@ class SQLite:
         with self.conn:
             self.cur.executemany("INSERT INTO corpus (segment) VALUES (?)", data)
 
-    def insert_tokenized_segments(self, data):
-        '''Inserts the tokenized segmented corpus into the database.'''
+    def insert_tagged_segments(self, data):
+        '''Inserts a batch of tagged segments into the tagged_corpus table.'''
         with self.conn:
-            self.cur.executemany("INSERT INTO tokenized_corpus (tokenized_segment) VALUES (?)", data)
+
+            self.cur.executemany("INSERT INTO tagged_corpus (tagged_segment) VALUES (?)", data)
 
     def insert_ngrams(self, data):
         '''Inserts Ngrams into the database.'''
         if not self.table_is_populated("ngrams"):
             with self.conn:
                 self.cur.executemany("INSERT INTO ngrams (ngram, n, frequency) VALUES (?,?,?)", data)
+
+    def insert_tagged_ngrams(self, data):
+        '''Inserts Tagged Ngrams into the database.'''
+        if not self.table_is_populated("tagged_ngrams"):
+            with self.conn:
+                ngrams_data = [(row[0], row[2], row[3]) for row in data]
+                self.cur.executemany("INSERT INTO ngrams (ngram, n, frequency) VALUES (?, ?, ?)", ngrams_data)
+
+                self.cur.executemany("INSERT INTO tagged_ngrams (ngram, tagged_ngram, n, frequency) VALUES (?,?,?, ?)", data)
     
     def insert_tokens(self, data):
         '''Inserts tokens into the database'''
@@ -221,6 +299,18 @@ class SQLite:
                 segments.append(segment)
         
         return segments
+    
+    def get_tagged_segments(self):
+        '''Gets the tagged segmented corpus as a list of segments from the database.'''
+        tagged_segments = []
+        with self.conn:
+            self.cur.execute("SELECT tagged_segment from tagged_corpus")
+
+            for row in self.cur.fetchall():
+                tagged_segment = row[0]
+                tagged_segments.append(tagged_segment)
+        
+        return tagged_segments
 
     def get_stopwords(self):
         '''Gets the list of stopwords from the database'''
@@ -254,6 +344,24 @@ class SQLite:
                 ngrams.append(ngram_row)
 
         return ngrams
+       
+    def get_tagged_ngrams(self, ngram_filter= None): 
+        '''
+        Retrieve the list of tagged n-grams from the database.
+        If a filter is provided, it returns only the matching n-grams.
+        Otherwise, it returns all n-grams ordered by frequency in descending order.
+        '''
+        tagged_ngrams = []
+        with self.conn:
+            if ngram_filter:
+                self.cur.execute("SELECT tagged_ngram, n, frequency FROM tagged_ngrams WHERE ngram= ?", (ngram_filter,))
+            else:
+                self.cur.execute("SELECT tagged_ngram, n, frequency FROM tagged_ngrams ORDER BY frequency DESC")
+
+            for tagged_ngram_row in self.cur.fetchall():
+                tagged_ngrams.append(tagged_ngram_row)
+
+        return tagged_ngrams
 
     def get_candidate_terms(self):
         '''Gets the list of candidate terms from the database'''
@@ -276,6 +384,26 @@ class SQLite:
                 regexes.append(regexes_row)
         
         return regexes
+    
+    def get_linguistic_patterns(self):
+        linguistic_patterns= []
+        with self.conn:
+            self.cur.execute("SELECT linguistic_pattern FROM linguistic_patterns")
+
+            for lingpattern_row in self.cur.fetchall():
+                linguistic_patterns.append(lingpattern_row)
+        
+        return linguistic_patterns
+    
+    def get_evaluation_terms(self):
+        evaluation_terms= []
+        with self.conn:
+            self.cur.execute("SELECT evaluation_term FROM evaluation_terms")
+
+            for evaluation_term_row in self.cur.fetchall():
+                evaluation_terms.append(evaluation_term_row[0])
+
+        return evaluation_terms
 
     # DELETE METHODS
     def delete_corpus(self):
@@ -292,6 +420,12 @@ class SQLite:
         with self.conn:
             self.cur.execute('DELETE FROM tokens')
             self.cur.execute("DELETE FROM sqlite_sequence WHERE name='tokens'")
+
+    def delete_linguistic_patterns(self):
+        with self.conn:
+            self.cur.execute('DELETE FROM linguistic_patterns')
+            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='linguistic_patterns'")
+
 
     def delete_candidate_terms(self):
         with self.conn:
@@ -340,13 +474,16 @@ class SQLite:
             else:
                 return False
             
-    def load_data_to_tables(self, table_names, corpus, stopwords, inner_stopwords, exclusion_regexes):
+    def load_data_to_tables(self, table_names, corpus, tagged_corpus, stopwords, inner_stopwords, linguistic_patterns, evaluation_terms, exclusion_regexes):
 
         loaders = {
-            "corpus": lambda: self.load_corpus(corpus=corpus),
+            "corpus": lambda: self.load_corpus(corpus=corpus, corpus_is_tagged=False),
+            "tagged_corpus": lambda: self.load_corpus(corpus=tagged_corpus, corpus_is_tagged=True),
             "stopwords": lambda: self.load_stopwords(stopwords=stopwords),
             "inner_stopwords": lambda: self.load_inner_stopwords(inner_stopwords=inner_stopwords),
-            "exclusion_regexes": lambda: self.load_exclusion_regexes(exclusion_regexes=exclusion_regexes)
+            "exclusion_regexes": lambda: self.load_exclusion_regexes(exclusion_regexes=exclusion_regexes),
+            "linguistic_patterns": lambda: self.load_linguistic_patterns(linguistic_patterns=linguistic_patterns),
+            "evaluation_terms": lambda: self.load_evaluation_terms(evaluation_terms=evaluation_terms)
         }
 
         for table in table_names:
@@ -354,3 +491,5 @@ class SQLite:
             # if the table does not have data, it is loaded in
             if loader and not self.table_is_populated(table_name=table):
                 loader()
+
+    

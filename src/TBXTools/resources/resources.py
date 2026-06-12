@@ -17,3 +17,4 @@ class Resources:
     def fetch_inner_stopwords(self):
         module = import_module(f"TBXTools.resources.inner.{self.lang_code}")
         return module.INNER_STOPWORDS
+    

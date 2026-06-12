@@ -1,7 +1,8 @@
 from .core import Extractor
 # from .preprocessor import Preprocessor
-from .methodology import StatisticalExtractor
-from .methodology.bert import BertExtractor, BertTrainer
+from .methodology.linguistic import LinguisticExtractor
+from .methodology.statistical import StatisticalExtractor
+
 __all__=[
     "Extractor"
     # "StatisticalExtractor",
