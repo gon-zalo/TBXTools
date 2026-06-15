@@ -66,11 +66,11 @@ class Extractor: #remember to add the attributes that you added while implementi
         print(f"{self._methodology.name} initialized", flush=True)
         print("Running term extraction", flush=True)
         
-        segments = self._sqlite.get_segments()
+        segments = self._sqlite.get_segments(is_corpus_tagged=False)
 
         if self._methodology.name == "LinguisticMethodology": 
             
-            tagged_segments = self._sqlite.get_tagged_segments()
+            tagged_segments = self._sqlite.get_segments(is_corpus_tagged=True)
             tagged_segments = [(x,) for x in tagged_segments] #this to pass from a list of strings to a list of tuples
             
             if not tagged_segments:

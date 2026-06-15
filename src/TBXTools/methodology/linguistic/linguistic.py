@@ -1,5 +1,6 @@
 import re
 import sys
+from collections import Counter
 from ..base.base import BaseMethodology
 from ...results import Results
 from ...processor import Processor
@@ -72,14 +73,12 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
 
         raw_candidates=[] 
         for tupla in ngrams_output:
-            clean_ngram = tupla[0]
+            #clean_ngram = tupla[0]
             tagged_ngram = tupla[1]
             n = tupla[2]
             frequency = tupla[3]
 
-            # for clean_ngram, tagged_ngram, n, frequency in tupla:
             filtered_ngram = self.processor.filter_by_stopwords_linguistic(term=tagged_ngram)
-            # print(filtered_ngram)
             if filtered_ngram is None:
                 continue
 
@@ -88,7 +87,7 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
                 match = re.search(pattern, tagged_ngram)
                 if match:
                         
-                        if match.group(0)== tagged_ngram:
+                        if match.group(0) == tagged_ngram:
                             candidate =" ".join(match.groups()[1:])
                             record=[]
                             record.append(candidate)     
@@ -97,24 +96,11 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
                             record.append(frequency)   
                             raw_candidates.append(record)
                             break
-         
-#make this more pythonic        
-        tcaux={}
-        for a in raw_candidates:
-            cand_name=a[0]
-            cand_freq=a[3]
-            if not cand_name in tcaux:
-                tcaux[cand_name]=cand_freq
-            else:
-                tcaux[cand_name]+= cand_freq
         
-        data=[] 
-        for tc in tcaux:
-            record=[]
-            record.append(tc)            
-            record.append(len(tc.split()))    
-            record.append("frequency")
-            record.append(tcaux[tc])   
-            data.append(record)
+        candidate_frequencies= Counter()
+        for candidate, n, _, frequency in raw_candidates: # underscore to ignore the third element "frequency" - not needed for aggregation
+            candidate_frequencies[candidate] += frequency # If the candidate already exists, aggregate its frequency
         
-        return data
+        # Generate and return the final data structure 
+        return [[term, len(term.split()), "frequency", freq] for term, freq in candidate_frequencies.items()]  # .items() yields (term, total_frequency) pairs from the Counter
+        

@@ -265,29 +265,21 @@ class SQLite:
             self.cur.executemany("INSERT INTO filtered_candidate_terms (candidate, n, frequency, measure, value) VALUES (?,?,?,?,?)", data)
 
     # GET METHODS
-    def get_segments(self):
+    def get_segments(self, is_corpus_tagged):
         '''Gets the segmented corpus as a list of segments from the database.'''
         segments = []
         with self.conn:
-            self.cur.execute("SELECT segment from corpus")
-
+            if is_corpus_tagged:
+                self.cur.execute("SELECT tagged_segment from tagged_corpus")
+            
+            else:
+                self.cur.execute("SELECT segment from corpus")
+                
             for row in self.cur.fetchall():
                 segment = row[0]
                 segments.append(segment)
         
         return segments
-    
-    def get_tagged_segments(self):
-        '''Gets the tagged segmented corpus as a list of segments from the database.'''
-        tagged_segments = []
-        with self.conn:
-            self.cur.execute("SELECT tagged_segment from tagged_corpus")
-
-            for row in self.cur.fetchall():
-                tagged_segment = row[0]
-                tagged_segments.append(tagged_segment)
-        
-        return tagged_segments
 
     def get_stopwords(self):
         '''Gets the list of stopwords from the database'''
