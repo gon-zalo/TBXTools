@@ -1,25 +1,19 @@
-from TBXTools import Extractor, LinguisticExtractor
+from TBXTools import Extractor, LinguisticMethodology
 
-#patterns= ["|#|ADJ |#|NOUN"]
-
-methodology = LinguisticExtractor(
-    nmin=2,
-    nmax=3,
-    corpus_is_tagged=False,
-    evaluation_terms= "evaluation_terms.txt"
-)
+patterns = ["|#|NOUN |#|ADJ", "|#|NOUN |#|NOUN", "|#|ADJ |#|NOUN"]
+fr_corpus = "Trouble_psychique.txt"
 
 extractor = Extractor(
-    methodology=methodology,
-    project_name="prova",
-    corpus="Mental_disorder.txt",
-    language="english",
+    methodology=LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=False, linguistic_patterns=patterns),
+    project_name="linguistic-example-fr",
+    corpus=fr_corpus,
+    language="french",
     overwrite_project=True
 )
 
 results = extractor.extract(verbose=False)
 
 results.nest_normalization(verbose=False)
-results.save_candidates("test.txt")
+# results.save_candidates("linguistic-candidates.txt")
 
-# print(f"\nTerms: {results.terms()}")
+print(f"\nTerms: {results.terms()}")
