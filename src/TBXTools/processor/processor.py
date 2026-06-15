@@ -1,9 +1,4 @@
-from nltk.tokenize import RegexpTokenizer
-from ..methodology.linguistic.tagger import LinguisticTagger
 from ..utils.utils import get_model_from_code
-import nltk
-from nltk.util import ngrams as compute_ngrams
-import re 
 
 class Processor:
 
@@ -20,11 +15,9 @@ class Processor:
         self.inner_stopwords = None
         self.nmin = None
         self.nmax = None
-        self._lang_code = None
-        self.chosen_spacy_model = get_model_from_code(self._lang_code)
-        self._tagger = LinguisticTagger(self.chosen_spacy_model)
+        self.lang_code = None
     
-    def apply_case_normalization(self, candidate_terms, verbose=False): 
+    def case_normalization(self, candidate_terms, verbose=False): 
         '''
         Performs case normalization. If a capitalized term exists as non-capitalized, the capitalized one will be deleted and the frequency of the non-capitalized one will be increased by the frequency of the capitalized.
 
@@ -41,7 +34,7 @@ class Processor:
 
         for terms_row in candidate_terms:
             term = terms_row[0]
-            freq = terms_row[2]
+            freq = terms_row[3]
 
             key = term.lower().strip()
             freq_dict[key] = freq_dict.get(key, 0) + freq
@@ -50,7 +43,7 @@ class Processor:
         for term, freq in freq_dict.items():
             n = len(term.split())
 
-            row = (term, n, freq, "freq", freq)
+            row = (term, n, "frequency", freq)
             normalized_terms.append(row)
 
             if verbose:
@@ -80,7 +73,7 @@ class Processor:
         for row in candidate_terms:
             candidate_term = row[0]
             candidate_term_n = row[1]
-            candidate_term_freq = row[2]
+            candidate_term_freq = row[3]
 
             if candidate_term_n not in terms_by_n:
                 terms_by_n[candidate_term_n] = []
@@ -90,7 +83,7 @@ class Processor:
         for row in candidate_terms:
             candidate_term = row[0]
             candidate_term_n = row[1]
-            candidate_term_freq = row[2]
+            candidate_term_freq = row[3]
 
             nested_frequency = 0
 
@@ -123,7 +116,7 @@ class Processor:
             # compute the normalized frequency
             normalized_freq = max(candidate_term_freq - nested_frequency, 0)
        
-            updated_row = (candidate_term, candidate_term_n, normalized_freq, "frequency", normalized_freq)
+            updated_row = (candidate_term, candidate_term_n, "frequency", normalized_freq)
 
             # remove terms whose normalized frequency becomes 0
             if normalized_freq > 0:
@@ -150,7 +143,8 @@ class Processor:
           candidates_to_exclude: a list of candidate terms to exclude
 
         '''
-
+        import re
+         
         candidates_to_exclude = []
         for candidate_row in candidate_terms:
             candidate = candidate_row[0]
@@ -180,7 +174,8 @@ class Processor:
         Returns: 
           list[str]: A list of tokens extracted from the segment.
         """
-        
+        from nltk.tokenize import RegexpTokenizer
+
         tokenizer = RegexpTokenizer(r"\b\w(?:[\w'‘’.,-]*\w)?\b")
         token = tokenizer.tokenize(segment)
 
@@ -224,7 +219,6 @@ class Processor:
         return term
     
     # linguistic processing
-
     def translate_pattern(self, linguistic_patterns):
 
         translated_patterns= []
@@ -255,20 +249,23 @@ class Processor:
         return translated_patterns
     
     def create_tagged_segments(self, segments):
-        print("Starting POS tagging")
-                
+        from ..methodology.linguistic.tagger import LinguisticTagger
+
+        tagger = LinguisticTagger(get_model_from_code(self.lang_code))
+
         tagged_segments = []
         for segment in segments:
 
-            single_tagged_segment = self._tagger.tag_segment(segment)
+            single_tagged_segment = tagger.tag_segment(segment)
 
             if single_tagged_segment:
                 tagged_segments.append((single_tagged_segment,))
 
         return tagged_segments
     
-
-    def ngrams_calculation(self, segments, corpus_is_tagged= False, minfreq=2):
+    def ngrams_calculation(self, segments, corpus_is_tagged=False, minfreq=2):
+        import nltk
+        from nltk.util import ngrams as compute_ngrams
         
         ngramsFD = nltk.probability.FreqDist()
         nmin = self.nmin
@@ -299,10 +296,3 @@ class Processor:
                 ngrams_output.append(ngram_row)
             
         return ngrams_output
-    
-
-    
-    
-    
-  
-

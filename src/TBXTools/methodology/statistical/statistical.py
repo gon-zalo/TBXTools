@@ -1,28 +1,28 @@
 import nltk
-from ..base.base import BaseExtractor
+from ..base.base import BaseMethodology
 from ...results import Results
+from ...processor import Processor
 
-class StatisticalExtractor(BaseExtractor):
+class StatisticalMethodology(BaseMethodology):
     '''
     Manages statistical terminology extraction.
     
     Attributes:
         nmin (int): The minimum number of words a candidate term can contain.
         nmax (int): The maximum number of words a candidate term can contain.
-        extractor_info (str): A string identifier for the extraction methodology used (defaults to "statistical").
         _processor (Processor): An internal instance of the Processor class used to handle text preprocessing tasks.
-
     '''
     
-    def __init__(self, nmin, nmax, exclusion_regexes= None, case_normalization= False):
+    def __init__(self, nmin, nmax, exclusion_regexes=None, case_normalization=False):
         
-        self.nmin = nmin
-        self.nmax = nmax
+        self.name = "StatisticalMethodology"
         self.exclusion_regexes = exclusion_regexes
         self.case_normalization = case_normalization
 
-        self.extractor_info = "statistical"
-        self._processor = None #passed from Extractor()
+        self.processor = Processor()
+        self.processor.nmin = nmin    
+        self.processor.nmax = nmax    
+
 # MAIN FUNCTION
     def extract(self, segments, verbose=False):
         '''
@@ -35,14 +35,18 @@ class StatisticalExtractor(BaseExtractor):
     Returns:
         Results: An object containing the candidate terms, n-grams, tokens, and extractor information. 
         '''
-        print("Methodology: statistical")
         
         ngrams, tokens, candidate_terms = self._statistical_extraction(segments=segments)
 
-        return Results(terms=candidate_terms, ngrams=ngrams, tokens=tokens, extractor_info=self.extractor_info)
+        if self.case_normalization:
+            
+            candidate_terms = self.processor.case_normalization(
+                candidate_terms=candidate_terms, 
+                verbose=verbose) 
+
+        return Results(terms=candidate_terms, ngrams=ngrams, tokens=tokens)
     
 # COMPUTING FUNCTIONS
-
     def _statistical_extraction (self, segments, minfreq=2):
         '''
         Handles the core computation of the statistical extraction pipeline. It processes the text segments to generate tokens and n-grams, calculates their frequency distributions, and applies stopword filtering (both boundary and inner) alongside a minimum frequency threshold to isolate the final candidate terms. 
@@ -62,7 +66,7 @@ class StatisticalExtractor(BaseExtractor):
 
         tokensFD= nltk.probability.FreqDist()
         for segment in segments:
-            tokens= self._processor.tokenize(segment)
+            tokens= self.processor.tokenize(segment)
             for token in tokens:
                     tokensFD[token] += 1
         
@@ -73,21 +77,17 @@ class StatisticalExtractor(BaseExtractor):
         self.tokens = tokens_output
 
         #ngrams calculation
-        ngrams_output= self._processor.ngrams_calculation(segments=segments)
+        ngrams_output= self.processor.ngrams_calculation(segments=segments)
         self.ngrams = ngrams_output
        
         #statistical filtering
         candidate_terms = []
         for full_term, n, freq in ngrams_output:
-            full_term = self._processor.filter_by_stopwords(term=full_term)
+            full_term = self.processor.filter_by_stopwords(term=full_term)
 
             if full_term is None:
                 continue
-            candidate_terms.append((full_term, n, freq, "frequency", freq))
+
+            candidate_terms.append((full_term, n, "frequency", freq))
 
         return ngrams_output, tokens_output, candidate_terms
-
-
-
-    
-    

@@ -1,1 +1,1 @@
-from .statistical import StatisticalExtractor
+from .statistical import StatisticalMethodology

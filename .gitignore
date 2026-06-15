@@ -5,4 +5,7 @@ tests/*.sqlite
 tests/__init__.py
 tests/*.txt
 old/TBXTools_old.py
-tests/*.sqlite
+biobert_detech_run2/
+biobert_detech/
+tmp_trainer/
+tests/*.csv

@@ -1,12 +1,18 @@
-from TBXTools import Extractor, BertExtractor
+from TBXTools import Extractor, BertMethodology
+
+corpus = 'bert-corpus.txt'
+# model_name = 'dmis-lab/biobert-base-cased-v1.2'
+model = 'biobert_detech_run2'
+methodology = BertMethodology(model=model)
 
 extractor = Extractor(
     project_name="bert-test",
-    methodology=BertExtractor(),
-    corpus='Mental_health.txt'
+    methodology=methodology,
+    corpus=corpus,
+    language="english",
+    overwrite_project=True
 )
 
-extractor.extract()
+results = extractor.extract(verbose=False)
 
-print(extractor.terms())
-print(extractor.tokens())
+# print(results._tokens)
