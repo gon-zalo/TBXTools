@@ -1,3 +1,1 @@
-from .base import BaseExtractor
-
-
+from .base import BaseMethodology

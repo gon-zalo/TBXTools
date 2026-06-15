@@ -1,23 +1,80 @@
-from ..base import BaseExtractor
+from ..base import BaseMethodology
+from ...results import Results
+import nltk
+from transformers import logging
+from collections import Counter
 
-class BertExtractor(BaseExtractor):
+logging.set_verbosity_error()
 
-    def __init__(self, model=None, tokenizer=None, external_terms=None, lr=None, batch_size=None, epochs=None, weight_decay=None):
-        
-        from transformers import AutoTokenizer
+class BertMethodology(BaseMethodology):
 
-        self.model = model or 'distilbert/distilbert-base-uncased'
-        self.tokenizer = tokenizer or AutoTokenizer.from_pretrained(self.model, max_length=512, force_download=False, do_lower_case=False)
+    def __init__(self, model, labels=None, external_terms=None):
+        from transformers import AutoTokenizer, BertForTokenClassification, DataCollatorForTokenClassification, Trainer
+
+        self.model_name = model
+        self.model = BertForTokenClassification.from_pretrained(self.model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, max_length=512, force_download=False, do_lower_case=False)
+        self.data_collator = DataCollatorForTokenClassification(tokenizer=self.tokenizer)
+        self.trainer = Trainer(model=self.model, data_collator=self.data_collator)
+
         self.external_terms = external_terms
-
-        self.lr = lr or 5e-05 # learning rate
-        self.batch_size = batch_size or 16
-        self.epochs = epochs or 3
-        self.weight_decay = weight_decay or 0.03
-
-        self.tokens = None
-        self.labels = None
+        self.stop_words = None
+        self.labels = labels.lower() if labels else None
+        self.extractor_info = "bert"
+        self._processor = None
         
+    def extract(self, segments, verbose):
+        from datasets import Dataset
+        import numpy as np
+        print("Methodology: BERT")
+        tokens_output, tokenized_corpus, dataframe = self.preprocess(segments=segments, verbose=verbose)
+
+        labels = self._choose_labels(self.labels)
+        label2id = {l: i for i, l in enumerate(labels)}
+        id2label = {i: l for l, i in label2id.items()}
+
+        # need to check this nonsense
+        eval_hf = Dataset.from_pandas(dataframe)
+        prepared_data = self.prepare_data(self.tokenizer)
+        eval_data = eval_hf.map(prepared_data, batched=True)
+
+        # df = eval_data.to_pandas()
+        # print(df.head())
+        # df.to_csv("ins.csv", index=False)
+
+        print("Predicting terms")
+        trainer = self.trainer
+        prediction_logits, _, _ = trainer.predict(eval_data)
+        predictions = np.argmax(prediction_logits, axis=2)
+
+        predicted_tokens = []
+        for i in range(len(eval_data)):
+            tokens = eval_data[i]['tokenized_segment']
+            predicted_ids = predictions[i]
+            reconstructed = self.pred_labels_to_tokens(tokens, predicted_ids, id2label)
+            predicted_tokens.append(reconstructed)
+
+        print("Predictions finalized")
+
+        dataframe['predicted_tokens'] = predicted_tokens
+        dataframe['predicted_terms'] = dataframe['predicted_tokens'].apply(self._merge_tokens)
+
+        #check
+        # dataframe.to_csv('./evaluation_dataframe.csv', index=False)
+
+        predicted_terms = dataframe['predicted_terms'].tolist()
+        predicted_terms = self._flatten_list(predicted_terms)
+
+        candidate_terms = []
+        term_counts = Counter(predicted_terms)
+        term_counts = dict(sorted(term_counts.items(), key=lambda item: item[1], reverse=True))
+
+        for term, count in term_counts.items():
+            n = len(term.split(" "))
+            candidate_terms.append((term, n, "count", count))
+
+        return Results(tokens=tokens_output, extractor_info=self.extractor_info, terms=candidate_terms, tokenized_corpus=tokenized_corpus)    
+    
     def _flatten_list(self, list_of_lists): # needed for bio_tag
 
         output = [token for sublist in list_of_lists for token in sublist]
@@ -81,12 +138,10 @@ class BertExtractor(BaseExtractor):
 
         return tokenized_terms
 
-    def _merge_tokens(predicted_terms):
+    def _merge_tokens(self, predicted_terms):
         import re
         import pandas as pd
-        stop_words = pd.read_table('./ATE_BERT/resources/stop-eng.txt', header=None)
-        stop_words = stop_words[0].tolist()
-        stop_words = set(stop_words)
+        stop_words = []
 
         merged_terms = []
 
@@ -135,16 +190,91 @@ class BertExtractor(BaseExtractor):
             
         return merged_terms
 
-    def _train(self):
-        pass
+    def _choose_labels(self, labels):
+        if not labels: # default
+            return ['O', 'B', 'I']
+            
+        if labels == "bio":
+            return ['O', 'B', 'I']
 
-    def _preprocess(self, text, external_terms):
-        tokenized_external_terms = self._tokenize_terms(external_terms)
+    def preprocess(self, segments, verbose):
+        import pandas as pd
+        tokensFD = nltk.probability.FreqDist()
+        tokenized_segments = []
 
-    def extract(self, segments): 
-        # from datasets import Dataset
-        # from transformers import BertTokenizer, Trainer, BertForTokenClassification, DataCollatorForTokenClassification
+        for segment in segments:
+            tokenization_table = self.tokenizer(segment)
+            tokens = self.tokenizer.convert_ids_to_tokens(tokenization_table["input_ids"])
 
+            tokenized_segments.append(tokens)
 
-        for segment in segments[:1]:
-            print(segment)
+            for token in tokens:
+                tokensFD[token] += 1
+
+        # print(tokenized_segments)
+        tokens_output = []
+        for token, freq in tokensFD.most_common():
+            tokens_row = (token, freq)
+            tokens_output.append(tokens_row)
+
+        tokenized_corpus_for_sqlite = [(" ".join(segment),) for segment in tokenized_segments] #list to str to introduce in sqlite
+
+        # tokenized_corpus_for_dataframe = [" ".join(segment) for segment in tokenized_segments]
+
+        data = {"segment": pd.Series(segments), "tokenized_segment": pd.Series(tokenized_segments)}
+        dataframe = pd.DataFrame(data=data)
+
+        return tokens_output, tokenized_corpus_for_sqlite, dataframe
+
+    def prepare_data(self, tokenizer):
+        def prepare_unlabeled_inputs(batch): # same func as above without labels
+
+            max_length = 512
+            input_ids = []
+            attention_masks = []
+
+            for tokens in batch['tokenized_segment']:
+                # tokens = tokens.split(" ")
+
+                tokens = tokens[:max_length]
+
+                pad_length = max_length - len(tokens)
+                tokens += ['[PAD]'] * pad_length
+                # tokens to input ids
+                input_ids.append(tokenizer.convert_tokens_to_ids(tokens))
+
+                # attention mask
+                attention_masks.append([1 if token != '[PAD]' else 0 for token in tokens])
+
+            batch['input_ids'] = input_ids
+            batch['attention_mask'] = attention_masks
+
+            return batch
+        return prepare_unlabeled_inputs
+
+    def pred_labels_to_tokens(self, tokens, predicted_ids, id2label): # predicted labels to tokens func
+        reconstructed_tokens = []
+        current_term = []
+
+        for token, pred_id in zip(tokens, predicted_ids):
+            
+            label = id2label[pred_id]
+        
+            if label == 'B':
+                if current_term:
+                    reconstructed_tokens.append(' '.join(current_term))
+                current_term = [token]
+            elif label == 'I':
+                if current_term: # append I term if there is a B term
+                    current_term.append(token)
+                else: # if there is no B, treat it as B
+                    current_term = [token]
+            elif label == 'O': # if there is a B/BI sequence then end it, else dont add it to the current term
+                if current_term:
+                    reconstructed_tokens.append(' '.join(current_term))
+                current_term = []
+
+        if current_term:
+            reconstructed_tokens.append(' '.join(current_term))
+
+        return reconstructed_tokens

@@ -1,4 +1,4 @@
-class BaseExtractor:
+class BaseMethodology:
     def preprocess(self, corpus, **kwargs):
         raise NotImplementedError
 

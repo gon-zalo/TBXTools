@@ -1,1 +1,1 @@
-from .bert import BertExtractor
+from .bert import BertMethodology

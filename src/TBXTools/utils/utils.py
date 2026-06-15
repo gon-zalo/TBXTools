@@ -31,7 +31,7 @@ def get_model_from_code(lang_code):
           lang_code: the language ISO code
 
         Returns:
-          The corresponding spaCy model name, or 'en_core_web_sm' as default.
+          The corresponding spaCy model name.
         """
         spacy_models = {
         "en": "en_core_web_sm",
@@ -40,5 +40,4 @@ def get_model_from_code(lang_code):
         "es": "es_core_news_sm"
         }
     
-    #maybe we don´t need a default one- discuss!
-        return spacy_models.get(lang_code, "en_core_web_sm")
+        return spacy_models.get(lang_code, None)
