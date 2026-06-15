@@ -1,19 +1,13 @@
 from TBXTools import Extractor, LinguisticMethodology
 
-#patterns= ["|#|ADJ |#|NOUN"]
-
-methodology = LinguisticMethodology(
-    nmin=2,
-    nmax=3,
-    is_corpus_tagged=True,
-    evaluation_terms="evaluation_terms.txt"
-)
+patterns = ["|#|NOUN |#|ADJ", "|#|NOUN |#|NOUN", "|#|ADJ |#|NOUN"]
+fr_corpus = "Trouble_psychique.txt"
 
 extractor = Extractor(
-    methodology=methodology,
-    project_name="linguistic-example",
-    corpus="tagged_corpus.txt",
-    language="english",
+    methodology=LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=False, linguistic_patterns=patterns),
+    project_name="linguistic-example-fr",
+    corpus=fr_corpus,
+    language="french",
     overwrite_project=True
 )
 
