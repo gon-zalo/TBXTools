@@ -6,14 +6,14 @@ methodology = LinguisticExtractor(
     nmin=2,
     nmax=3,
     corpus_is_tagged=False,
-    linguistic_patterns="ling_pat-ca.txt"
+    evaluation_terms= "evaluation_terms.txt"
 )
 
 extractor = Extractor(
     methodology=methodology,
     project_name="prova",
-    corpus="Trastorn_mental.txt",
-    language="catalan",
+    corpus="Mental_disorder.txt",
+    language="english",
     overwrite_project=True
 )
 
