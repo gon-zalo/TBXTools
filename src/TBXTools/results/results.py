@@ -9,21 +9,18 @@ class Results:
         _ngrams: A list of extracted Ngrams.
         _tokens: A list of extracted tokens.
         _extractor_info: The name of the methodology used (statistical, linguistic...).
-        _processor: Class to process data.
-        _sqlite: Class to manage the SQLite database.
+        processor: Class to process data.
+        sqlite: Class to manage the SQLite database.
     '''
-    def __init__(self, *, terms=None, ngrams=None, tagged_ngrams=None, tokens=None, tagged_segments=None, linguistic_patterns=None, extractor_info=None):
+    def __init__(self, *, terms=None, ngrams=None, tagged_ngrams=None, tokens=None, linguistic_patterns=None):
         self._terms = terms or []
         self._ngrams = ngrams or []
         self._tagged_ngrams= tagged_ngrams or []
-        self._tagged_segments = tagged_segments or []
         self._linguistic_patterns = linguistic_patterns or []
         self._tokens = tokens or []
-        self._tokenized_corpus = tokenized_corpus or []
-        self._extractor_info = extractor_info or None
 
         # passed from Extractor()
-        self._processor = None
+        self._methodology = None
         self._sqlite = None
 
 # ACCESSING ATTRIBUTES
@@ -90,13 +87,12 @@ class Results:
         #else:
         candidate_terms = self._terms
 
-        filtered_terms = self._processor.nest_normalization(candidate_terms=candidate_terms, percent= percent, verbose=verbose)
+        filtered_terms = self._methodology.processor.nest_normalization(candidate_terms=candidate_terms, percent=percent, verbose=verbose)
 
         self._sqlite.delete_candidate_terms()
         self._sqlite.insert_candidate_terms(filtered_terms)
         self._terms = filtered_terms
             
-
     def regex_exclusion(self, verbose=False):
         '''
         Deletes term candidates matching a set of regular expresions loaded in the Extractor() class.
@@ -110,7 +106,7 @@ class Results:
         else:
             candidate_terms = self._sqlite.get_candidate_terms()
 
-            candidates_to_exclude = self._processor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms, verbose=verbose)
+            candidates_to_exclude = self._methodology.processor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms, verbose=verbose)
 
             if candidates_to_exclude:
                 for candidate in candidates_to_exclude:
@@ -118,7 +114,6 @@ class Results:
                 print(f"Excluded {len(candidates_to_exclude)} terms")
             else:
                 print("No candidate terms excluded")
-
 
     def save_candidates(self, file_name):
         '''
