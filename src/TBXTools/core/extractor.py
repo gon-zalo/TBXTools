@@ -1,9 +1,7 @@
 from ..sqlite import SQLite
-from ..processor import Processor
 from ..results import Results
-from ..methodology.linguistic.tagger import LinguisticTagger
-from ..utils import get_lang, get_model_from_code
 from ..resources import Resources
+from ..utils import get_lang
 
 class Extractor: #remember to add the attributes that you added while implementing the linguistic extractor
     """
@@ -20,56 +18,34 @@ class Extractor: #remember to add the attributes that you added while implementi
         linguistic_patterns (str, optional): File path to the POS patterns (used only for linguistic extraction).
         overwrite_project (bool): If True, overwrites existing project data in the database.
         _sqlite (SQLiteManager): Internal component to manage database interactions.
-        _processor (Processor): Internal component to handle text preprocessing tasks.
     """
 
     def __init__(self, project_name, methodology, corpus= None, stopwords=None, inner_stopwords=None, language=None, overwrite_project=False):
         
-        self.methodology = methodology
         self.lang, self._lang_code = get_lang(language.lower())
+
+        # initializing objects
+        self._methodology = methodology
         self._resources = Resources(lang_code=self._lang_code)
 
-        case_normalization = False
-        exclusion_regexes = None
-        corpus_is_tagged = False
-        linguistic_patterns = None
-        evaluation_terms = None
-        final_corpus = None
-        final_tagged_corpus = None
-  
-        if methodology.extractor_info == "statistical":
-            case_normalization= methodology.case_normalization
-            exclusion_regexes= methodology.exclusion_regexes
-            final_corpus = corpus
+        self.stopwords = stopwords or self._resources.fetch_stopwords()
+        self.inner_stopwords = inner_stopwords or self._resources.fetch_inner_stopwords()
 
-        if methodology.extractor_info == "linguistic":
-            corpus_is_tagged = methodology.corpus_is_tagged 
-            linguistic_patterns = methodology.linguistic_patterns 
-            evaluation_terms = methodology.evaluation_terms
-            if corpus_is_tagged:
-                final_tagged_corpus = corpus
-            else:
-                final_corpus = corpus
+        # assigning basic attributes to Processor()
+        self._methodology.processor.stopwords = self.stopwords
+        self._methodology.processor.inner_stopwords = self.inner_stopwords
+        self._methodology.processor.lang_code = self._lang_code
 
-        self._processor = Processor()
-        self._processor.stopwords = stopwords or self._resources.fetch_stopwords()
-        self._processor.inner_stopwords = inner_stopwords or self._resources.fetch_inner_stopwords()
-        self._processor.case_normalization= case_normalization
-        self._processor._lang_code = self._lang_code
-        self.methodology._processor = self._processor
-        self._processor.nmin= self.methodology.nmin
-        self._processor.nmax = self.methodology.nmax
-    
         # initializing the SQLite database
         self._sqlite = SQLite(
             project_name=project_name, 
-            stopwords=stopwords or self._resources.fetch_stopwords(), 
-            inner_stopwords=inner_stopwords or self._resources.fetch_inner_stopwords(), 
-            corpus= final_corpus, 
-            tagged_corpus = final_tagged_corpus ,
-            exclusion_regexes=exclusion_regexes or None,
-            linguistic_patterns=linguistic_patterns or None,
-            evaluation_terms=evaluation_terms or None,
+            stopwords=self.stopwords, 
+            inner_stopwords=self.inner_stopwords, 
+            corpus=corpus,
+            is_corpus_tagged=getattr(self._methodology,'is_corpus_tagged', False),
+            exclusion_regexes=getattr(self._methodology,'exclusion_regexes', None),
+            linguistic_patterns=getattr(self._methodology, 'linguistic_patterns', None),
+            evaluation_terms=getattr(self._methodology,'evaluation_terms', None),
             overwrite_project=overwrite_project,
             )
 
@@ -82,86 +58,68 @@ class Extractor: #remember to add the attributes that you added while implementi
         the extracted candidates back to the SQLite database.
 
         Args:
-            case_normalization (bool, optional): If True, applies case normalization. Defaults to False.
             verbose (bool, optional): If True, enables detailed logging. Defaults to False.
 
         Returns:
             Results: An instance of the Results class.
         '''
-        print("Running term extraction")
+        print(f"{self._methodology.name} initialized", flush=True)
+        print("Running term extraction", flush=True)
         
-        #Determine the extraction strategy
-        extractor_type = self.methodology.extractor_info
         segments = self._sqlite.get_segments()
-        self.methodology.stop_words = self._processor.stopwords
 
-        if extractor_type == "linguistic": 
-
-            self.methodology._processor = self._processor
-            self.methodology._processor.nmin = self.methodology.nmin
-            self.methodology._processor.nmax = self.methodology.nmax
+        if self._methodology.name == "LinguisticMethodology": 
             
             tagged_segments = self._sqlite.get_tagged_segments()
             tagged_segments = [(x,) for x in tagged_segments] #this to pass from a list of strings to a list of tuples
             
             if not tagged_segments:
-                tagged_segments= self._processor.create_tagged_segments(segments=segments)
-                self._sqlite.insert_tagged_segments(tagged_segments)
+                tagged_segments= self._methodology.processor.create_tagged_segments(segments=segments)
+                self._sqlite.insert_segments(tagged_segments, is_corpus_tagged=True)
 
-            tagged_ngrams= self._processor.ngrams_calculation(segments=tagged_segments, corpus_is_tagged=True)        
+            tagged_ngrams = self._methodology.processor.ngrams_calculation(segments=tagged_segments, corpus_is_tagged=True)        
             
             self._sqlite.insert_tagged_ngrams(tagged_ngrams)
             
             existing_patterns= self._sqlite.get_linguistic_patterns()
             if existing_patterns:
-                self.methodology.linguistic_patterns= existing_patterns    
+                self._methodology.linguistic_patterns= existing_patterns    
             else:                
-                self.methodology.linguistic_patterns = None
+                self._methodology.linguistic_patterns = None
 
             evaluation_terms = self._sqlite.get_evaluation_terms()
-            self.methodology.evaluation_terms = evaluation_terms
+            self._methodology.evaluation_terms = evaluation_terms
 
             filtered_tagged_ngrams = []
             for term in evaluation_terms:
                 filtered_ngram = self._sqlite.get_tagged_ngrams(ngram_filter=term)
                 filtered_tagged_ngrams.append(filtered_ngram)
 
-            results = self.methodology.extract(tagged_segments=tagged_segments, tagged_ngrams=tagged_ngrams, filtered_tagged_ngrams=filtered_tagged_ngrams)
+            results = self._methodology.extract(tagged_segments=tagged_segments, tagged_ngrams=tagged_ngrams, filtered_tagged_ngrams=filtered_tagged_ngrams)
             
-            if not existing_patterns and self.methodology.linguistic_patterns:
+            if not existing_patterns and self._methodology.linguistic_patterns:
                 self._sqlite.delete_linguistic_patterns()
-                self._sqlite.load_linguistic_patterns(self.methodology.linguistic_patterns)
+                self._sqlite.load_linguistic_patterns(self._methodology.linguistic_patterns)
 
-        if extractor_type == "statistical": 
-            results = self.methodology.extract(segments=segments, verbose=verbose)
+        if self._methodology.name == "StatisticalMethodology":
 
-            if self._processor.case_normalization:
-                normalized_terms = self._processor.apply_case_normalization(candidate_terms=results._terms, verbose=verbose)  
-                results._terms = normalized_terms
+            results = self._methodology.extract(segments=segments, verbose=verbose)
 
             self._sqlite.insert_tokens(results._tokens)
+            self._sqlite.insert_ngrams(results._ngrams)
 
         # passing the sqlite connection and Processor()to the Results object
         results._sqlite = self._sqlite
-        results._processor = self._processor    
+        results._methodology = self._methodology  
 
         # inserting data into the database
         self._sqlite.delete_candidate_terms() # keep an eye on this
         self._sqlite.insert_candidate_terms(results._terms)   
 
-        if not results._extractor_info:
+        if not results._methodology.name:
             print("Error: Unknown extractor")
 
-        if results._extractor_info == "statistical":
-            self._sqlite.insert_ngrams(results._ngrams)
-        
         return results
-
-    def stopwords(self):
-        return self._processor.stopwords
-    
-    def inner_stopwords(self):
-        return self._processor.inner_stopwords
     
     def add_stopwords(self, stopwords_list):
         '''
