@@ -11,15 +11,15 @@
 
 4. Now you can use the package.
 
-## Code example (will change)
+## Statistical methodology example
 ```
-from TBXTools import Extractor, StatisticalExtractor
+from TBXTools import Extractor, StatisticalMethodology
 
 extractor = Extractor(
-    method=StatisticalExtractor(
+    methodology=StatisticalMethodology(
         nmin=2,
         nmax=3),
-    project_name="example",
+    project_name="statistical-example",
     corpus="example-corpus.txt",
     language="english",
     overwrite_project=True
@@ -27,12 +27,25 @@ extractor = Extractor(
 
 results = extractor.extract(case_normalization=True, verbose=False)
 
+# Once the terms are extracted, we can perform other methods like the following:
 results.nest_normalization()
 results.regex_exclusion()
 results.save_candidates("save-example.txt")
 
-# Results can be inspected with the following methods:
+# Results can be inspected at any time with the following methods:
 print(results.terms())
 print(results.ngrams())
 print(results.tokens())
 ```
+
+## Linguistic methodology example
+```
+from TBXTools import Extractor, LinguisticMethodology
+
+```
+
+### With tagged corpus...
+
+### With patterns...
+
+### Without tagged corpus...
