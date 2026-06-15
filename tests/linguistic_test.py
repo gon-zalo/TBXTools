@@ -4,10 +4,10 @@ patterns = ["|#|NOUN |#|ADJ", "|#|NOUN |#|NOUN", "|#|ADJ |#|NOUN"]
 fr_corpus = "Trouble_psychique.txt"
 
 extractor = Extractor(
-    methodology=LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=False, linguistic_patterns=patterns),
-    project_name="linguistic-example-fr",
-    corpus=fr_corpus,
-    language="french",
+    methodology=LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=False, evaluation_terms="evaluation_terms.txt"),
+    project_name="english_example",
+    corpus="Mental_disorder.txt",
+    language="english",
     overwrite_project=True
 )
 
