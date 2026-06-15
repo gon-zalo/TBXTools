@@ -14,8 +14,6 @@ class PatternsLearning:
         sortida = open(outputfile, "w", encoding=encoding)
         acufreq=0 
 
-        print(f"[DEBUG] Found {len(evaluation_terms)} evaluation terms in DB.")
-
         # for evaluation_term in evaluation_terms:
             # results = self._sqlite.get_tagged_ngrams(ngram_filter=evaluation_term[0])
 
