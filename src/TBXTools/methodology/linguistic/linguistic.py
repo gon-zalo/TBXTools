@@ -39,8 +39,8 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
             tagged_segments = self.processor.create_tagged_segments(segments=segments)
 
         clean_ngrams, tagged_ngrams = self.processor.ngram_calculation(segments=tagged_segments, is_corpus_tagged=True) # never change boolean, since we are passing tagged_segments then corpus is tagged now
-        filtered_tagged_ngrams = []
         
+        filtered_tagged_ngrams = []
         combined_ngrams = list(zip(clean_ngrams, tagged_ngrams))
         for term in self.evaluation_terms:
             for row in combined_ngrams:
