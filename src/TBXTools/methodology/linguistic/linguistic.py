@@ -68,7 +68,9 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
         translated_linguistic_patterns = self.processor.translate_pattern(self.linguistic_patterns)
         candidate_terms = self._linguistic_extraction(ngrams_output=tagged_ngrams, linguistic_patterns=translated_linguistic_patterns, minfreq=minfreq)
 
-        return Results(tagged_segments=tagged_segments, tagged_ngrams=tagged_ngrams, terms=candidate_terms, linguistic_patterns=self.linguistic_patterns)
+        return Results(tagged_ngrams=tagged_ngrams, 
+                       terms=candidate_terms, 
+                       linguistic_patterns=self.linguistic_patterns), tagged_segments # returning these, in case they were created, to be stored in the db
     
     
     def _linguistic_extraction(self, linguistic_patterns, ngrams_output, minfreq=2):
@@ -91,7 +93,7 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
             frequency = tupla[2]
 
             filtered_ngram = self.processor.filter_by_stopwords_linguistic(term=tagged_ngram)
-            
+
             if filtered_ngram is None:
                 continue
 

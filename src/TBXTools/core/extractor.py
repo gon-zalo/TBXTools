@@ -74,9 +74,9 @@ class Extractor: #remember to add the attributes that you added while implementi
             self._methodology.linguistic_patterns = self._sqlite.get_linguistic_patterns()
             tagged_segments = self._sqlite.get_tagged_segments()
 
-            results = self._methodology.extract(segments=segments, tagged_segments=tagged_segments)
+            results, returned_segments = self._methodology.extract(segments=segments, tagged_segments=tagged_segments)
 
-            self._sqlite.insert_segments(results._tagged_segments, tagged=True)
+            self._sqlite.insert_segments(returned_segments, tagged=True)
             self._sqlite.insert_tagged_ngrams(results._tagged_ngrams)
             self._sqlite.insert_linguistic_patterns(self._methodology.linguistic_patterns)
 

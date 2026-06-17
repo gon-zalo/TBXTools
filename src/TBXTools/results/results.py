@@ -6,15 +6,14 @@ class Results:
         _terms: A list of extracted terms.
         _ngrams: A list of extracted Ngrams.
         _tokens: A list of extracted tokens.
-        _extractor_info: The name of the methodology used (statistical, linguistic...).
-        processor: Class to process data.
-        sqlite: Class to manage the SQLite database.
+        _tagged_ngrams: A list of tagged extracted Ngrams.
+        _methodology: Class to manage the methodology object.
+        _sqlite: Class to manage the SQLite database.
     '''
-    def __init__(self, *, terms=None, ngrams=None, tagged_ngrams=None, tagged_segments=None, tokens=None, linguistic_patterns=None):
+    def __init__(self, *, terms=None, ngrams=None, tagged_ngrams=None, tokens=None, linguistic_patterns=None):
         self._terms = terms or []
         self._ngrams = ngrams or []
         self._tagged_ngrams= tagged_ngrams or []
-        self._tagged_segments = tagged_segments or []
         self._linguistic_patterns = linguistic_patterns or []
         self._tokens = tokens or []
 
@@ -125,20 +124,20 @@ class Results:
 
     def save_candidates(self, path):
         '''
-        Save the candidate terms to a text file.
+        Save the candidate terms to disk. The file is saved in the specified format. If no format is provided, it defaults to .txt.
+
+        Supported formats: .txt, .csv, .xlsx
 
         Args:
-            file_name: Name of the file to be saved.
+            path: Path of the file to be saved.
         '''
         from pathlib import Path
         import pandas as pd
 
         path = Path(path)
         extension = path.suffix.lower()
-        header = ['candidate', 'n', 'measure', 'value']
         candidate_terms = self._terms
-        output = pd.DataFrame(candidate_terms, columns=header, index=None)
-        formats = [".txt", ".csv", ".xlsx"]
+        output = pd.DataFrame(candidate_terms, columns=['candidate', 'n', 'measure', 'value'], index=None)
 
         if not extension:
             extension = ".txt"
