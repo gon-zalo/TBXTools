@@ -41,7 +41,7 @@ print(results.terms())
 print(results.ngrams())
 print(results.tokens())
 ```
-To make use of the `exclusion_regexes` argument you may pass a text file with regular expressions, or a Python list, e.g. `[".+ health", ".+ diseases"]`.
+To make use of the `exclusion_regexes` argument you may pass a text file with regular expressions, or a Python list, e.g. `regexes = [".+ health", ".+ diseases"]`.
 
 ## Linguistic methodology example
 
