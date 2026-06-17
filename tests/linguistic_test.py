@@ -85,5 +85,4 @@ all_terms = results.terms(limit=None)
 print(f"\nNumber of terms: {len(all_terms)}. Expected number: 135")
 print(f"\nTerms: {results.terms()}")
 print(f"\nTagged Ngrams: {results.tagged_ngrams()}")
-print(results._terms)
 del extractor
