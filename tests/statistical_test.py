@@ -25,6 +25,8 @@ results.regex_exclusion(verbose=False)
 results.save_candidates("statistical-candidates.txt")
 
 # Results can be inspected with the following methods:
+all_terms = results.terms("all")
+print(f"\nNumber of terms: {len(all_terms)}. Expected number: 239")
 print(f"\nTerms: {results.terms()}")
 print(f"\nNgrams: {results.ngrams()}")
 print(f"\nTokens: {results.tokens()}") 
