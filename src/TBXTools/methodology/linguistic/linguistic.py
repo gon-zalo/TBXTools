@@ -1,6 +1,4 @@
 import re
-import sys
-from collections import Counter
 from ..base.base import BaseMethodology
 from ...results import Results
 from ...processor import Processor
@@ -32,31 +30,48 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
 
     # MAIN FUNCTION
 
-    def extract(self, tagged_segments, tagged_ngrams, filtered_tagged_ngrams, minfreq=2, table_is_populated=False):
+    def extract(self, segments, tagged_segments, minfreq=2, verbose=False):
         '''
         Prepares the linguistic extraction pipeline by validating tagged segments,
         calculating n-grams, learning POS patterns if missing, and executing the extraction.
         '''
 
+        if not tagged_segments:
+            tagged_segments = self.processor.create_tagged_segments(segments=segments)
+
+        clean_ngrams, tagged_ngrams = self.processor.ngram_calculation(segments=tagged_segments, is_corpus_tagged=True) # never change boolean, since we are passing tagged_segments then corpus is tagged now
+        
+        filtered_tagged_ngrams = []
+        combined_ngrams = list(zip(clean_ngrams, tagged_ngrams))
+        for term in self.evaluation_terms:
+            for row in combined_ngrams:
+                clean_ngram = row[0][0]
+                tagged_ngram = row[1][0]
+                n = row[1][1]
+                freq = row[1][2]
+                if term == clean_ngram:
+                    row = (tagged_ngram, n, freq)
+                    filtered_tagged_ngrams.append(row)
+
         if not self.linguistic_patterns: # learn patterns
             print("Linguistic patterns not found. Starting automatic pattern learning")
             pattern_learner = PatternsLearning()
 
-            learn_dict = pattern_learner.learn_linguistic_patterns(outputfile="learned_linguistic_patterns.txt", evaluation_terms=self.evaluation_terms, filtered_tagged_ngrams=filtered_tagged_ngrams)
+            learn_dict = pattern_learner.learn_linguistic_patterns(outputfile="learned_linguistic_patterns.txt", evaluation_terms=self.evaluation_terms, filtered_tagged_ngrams=filtered_tagged_ngrams, verbose=verbose)
  
             if learn_dict:
                 linguistic_patterns = list(learn_dict.keys())
-                self.linguistic_patterns = linguistic_patterns
+                self.linguistic_patterns = [(linguistic_pattern,) for linguistic_pattern in linguistic_patterns] # strings must be in tuples
 
             else:
-                print("Error: Learning process produced no patterns. Please verify database data.")
-                sys.exit()
+                raise ValueError("Learning process produced no patterns. Please verify database data.")
      
-        linguistic_patterns = self.processor.translate_pattern(self.linguistic_patterns)
+        translated_linguistic_patterns = self.processor.translate_pattern(self.linguistic_patterns)
+        candidate_terms = self._linguistic_extraction(ngrams_output=tagged_ngrams, linguistic_patterns=translated_linguistic_patterns, minfreq=minfreq)
 
-        candidate_terms = self._linguistic_extraction(ngrams_output=tagged_ngrams, linguistic_patterns=linguistic_patterns, minfreq=minfreq)
-
-        return Results(tagged_ngrams=tagged_ngrams, terms=candidate_terms, linguistic_patterns=linguistic_patterns)
+        return Results(tagged_ngrams=tagged_ngrams, 
+                       terms=candidate_terms, 
+                       linguistic_patterns=self.linguistic_patterns), tagged_segments # returning these, in case they were created, to be stored in the db
     
     
     def _linguistic_extraction(self, linguistic_patterns, ngrams_output, minfreq=2):
@@ -72,14 +87,14 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
                     processed_patterns.append(transformedpattern)
                     controlpatterns.append(transformedpattern)  
 
-        raw_candidates=[] 
+        raw_candidates=[]
         for tupla in ngrams_output:
-            #clean_ngram = tupla[0]
-            tagged_ngram = tupla[1]
-            n = tupla[2]
-            frequency = tupla[3]
+            tagged_ngram = tupla[0]
+            n = tupla[1]
+            frequency = tupla[2]
 
             filtered_ngram = self.processor.filter_by_stopwords_linguistic(term=tagged_ngram)
+
             if filtered_ngram is None:
                 continue
 
@@ -97,6 +112,16 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
                             record.append(frequency)   
                             raw_candidates.append(record)
                             break
+         
+#make this more pythonic        
+        tcaux={}
+        for a in raw_candidates: # tuple is (tagged_ngram, n, "frequency", frequency)
+            cand_name=a[0]
+            cand_freq=a[3]
+            if not cand_name in tcaux:
+                tcaux[cand_name]=cand_freq
+            else:
+                tcaux[cand_name]+= cand_freq
         
         candidate_frequencies= Counter()
         for candidate, n, _, frequency in raw_candidates: # underscore to ignore the third element "frequency" - not needed for aggregation

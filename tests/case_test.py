@@ -1,18 +1,16 @@
-from TBXTools import Extractor, StatisticalExtractor
+from TBXTools import Extractor, StatisticalMethodology
 
 extractor = Extractor(
-    method=StatisticalExtractor(
+    methodology=StatisticalMethodology(
         nmin=2,
-        nmax=3),
-    project_name="prova_case_normalization_new_versione_true",
+        nmax=3,
+        case_normalization=True
+    ),
+    project_name="case-test",
     corpus="Mental_disorder.txt",
     language= "english"
 )
 
-results = extractor.extract(case_normalization=True, verbose=False)
-
-#results.nest_normalization()
-#results.regex_exclusion()
-#results.save_candidates("test.txt")
+results = extractor.extract(verbose=True)
 
 print(results.tokens(limit=50))

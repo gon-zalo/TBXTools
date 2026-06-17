@@ -1,5 +1,3 @@
-import sys
-
 class Results:
     '''
     Manages results returned by the different methodologies.
@@ -8,9 +6,9 @@ class Results:
         _terms: A list of extracted terms.
         _ngrams: A list of extracted Ngrams.
         _tokens: A list of extracted tokens.
-        _extractor_info: The name of the methodology used (statistical, linguistic...).
-        processor: Class to process data.
-        sqlite: Class to manage the SQLite database.
+        _tagged_ngrams: A list of tagged extracted Ngrams.
+        _methodology: Class to manage the methodology object.
+        _sqlite: Class to manage the SQLite database.
     '''
     def __init__(self, *, terms=None, ngrams=None, tagged_ngrams=None, tokens=None, linguistic_patterns=None):
         self._terms = terms or []
@@ -19,11 +17,9 @@ class Results:
         self._linguistic_patterns = linguistic_patterns or []
         self._tokens = tokens or []
 
-        # passed from Extractor()
         self._methodology = None
         self._sqlite = None
 
-# ACCESSING ATTRIBUTES
     # [0] is the first element in the tuple (table row)
     def terms(self, limit=20):
         '''Gets the list of terms
@@ -35,6 +31,10 @@ class Results:
             list: a list of terms.        
         '''
         terms = [term[0] for term in self._terms]
+
+        if limit == None:
+            return terms
+        
         return terms[:limit]
 
     def tokens(self, limit=20):
@@ -47,6 +47,10 @@ class Results:
             list: a list of tokens.        
         '''
         tokens = [token[0] for token in self._tokens]
+
+        if limit == None:
+            return tokens
+        
         return tokens[:limit]
     
     def ngrams(self, limit=20): 
@@ -59,6 +63,10 @@ class Results:
             list: a list of Ngrams.        
         '''
         ngrams = [ngram[0] for ngram in self._ngrams]
+
+        if limit == None:
+            return ngrams
+        
         return ngrams[:limit]
     
     def tagged_ngrams(self, limit=20): 
@@ -71,6 +79,10 @@ class Results:
             list: a list of Tagged Ngrams.
         '''
         tagged_ngrams= [tagged_ngram[0] for tagged_ngram in self._tagged_ngrams]
+
+        if limit == None:
+            return tagged_ngrams
+
         return tagged_ngrams[:limit]
     
     def nest_normalization(self, percent=10, verbose=False):
@@ -80,11 +92,6 @@ class Results:
             percent: The frequency compatibility interval that is used to calculate if a term is nested inside another.
             verbose (bool): Print the process in the console. 
         '''
-        #if self._extractor_info != "statistical": #questa parte la devi cambiare- usiamo nest anche per il linguistic
-            #print(f"Error: Nest normalization cannot be run with {self._extractor_info} extractor")
-            #sys.exit()
-
-        #else:
         candidate_terms = self._terms
 
         filtered_terms = self._methodology.processor.nest_normalization(candidate_terms=candidate_terms, percent=percent, verbose=verbose)
@@ -138,14 +145,35 @@ class Results:
             else:
                 print("No candidate terms excluded")
 
-    def save_candidates(self, file_name):
+    def save_candidates(self, path):
         '''
-        Save the candidate terms to a text file.
+        Save the candidate terms to disk. The file is saved in the specified format. If no format is provided, it defaults to .txt.
+
+        Supported formats: .txt, .csv, .xlsx
 
         Args:
-            file_name: Name of the file to be saved.
+            path: Path of the file to be saved.
         '''
-        candidate_terms = self._sqlite.get_candidate_terms()
-        with open(file_name, "w", encoding='utf-8') as f:
-            for row in candidate_terms:
-                f.write(",".join(str(element) for element in row) + "\n")
+        from pathlib import Path
+        import pandas as pd
+
+        path = Path(path)
+        extension = path.suffix.lower()
+        candidate_terms = self._terms
+        output = pd.DataFrame(candidate_terms, columns=['candidate', 'n', 'measure', 'value'], index=None)
+
+        if not extension:
+            extension = ".txt"
+            path = path.with_suffix(extension)
+
+        if extension == ".txt":
+            output.to_csv(path, index=False, sep="\t")
+
+        elif extension == ".csv":
+            output.to_csv(path, index=False)
+            
+        elif extension == ".xlsx":
+            output.to_excel(path, index=False)
+
+        else:
+            raise ValueError(f"Unsupported format '{extension}'. Supported formats: .txt, .csv, .xlsx")

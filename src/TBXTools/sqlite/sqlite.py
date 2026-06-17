@@ -92,15 +92,16 @@ class SQLite:
         data = []
         continserts = 0
         with open(corpus_file, "r", encoding=encoding, errors="ignore") as file:
-            data = [(line.rstrip(),) for line in file]
-            continserts += 1
+            for line in file:
+                data.append(line.rstrip())
+                continserts += 1
 
-            if continserts == self.MAX_INSERTS:
-                self.insert_segments(data=data, is_corpus_tagged=is_corpus_tagged)
-                data = []
-                continserts = 0
-
-            self.insert_segments(data=data, is_corpus_tagged=is_corpus_tagged)
+                if continserts == self.MAX_INSERTS:
+                    self.insert_segments(data=data, tagged=is_corpus_tagged)
+                    data = []
+                    continserts = 0
+            
+            self.insert_segments(data=data, tagged=is_corpus_tagged)
 
     # LOAD METHODS
     
@@ -166,12 +167,12 @@ class SQLite:
             if isinstance(linguistic_patterns, list):
                 data = [(linguistic_pattern,) for linguistic_pattern in linguistic_patterns]
                 print("Linguistic patterns loaded")
+
             else:
                 with open(linguistic_patterns, "r", encoding=encoding) as f:
                     data = [(line.rstrip(),) for line in f]
                 print("Linguistic patterns loaded from file")
-
-            
+                
             with self.conn:
                 self.cur.executemany("INSERT INTO linguistic_patterns (linguistic_pattern) VALUES (?)",data) 
 
@@ -190,7 +191,7 @@ class SQLite:
 
         else: 
             with open(evaluation_terms, "r", encoding=encoding) as f:
-                data = [(line.rstrip(),) for line in f]        
+                data = [(line.rstrip(),) for line in f]       
             print("Evaluation terms loaded from file")
 
         with self.conn:
@@ -249,10 +250,11 @@ class SQLite:
                 self.cur.executemany('INSERT INTO external_terms (external_term) VALUES (?)', data)
 
     # INSERT METHODS
-    def insert_segments(self, data, is_corpus_tagged):
+    def insert_segments(self, data, tagged):
         '''Inserts the segmented corpus into the database.'''
+        data = [(segment,) for segment in data]
         with self.conn:
-            if is_corpus_tagged:
+            if tagged:
                 self.cur.executemany("INSERT INTO tagged_corpus (tagged_segment) VALUES (?)", data)
             else:
                 self.cur.executemany("INSERT INTO corpus (segment) VALUES (?)", data)
@@ -267,10 +269,7 @@ class SQLite:
         '''Inserts Tagged Ngrams into the database.'''
         if not self.table_is_populated("tagged_ngrams"):
             with self.conn:
-                ngrams_data = [(row[0], row[2], row[3]) for row in data]
-                self.cur.executemany("INSERT INTO ngrams (ngram, n, frequency) VALUES (?, ?, ?)", ngrams_data)
-
-                self.cur.executemany("INSERT INTO tagged_ngrams (ngram, tagged_ngram, n, frequency) VALUES (?,?,?, ?)", data)
+                self.cur.executemany("INSERT INTO tagged_ngrams (tagged_ngram, n, frequency) VALUES (?,?,?)", data)
     
     def insert_tokens(self, data):
         '''Inserts tokens into the database'''
@@ -287,6 +286,12 @@ class SQLite:
     def insert_filtered_candidate_terms(self, data):
         with self.conn:
             self.cur.executemany("INSERT INTO filtered_candidate_terms (filtered_candidate, n, frequency, measure, value) VALUES (?,?,?,?,?)", data)
+
+    def insert_linguistic_patterns(self, data):
+        '''Insert linguistic candidates into the database.'''
+        if not self.table_is_populated("linguistic_patterns"):
+            with self.conn:
+                self.cur.executemany("INSERT INTO linguistic_patterns (linguistic_pattern) VALUES (?)", data)
 
     # GET METHODS
     def get_segments(self, is_corpus_tagged):

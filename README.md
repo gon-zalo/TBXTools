@@ -4,39 +4,44 @@
 
 `git clone https://github.com/gon-zalo/TBXTools.git`
 
-2. Create your own virtual or conda environment and activate it.
-2. Inside the repository folder type:
+2. Create your own virtual or conda environment using Python 3.11 and activate it.
+3. Inside the repository folder type:
 
-`pip install . `
+`pip install .`
 
 4. Now you can use the package.
 
 ## Statistical methodology example
+The `StatisticalMethodology` module allows you to extract terms from a corpus using statistical methods. Below you can find an example script.
 ```
 from TBXTools import Extractor, StatisticalMethodology
 
 extractor = Extractor(
     methodology=StatisticalMethodology(
         nmin=2,
-        nmax=3),
+        nmax=3,
+        case_normalization=True,
+        exclusion_regexes=None
+    ),
     project_name="statistical-example",
     corpus="example-corpus.txt",
     language="english",
     overwrite_project=True
 )
 
-results = extractor.extract(case_normalization=True, verbose=False)
+results = extractor.extract(verbose=False)
 
 # Once the terms are extracted, we can perform other methods like the following:
-results.nest_normalization()
-results.regex_exclusion()
-results.save_candidates("save-example.txt")
+results.nest_normalization(verbose=False)
+results.regex_exclusion(verbose=False)
+results.save_candidates("statistical-candidates.txt")
 
 # Results can be inspected at any time with the following methods:
 print(results.terms())
 print(results.ngrams())
 print(results.tokens())
 ```
+To make use of the `exclusion_regexes` argument you may pass a text file with regular expressions, or a Python list, e.g. `regexes = [".+ health", ".+ diseases"]`.
 
 ## Linguistic methodology example
 
@@ -52,8 +57,14 @@ extractor = Extractor(
     methodology=LinguisticMethodology(
         nmin=2, 
         nmax=3, 
+<<<<<<< HEAD
         is_corpus_tagged=True, 
         linguistic_patterns="example_patterns.txt"),
+=======
+        is_corpus_tagged=True,
+        linguistic_patterns="example-patterns.txt"
+    ),
+>>>>>>> origin/master
     project_name="linguistic-example",
     corpus="tagged-corpus.txt",
     language="english",
@@ -69,7 +80,6 @@ results.save_candidates("linguistic-candidates.txt")
 # Results can be inspected at any time with the following methods:
 print(f"\nTerms: {results.terms()}")
 print(f"\nTagged Ngrams: {results.tagged_ngrams()}")
-
 ```
 
 ### Scenario B: Using Pre-existing Tagged Corpus and Generating Linguistic Patterns from Scratch
@@ -82,8 +92,9 @@ extractor = Extractor(
     methodology=LinguisticMethodology(
         nmin=2, 
         nmax=3, 
-        is_corpus_tagged=True, 
-        evaluation_terms="evaluation_terms.txt"),
+        is_corpus_tagged=True,
+        evaluation_terms="evaluation_terms.txt"
+    ),
     project_name="linguistic-example",
     corpus="tagged-corpus.txt",
     language="english",
@@ -99,7 +110,6 @@ results.save_candidates("linguistic-candidates.txt")
 # Results can be inspected at any time with the following methods:
 print(f"\nTerms: {results.terms()}")
 print(f"\nTagged Ngrams: {results.tagged_ngrams()}")
-
 ```
 
 ### Scenario C: Using Pre-existing Linguistic Patterns and Generating Tagged Corpus from Scratch
@@ -112,8 +122,9 @@ extractor = Extractor(
     methodology=LinguisticMethodology(
         nmin=2, 
         nmax=3, 
-        is_corpus_tagged=False, 
-        linguistic_patterns="example_patterns.txt"),
+        is_corpus_tagged=False,
+        linguistic_patterns="example-patterns.txt"
+    ),
     project_name="linguistic-example",
     corpus="raw_corpus.txt",
     language="english",
@@ -129,7 +140,6 @@ results.save_candidates("linguistic-candidates.txt")
 # Results can be inspected at any time with the following methods:
 print(f"\nTerms: {results.terms()}")
 print(f"\nTagged Ngrams: {results.tagged_ngrams()}")
-
 ```
 
 ### Scenario D: Generating Corpus and Patterns from Scratch
@@ -144,8 +154,9 @@ extractor = Extractor(
     methodology=LinguisticMethodology(
         nmin=2, 
         nmax=3, 
-        is_corpus_tagged=False, 
-        evaluation_terms="evaluation_terms.txt"),
+        is_corpus_tagged=False,
+        evaluation_terms="evaluation_terms.txt"
+    ),
     project_name="linguistic-example",
     corpus="raw_corpus.txt",
     language="english",
@@ -161,5 +172,4 @@ results.save_candidates("linguistic-candidates.txt")
 # Results can be inspected at any time with the following methods:
 print(f"\nTerms: {results.terms()}")
 print(f"\nTagged Ngrams: {results.tagged_ngrams()}")
-
 ```
