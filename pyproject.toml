@@ -11,7 +11,7 @@ dependencies = [
     "pycountry",
     "transformers",
     "accelerate",
-    "pytorch",
+    "torch",
     "pandas",
     "openpyxl",
     "spacy"
