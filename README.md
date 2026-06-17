@@ -4,32 +4,36 @@
 
 `git clone https://github.com/gon-zalo/TBXTools.git`
 
-2. Create your own virtual or conda environment and activate it.
-2. Inside the repository folder type:
+2. Create your own virtual or conda environment using Python 3.11 and activate it.
+3. Inside the repository folder type:
 
-`pip install . `
+`pip install .`
 
 4. Now you can use the package.
 
 ## Statistical methodology example
+The `StatisticalMethodology` module allows you to extract terms from a corpus using statistical methods. Below you can find an example script.
 ```
 from TBXTools import Extractor, StatisticalMethodology
 
 extractor = Extractor(
     methodology=StatisticalMethodology(
         nmin=2,
-        nmax=3),
+        nmax=3,
+        case_normalization=True,
+        exclusion_regexes=None
+    ),
     project_name="statistical-example",
     corpus="example-corpus.txt",
     language="english",
     overwrite_project=True
 )
 
-results = extractor.extract(case_normalization=True, verbose=False)
+results = extractor.extract(verbose=False)
 
 # Once the terms are extracted, we can perform other methods like the following:
-results.nest_normalization()
-results.regex_exclusion()
+results.nest_normalization(verbose=False)
+results.regex_exclusion(verbose=False)
 results.save_candidates("statistical-candidates.txt")
 
 # Results can be inspected at any time with the following methods:
@@ -37,6 +41,7 @@ print(results.terms())
 print(results.ngrams())
 print(results.tokens())
 ```
+To make use of the `exclusion_regexes` argument you may pass a text file with regular expressions, or a Python list, e.g. `[".+ health", ".+ diseases"]`.
 
 ## Linguistic methodology example
 
