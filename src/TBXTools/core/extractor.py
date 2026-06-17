@@ -52,10 +52,7 @@ class Extractor: #remember to add the attributes that you added while implementi
 # EXTRACTION FUNCTIONS
     def extract(self, verbose=False) -> Results:
         '''
-        Coordinates the extraction pipeline by fetching data from the database,
-        calling the selected extraction methodology (linguistic or statistical),
-        applying optional filtering/normalization procedures, and persisting 
-        the extracted candidates back to the SQLite database.
+        Coordinates the extraction pipeline by fetching data from the database, calling the selected extraction methodology (linguistic or statistical), applying optional filtering/normalization procedures, and persisting the extracted candidates back to the SQLite database.
 
         Args:
             verbose (bool, optional): If True, enables detailed logging. Defaults to False.
@@ -74,7 +71,7 @@ class Extractor: #remember to add the attributes that you added while implementi
             self._methodology.linguistic_patterns = self._sqlite.get_linguistic_patterns()
             tagged_segments = self._sqlite.get_tagged_segments()
 
-            results, returned_segments = self._methodology.extract(segments=segments, tagged_segments=tagged_segments)
+            results, returned_segments = self._methodology.extract(segments=segments, tagged_segments=tagged_segments, verbose=verbose)
 
             self._sqlite.insert_segments(returned_segments, tagged=True)
             self._sqlite.insert_tagged_ngrams(results._tagged_ngrams)
