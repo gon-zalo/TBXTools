@@ -29,7 +29,7 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
 
     # MAIN FUNCTION
 
-    def extract(self, segments, tagged_segments, minfreq=2):
+    def extract(self, segments, tagged_segments, minfreq=2, verbose=False):
         '''
         Prepares the linguistic extraction pipeline by validating tagged segments,
         calculating n-grams, learning POS patterns if missing, and executing the extraction.
@@ -56,7 +56,7 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
             print("Linguistic patterns not found. Starting automatic pattern learning")
             pattern_learner = PatternsLearning()
 
-            learn_dict = pattern_learner.learn_linguistic_patterns(outputfile="learned_linguistic_patterns.txt", evaluation_terms=self.evaluation_terms, filtered_tagged_ngrams=filtered_tagged_ngrams)
+            learn_dict = pattern_learner.learn_linguistic_patterns(outputfile="learned_linguistic_patterns.txt", evaluation_terms=self.evaluation_terms, filtered_tagged_ngrams=filtered_tagged_ngrams, verbose=verbose)
  
             if learn_dict:
                 linguistic_patterns = list(learn_dict.keys())
