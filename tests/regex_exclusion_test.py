@@ -1,17 +1,21 @@
-from TBXTools import Extractor, StatisticalExtractor
+from TBXTools import Extractor, StatisticalMethodology
 
-corpora = ["Mental_health.txt", "Mental_disorder.txt"]
 regexes = [".+ health"]
 
 extractor = Extractor(
-    methodology=StatisticalExtractor(nmin=2, nmax=3),
-    project_name="test-example",
-    corpus=corpora,
+    methodology=StatisticalMethodology(
+        nmin=2, 
+        nmax=3,
+        exclusion_regexes=regexes,
+        case_normalization=True
+    ),
+    project_name="regexes-test",
+    corpus="Mental_disorder.txt",
     language="english",
-    exclusion_regexes=regexes,
     overwrite_project=True
 )
 
-results = extractor.extract(case_normalization=False, verbose=False)
-
+results = extractor.extract(verbose=False)
 results.regex_exclusion(verbose=True)
+
+print(results.terms(limit=50))
