@@ -9,7 +9,7 @@ class PatternsLearning:
         pass
          
     #almost the same as the old code- it works but you'll have to make it more pythonic
-    def learn_linguistic_patterns(self,outputfile, evaluation_terms,filtered_tagged_ngrams, showfrequencies=False, encoding="utf-8",verbose=True,representativity=100):
+    def learn_linguistic_patterns(self,outputfile, evaluation_terms,filtered_tagged_ngrams, showfrequencies=False, encoding="utf-8",verbose=False,representativity=100):
         learntpatterns={}
         sortida = open(outputfile, "w", encoding=encoding)
         acufreq=0 
@@ -18,13 +18,12 @@ class PatternsLearning:
             # results = self._sqlite.get_tagged_ngrams(ngram_filter=evaluation_term[0])
 
         results = filtered_tagged_ngrams
-        # aplanar la lista / flatten list y cambiar nombres a las variables
         if len(results)>0: 
             for a in results:
                 if a:
-                    ng = a[0][0]
-                    n = a[0][1]
-                    frequency = a[0][2]
+                    ng = a[0]
+                    n = a[1]
+                    frequency = a[2]
                     # ng=a[0]
                     
                     nglist=ng.split()
@@ -79,8 +78,5 @@ class PatternsLearning:
                 print(cadena)
         
         sortida.close()
-    
-        return learntpatterns
-                                
 
-    
+        return learntpatterns
