@@ -7,7 +7,8 @@ methodology = StatisticalMethodology(
     nmin=2,
     nmax=3,
     exclusion_regexes=regexes,
-    case_normalization=True
+    case_normalization=True, 
+    tsr_terms= "tsr_terms.txt",
 )
 
 extractor = Extractor(
@@ -22,6 +23,7 @@ results = extractor.extract(verbose=False)
 
 results.nest_normalization(verbose=False)
 results.regex_exclusion(verbose=False)
+results.tsr(verbose=False)
 results.save_candidates("statistical-candidates.txt")
 
 # Results can be inspected with the following methods:

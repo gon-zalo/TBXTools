@@ -296,3 +296,144 @@ class Processor:
                 ngrams_output.append(ngram_row)
             
         return ngrams_output
+    
+
+    def apply_tsr_filter(self, tsr_terms, candidate_terms, type="combined", max_iterations=10000000000, verbose=True): 
+        component={}
+        firstcomponent={}
+        middlecomponent={}
+        lastcomponent={}
+        
+        for tsr_term in tsr_terms:
+            camps=tsr_term.split()
+            if len(camps)==1: #UNIGRAMS
+                firstcomponent[camps[0].lower()]=1
+                lastcomponent[camps[0].lower()]=1
+            if len(camps)>=2:
+                firstcomponent[camps[0].lower()]=1
+                lastcomponent[camps[-1].lower()]=1
+                component[camps[0].lower()]=1
+                component[camps[-1].lower()]=1
+                if len(camps)>=3:
+                    for i in range(1,len(camps)-1):
+                        middlecomponent[camps[i].lower()]=1
+                        component[camps[i].lower()]=1
+
+        new=True
+        newcandidates={} #candidate-frequency
+        hashmeasure={}
+        hashvalue={}
+        
+        iterations=0
+        while new:
+            iterations+=1
+            if verbose: print("ITERATION",iterations)
+            new=False
+            auxiliar={}
+            value=max_iterations-iterations #r[4]
+
+            for term in candidate_terms:
+                candidate=term[0]
+                n=term[1]
+                frequency=term[2]
+                measure="tsr"#r[3]
+                
+                first_c=False
+                middle_c=False
+                last_c=False
+                rcamps=candidate.split()
+                truesfalses=[]
+                if str(rcamps[0]).lower() in firstcomponent: 
+                    first_c=True
+                    truesfalses.append(True)
+                else:
+                    truesfalses.append(False)
+                if str(rcamps[-1]).lower() in lastcomponent: 
+                    last_c=True
+                    truesfalses.append(True)
+                else:
+                    truesfalses.append(False)
+
+                if n>2:
+                    middle_c=True
+                    for i in range(1,n-1):
+                        if not str(term[i]).lower() in middlecomponent: middle_c=False
+                    if middle_c==True:
+                        truesfalses.append(True)
+                    else:
+                        truesfalses.append(False)
+
+                if type=="strict":
+                    if not False in truesfalses:
+                        if not candidate in newcandidates:
+                            newcandidates[candidate]=frequency
+                            hashmeasure[candidate]=measure
+                            hashvalue[candidate]=value
+                            new=True
+                            firstcomponent[rcamps[0]]=1
+                            lastcomponent[rcamps[-1]]=1
+
+                elif type=="flexible":
+                    if True in truesfalses:
+                        if not candidate in newcandidates:
+                            newcandidates[candidate]=frequency
+                            hashmeasure[candidate]=measure
+                            hashvalue[candidate]=value
+                            new=True
+                            firstcomponent[rcamps[0]]=1
+                            lastcomponent[rcamps[-1]]=1
+                            component[rcamps[0]]=1
+                            component[rcamps[-1]]=1
+
+                elif type=="combined":
+                    if iterations==1:       
+                        new=True
+                        if not False in truesfalses:
+                            if not candidate in newcandidates:
+                                newcandidates[candidate]=frequency
+                                hashmeasure[candidate]=measure
+                                hashvalue[candidate]=value                                
+                                firstcomponent[rcamps[0]]=1
+                                lastcomponent[rcamps[-1]]=1
+                                if n>2:
+                                    for i in range(1,n-1):
+                                        middlecomponent[rcamps[i]]=1
+                                        component[rcamps[i]]=1
+                    else:
+                        if True in truesfalses:
+                            if not candidate in newcandidates:
+                                newcandidates[candidate]=frequency
+                                hashmeasure[candidate]=measure
+                                hashvalue[candidate]=value
+                                new=True
+                                firstcomponent[rcamps[0]]=1
+                                lastcomponent[rcamps[-1]]=1
+                                if n>2:
+                                    for i in range(1,n-1):
+                                        middlecomponent[rcamps[i]]=1
+                                        component[rcamps[i]]=1
+                                component[rcamps[0]]=1
+                                component[rcamps[-1]]=1
+                
+            if iterations>=max_iterations:
+                break
+            if verbose: print(iterations,new)
+        
+                    
+        updated_terms=[]
+        for c in newcandidates:
+            termb=c
+            n=len(c.split())
+            freqtotal=newcandidates[c]
+            measure=hashmeasure[c]
+            value=hashvalue[c]
+            record=[]
+            record.append(termb)
+            record.append(n)
+            record.append(freqtotal)
+            record.append(measure)
+            record.append(value)
+            updated_terms.append(record)
+
+    
+        return updated_terms

@@ -49,8 +49,11 @@ Use this scenario if you already have both a POS Tagged corpus and a set of pred
 from TBXTools import Extractor, LinguisticMethodology
 
 extractor = Extractor(
-    methodology=LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=True, 
-    linguistic_patterns="example_patterns.txt"),
+    methodology=LinguisticMethodology(
+        nmin=2, 
+        nmax=3, 
+        is_corpus_tagged=True, 
+        linguistic_patterns="example_patterns.txt"),
     project_name="linguistic-example",
     corpus="tagged-corpus.txt",
     language="english",
@@ -76,8 +79,11 @@ Use this scenario if your corpus is already pos tagged, but you need the program
 from TBXTools import Extractor, LinguisticMethodology
 
 extractor = Extractor(
-    methodology=LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=True, 
-    evaluation_terms="evaluation_terms.txt"),
+    methodology=LinguisticMethodology(
+        nmin=2, 
+        nmax=3, 
+        is_corpus_tagged=True, 
+        evaluation_terms="evaluation_terms.txt"),
     project_name="linguistic-example",
     corpus="tagged-corpus.txt",
     language="english",
@@ -103,8 +109,11 @@ Use this scenario if you already have a fixed set of linguistic patterns, but yo
 from TBXTools import Extractor, LinguisticMethodology
 
 extractor = Extractor(
-    methodology=LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=False, 
-    linguistic_patterns="example_patterns.txt"),
+    methodology=LinguisticMethodology(
+        nmin=2, 
+        nmax=3, 
+        is_corpus_tagged=False, 
+        linguistic_patterns="example_patterns.txt"),
     project_name="linguistic-example",
     corpus="raw_corpus.txt",
     language="english",
@@ -132,8 +141,11 @@ Use this scenario when starting completely from raw inputs. Both assets are gene
 from TBXTools import Extractor, LinguisticMethodology
 
 extractor = Extractor(
-    methodology=LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=False, 
-    evaluation_terms="evaluation_terms.txt"),
+    methodology=LinguisticMethodology(
+        nmin=2, 
+        nmax=3, 
+        is_corpus_tagged=False, 
+        evaluation_terms="evaluation_terms.txt"),
     project_name="linguistic-example",
     corpus="raw_corpus.txt",
     language="english",

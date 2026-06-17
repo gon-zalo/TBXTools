@@ -18,12 +18,13 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
 
     '''
 
-    def __init__(self, nmin, nmax, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None):
+    def __init__(self, nmin, nmax, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None, tsr_terms=None):
         
         self.name = "LinguisticMethodology"
         self.is_corpus_tagged = is_corpus_tagged
         self.linguistic_patterns = linguistic_patterns
         self.evaluation_terms = evaluation_terms
+        self.tsr_terms = tsr_terms #vedi se è giusto che stia qui e come ci deve effettivamente stare- come None? in teoria c'è anche l'opzione senza lista
         
         self.processor = Processor()
         self.processor.nmin = nmin 
@@ -84,7 +85,7 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
 
 #you could move Move this logic into a separate function within the processor
             for pattern in processed_patterns:
-                match = re.search(pattern, tagged_ngram)
+                match = re.search(pattern, tagged_ngram) #tupla como en las demás funciones
                 if match:
                         
                         if match.group(0) == tagged_ngram:
