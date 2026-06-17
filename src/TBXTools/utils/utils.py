@@ -22,7 +22,6 @@ def get_lang(language):
 
     return language_name, language_code
 
-
 def get_model_from_code(lang_code):
         """
         Takes a language code and returns the correct spaCy model name.

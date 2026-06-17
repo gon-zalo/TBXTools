@@ -52,10 +52,7 @@ class Extractor: #remember to add the attributes that you added while implementi
 # EXTRACTION FUNCTIONS
     def extract(self, verbose=False) -> Results:
         '''
-        Coordinates the extraction pipeline by fetching data from the database,
-        calling the selected extraction methodology (linguistic or statistical),
-        applying optional filtering/normalization procedures, and persisting 
-        the extracted candidates back to the SQLite database.
+        Coordinates the extraction pipeline by fetching data from the database, calling the selected extraction methodology (linguistic or statistical), applying optional filtering/normalization procedures, and persisting the extracted candidates back to the SQLite database.
 
         Args:
             verbose (bool, optional): If True, enables detailed logging. Defaults to False.
@@ -63,43 +60,22 @@ class Extractor: #remember to add the attributes that you added while implementi
         Returns:
             Results: An instance of the Results class.
         '''
-        print(f"{self._methodology.name} initialized", flush=True)
+        print(f"\n{self._methodology.name} initialized", flush=True)
         print("Running term extraction", flush=True)
         
         segments = self._sqlite.get_segments()
 
-        if self._methodology.name == "LinguisticMethodology": 
-            
+        if self._methodology.name == "LinguisticMethodology":
+
+            self._methodology.evaluation_terms = self._sqlite.get_evaluation_terms()
+            self._methodology.linguistic_patterns = self._sqlite.get_linguistic_patterns()
             tagged_segments = self._sqlite.get_tagged_segments()
-            tagged_segments = [(x,) for x in tagged_segments] #this to pass from a list of strings to a list of tuples
-            
-            if not tagged_segments:
-                tagged_segments= self._methodology.processor.create_tagged_segments(segments=segments)
-                self._sqlite.insert_segments(tagged_segments, is_corpus_tagged=True)
 
-            tagged_ngrams = self._methodology.processor.ngrams_calculation(segments=tagged_segments, corpus_is_tagged=True)        
-            
-            self._sqlite.insert_tagged_ngrams(tagged_ngrams)
-            
-            existing_patterns= self._sqlite.get_linguistic_patterns()
-            if existing_patterns:
-                self._methodology.linguistic_patterns= existing_patterns    
-            else:                
-                self._methodology.linguistic_patterns = None
+            results, returned_segments = self._methodology.extract(segments=segments, tagged_segments=tagged_segments, verbose=verbose)
 
-            evaluation_terms = self._sqlite.get_evaluation_terms()
-            self._methodology.evaluation_terms = evaluation_terms
-
-            filtered_tagged_ngrams = []
-            for term in evaluation_terms:
-                filtered_ngram = self._sqlite.get_tagged_ngrams(ngram_filter=term)
-                filtered_tagged_ngrams.append(filtered_ngram)
-
-            results = self._methodology.extract(tagged_segments=tagged_segments, tagged_ngrams=tagged_ngrams, filtered_tagged_ngrams=filtered_tagged_ngrams)
-            
-            if not existing_patterns and self._methodology.linguistic_patterns:
-                self._sqlite.delete_linguistic_patterns()
-                self._sqlite.load_linguistic_patterns(self._methodology.linguistic_patterns)
+            self._sqlite.insert_segments(returned_segments, tagged=True)
+            self._sqlite.insert_tagged_ngrams(results._tagged_ngrams)
+            self._sqlite.insert_linguistic_patterns(self._methodology.linguistic_patterns)
 
         if self._methodology.name == "StatisticalMethodology":
 
@@ -108,11 +84,10 @@ class Extractor: #remember to add the attributes that you added while implementi
             self._sqlite.insert_tokens(results._tokens)
             self._sqlite.insert_ngrams(results._ngrams)
 
-        # passing the sqlite connection and Processor()to the Results object
+        # passing the sqlite connection and the methodology to the Results object
         results._sqlite = self._sqlite
         results._methodology = self._methodology  
 
-        # inserting data into the database
         self._sqlite.delete_candidate_terms() # keep an eye on this
         self._sqlite.insert_candidate_terms(results._terms)   
 
@@ -130,7 +105,8 @@ class Extractor: #remember to add the attributes that you added while implementi
         '''
         if isinstance(stopwords_list, list):
             self._sqlite.add_stopwords(stopwords_list=stopwords_list)
-            self._processor.stopwords = self._sqlite.get_stopwords() # updating the attribute of the class
+            self._methodology.processor.stopwords = self._sqlite.get_stopwords() # updating the attribute of the class
+            self.stopwords = self._sqlite.get_stopwords()
 
     def add_inner_stopwords(self, inner_stopwords_list):
         '''
@@ -141,4 +117,5 @@ class Extractor: #remember to add the attributes that you added while implementi
         '''
         if isinstance(inner_stopwords_list, list):
             self._sqlite.add_inner_stopwords(inner_stopwords_list=inner_stopwords_list)
-            self._processor.inner_stopwords = self._sqlite.get_inner_stopwords()
+            self._methodology.processor.inner_stopwords = self._sqlite.get_inner_stopwords()
+            self.inner_stopwords = self._sqlite.get_inner_stopwords()

@@ -74,7 +74,6 @@ class Processor:
             candidate_term = row[0]
             candidate_term_n = row[1]
             candidate_term_freq = row[3]
-
             if candidate_term_n not in terms_by_n:
                 terms_by_n[candidate_term_n] = []
 
@@ -175,10 +174,9 @@ class Processor:
           list[str]: A list of tokens extracted from the segment.
         """
         from nltk.tokenize import RegexpTokenizer
-
         tokenizer = RegexpTokenizer(r"\b\w(?:[\w'‘’.,-]*\w)?\b")
         token = tokenizer.tokenize(segment)
-
+        
         return token
     
     def filter_by_stopwords(self, term):
@@ -259,40 +257,40 @@ class Processor:
             single_tagged_segment = tagger.tag_segment(segment)
 
             if single_tagged_segment:
-                tagged_segments.append((single_tagged_segment,))
+                tagged_segments.append(single_tagged_segment)
 
         return tagged_segments
     
-    def ngrams_calculation(self, segments, corpus_is_tagged=False, minfreq=2):
+    def ngram_calculation(self, segments, is_corpus_tagged=False, minfreq=2):
         import nltk
         from nltk.util import ngrams as compute_ngrams
         
         ngramsFD = nltk.probability.FreqDist()
         nmin = self.nmin
         nmax = self.nmax
-
         for segment in segments:
-            if corpus_is_tagged:
-                tokens = segment[0].split()
+            if is_corpus_tagged:
+                tokens = segment.split()
             else:
                 tokens = self.tokenize(segment)
-            
+
             for n in range(nmin, nmax + 1):  
                 ngrams_list = compute_ngrams(tokens, n) 
                 for ngram in ngrams_list:
                     ngramsFD[ngram] += 1
-        
+
         ngrams_output = []
+        tagged_ngrams_output = []
         for ngram, freq in ngramsFD.most_common(): 
             if freq >= minfreq:
-                if corpus_is_tagged:
+                if is_corpus_tagged:
                     candidate_words = [ngt.split("|")[0] for ngt in ngram]
-                    #parte incriminata
                     clean_ngram = " ".join(candidate_words)
-                    ngram_row = (clean_ngram, " ".join(ngram), len(ngram), freq)
+
+                    ngrams_output.append((clean_ngram, len(ngram), freq))
+                    tagged_ngrams_output.append((" ".join(ngram), len(ngram), freq))
+
                 else:
-                    ngram_row = (" ".join(ngram), len(ngram), freq) 
-                
-                ngrams_output.append(ngram_row)
-            
-        return ngrams_output
+                    ngrams_output.append((" ".join(ngram), len(ngram), freq))
+
+        return ngrams_output, tagged_ngrams_output
