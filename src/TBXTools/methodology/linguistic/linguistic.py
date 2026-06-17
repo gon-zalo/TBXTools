@@ -1,5 +1,4 @@
 import re
-import sys
 from ..base.base import BaseMethodology
 from ...results import Results
 from ...processor import Processor
@@ -64,8 +63,7 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
                 self.linguistic_patterns = [(linguistic_pattern,) for linguistic_pattern in linguistic_patterns] # strings must be in tuples
 
             else:
-                print("Error: Learning process produced no patterns. Please verify database data.")
-                sys.exit()
+                raise ValueError("Learning process produced no patterns. Please verify database data.")
      
         translated_linguistic_patterns = self.processor.translate_pattern(self.linguistic_patterns)
         candidate_terms = self._linguistic_extraction(ngrams_output=tagged_ngrams, linguistic_patterns=translated_linguistic_patterns, minfreq=minfreq)
@@ -88,15 +86,12 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
 
         raw_candidates=[]
         for tupla in ngrams_output:
-            # print(tupla)
-            # clean_ngram = tupla[0]
             tagged_ngram = tupla[0]
             n = tupla[1]
             frequency = tupla[2]
 
-            # for clean_ngram, tagged_ngram, n, frequency in tupla:
             filtered_ngram = self.processor.filter_by_stopwords_linguistic(term=tagged_ngram)
-            # print(filtered_ngram)
+            
             if filtered_ngram is None:
                 continue
 
