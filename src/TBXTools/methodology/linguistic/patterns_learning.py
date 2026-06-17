@@ -1,4 +1,3 @@
-
 import operator
 
 class PatternsLearning:
