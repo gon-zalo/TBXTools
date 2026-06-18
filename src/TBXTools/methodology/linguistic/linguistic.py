@@ -3,6 +3,7 @@ from ..base.base import BaseMethodology
 from ...results import Results
 from ...processor import Processor
 from .patterns_learning import PatternsLearning
+from collections import Counter
 
 class LinguisticMethodology(BaseMethodology): #add the attributes that you added to the doc string- mira si quitart cosas internas como extractor info y processor- el usuario no lo tiene que importar
 
@@ -22,7 +23,7 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
         self.is_corpus_tagged = is_corpus_tagged
         self.linguistic_patterns = linguistic_patterns
         self.evaluation_terms = evaluation_terms
-        self.tsr_terms = tsr_terms #vedi se è giusto che stia qui e come ci deve effettivamente stare- come None? in teoria c'è anche l'opzione senza lista
+        self.tsr_terms = tsr_terms 
         
         self.processor = Processor()
         self.processor.nmin = nmin 
@@ -112,16 +113,6 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
                             record.append(frequency)   
                             raw_candidates.append(record)
                             break
-         
-#make this more pythonic        
-        tcaux={}
-        for a in raw_candidates: # tuple is (tagged_ngram, n, "frequency", frequency)
-            cand_name=a[0]
-            cand_freq=a[3]
-            if not cand_name in tcaux:
-                tcaux[cand_name]=cand_freq
-            else:
-                tcaux[cand_name]+= cand_freq
         
         candidate_frequencies= Counter()
         for candidate, n, _, frequency in raw_candidates: # underscore to ignore the third element "frequency" - not needed for aggregation

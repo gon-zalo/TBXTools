@@ -213,7 +213,7 @@ class SQLite:
         else: 
             with open(tsr_terms, "r", encoding=encoding) as f:
                 data = [(line.rstrip(),) for line in f]        
-            print("TSR terms loaded from file")
+            print("TSR terms loaded")
 
         with self.conn:
             self.cur.executemany('INSERT INTO tsr_terms (tsr_term) VALUES (?)',data)

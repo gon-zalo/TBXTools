@@ -294,3 +294,158 @@ class Processor:
                     ngrams_output.append((" ".join(ngram), len(ngram), freq))
 
         return ngrams_output, tagged_ngrams_output
+    
+    def apply_tsr_filter(self, tsr_terms, candidate_terms, type="strict", max_iterations=10000000000, verbose=True): 
+        component={} #all the terms 
+        firstcomponent={}
+        middlecomponent={}
+        lastcomponent={}
+        
+        #da tsr terms estrae e mette nei dizionari
+        for tsr_term in tsr_terms:
+            tsr_ngrams=tsr_term.split() 
+            if len(tsr_ngrams)==1: #UNIGRAMS
+                firstcomponent[tsr_ngrams[0].lower()]=1 
+                lastcomponent[tsr_ngrams[0].lower()]=1
+            if len(tsr_ngrams)>=2: 
+                firstcomponent[tsr_ngrams[0].lower()]=1
+                lastcomponent[tsr_ngrams[-1].lower()]=1
+                component[tsr_ngrams[0].lower()]=1
+                component[tsr_ngrams[-1].lower()]=1
+                if len(tsr_ngrams)>=3:
+                    for i in range(1,len(tsr_ngrams)-1):
+                        middlecomponent[tsr_ngrams[i].lower()]=1
+                        component[tsr_ngrams[i].lower()]=1
+
+        new=True  #flag used to control the loop- initialized True to ensure the loop runs at least once
+        newcandidates={} #candidate-frequency - for the terms that will pass the filter
+        hashmeasure={} #to store the measurement types for each accepted candidate ("tsr")- vedi se serve effettivamente
+        hashvalue={} #stessa cosa ma per i valori
+        
+        iterations=0 #A counter variable initialized to 0 to keep track of how many times the loop has executed
+        while new: #the loop keeps running as long as new is True
+            iterations+=1
+            if verbose: print("ITERATION",iterations)
+            new=False #Immediately resets the new flag to False at the beginning of the round. If the code later finds and accepts a new candidate term, it will set this back to True to trigger another iteration. If no new terms are found, the loop will exit.
+            auxiliar={} #vedi se si sta effettivamente usando- in caso toglilo
+            value=max_iterations-iterations
+            
+            for term in candidate_terms:
+                candidate=term[0]
+                n=term[1]
+                frequency=term[3]
+                measure="tsr" 
+                
+                #Setting Up Validation Flags for the Current Candidate
+                first_c=False #It will be switched to True if the first word of the candidate matches the valid component criteria
+                middle_c=False
+                last_c=False
+                rcamps=candidate.split()
+                truesfalses=[] #Initializes an empty list designed to collect the individual boolean verdicts (e.g., [True, False]) for each word of the candidate during the upcoming validation checks
+                
+                first_n = str(rcamps[0]).lower()
+                last_n = str(rcamps[-1]).lower()
+                
+                #controlla per ogni candidato se sta in first components o meno
+                if first_n in firstcomponent: 
+                    first_c=True
+                    truesfalses.append(True)
+                else:
+                    truesfalses.append(False)
+                
+                if last_n in lastcomponent: 
+                    last_c=True
+                    truesfalses.append(True)
+                else:
+                    truesfalses.append(False)
+
+                if n>2:
+                    middle_c=True
+                    for i in range(1,n-1):
+                        mid_n = str(rcamps[i]).lower()
+                        if not mid_n in middlecomponent: 
+                            middle_c=False
+                    if middle_c==True:
+                        truesfalses.append(True)
+                    else:
+                        truesfalses.append(False)
+
+                if type=="strict":
+                    if iterations==1: #debug vedi se tenerlo
+                        new=True
+                        if not False in truesfalses:
+                            if not candidate in newcandidates: #controlla se non era già in new candidates
+                                newcandidates[candidate]=frequency
+                                hashmeasure[candidate]=measure
+                                hashvalue[candidate]=value
+                                new=True #Because a brand-new valid term was discovered during this round, the new flag is flipped back to True. This guarantees that the main while loop will execute at least one more entire iteration to see if this new term helps unlock even more candidates
+                                
+                                #vedi se tenere le prossime 3 linee di debug
+                                w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
+                                firstcomponent[w_first_low]=1  #Extracts the first word of this newly accepted candidate (rcamps[0]) and adds it to the trusted firstcomponent dictionary.
+                                lastcomponent[w_last_low]=1
+
+                elif type=="flexible": #almeno un True
+                    if True in truesfalses:
+                        if not candidate in newcandidates:
+                            newcandidates[candidate]=frequency
+                            hashmeasure[candidate]=measure
+                            hashvalue[candidate]=value
+                            new=True
+                            w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
+                            firstcomponent[w_first_low]=1
+                            lastcomponent[w_last_low]=1
+                            component[w_first_low]=1
+                            component[w_last_low]=1
+
+                elif type=="combined":
+                    if iterations== 1:
+                        if not False in truesfalses: #inizia come strict
+                            if not candidate in newcandidates:
+                                newcandidates[candidate]=frequency
+                                hashmeasure[candidate]=measure
+                                hashvalue[candidate]=value     
+                                new=True # Imposta new su True solo se viene effettivamente aggiunto qualcosa!                           
+                                w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
+                                firstcomponent[w_first_low]=1
+                                lastcomponent[w_last_low]=1
+                                if n>2:
+                                    for i in range(1,n-1):
+                                        w_mid = rcamps[i].lower()
+                                        middlecomponent[w_mid]=1
+                                        component[w_mid]=1
+                    else:
+                        if True in truesfalses:
+                            if not candidate in newcandidates:
+                                newcandidates[candidate]=frequency
+                                hashmeasure[candidate]=measure
+                                hashvalue[candidate]=value
+                                new=True
+                                
+                                w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
+                                firstcomponent[w_first_low]=1
+                                lastcomponent[w_last_low]=1
+                                if n>2:
+                                    for i in range(1,n-1):
+                                        w_mid = rcamps[i].lower()
+                                        middlecomponent[w_mid]=1
+                                        component[w_mid]=1
+                                component[w_first_low]=1
+                                component[w_last_low]=1
+                                
+        updated_terms=[] #flatten this
+        for c in newcandidates:
+            termb=c
+            n=len(c.split())
+            freqtotal=newcandidates[c]
+            measure=hashmeasure[c]
+            value=hashvalue[c]
+            record=[]
+            record.append(termb)
+            record.append(n)
+            record.append(freqtotal)
+            record.append(measure)
+            record.append(value)
+            updated_terms.append(record)
+    
+        return updated_terms

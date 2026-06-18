@@ -102,7 +102,7 @@ class Results:
 
     
     #sistemala
-    def tsr(self, type= "combined", max_iterations=10000000000, verbose=True):
+    def tsr(self, type= None, max_iterations=10000000000, verbose=True):
 
         print("Applying TSR filter")
 
@@ -117,7 +117,7 @@ class Results:
         filtered_terms = self._methodology.processor.apply_tsr_filter(tsr_terms=tsr_terms, candidate_terms=candidate_terms, type=type, max_iterations= max_iterations, verbose=verbose)
         
         self._terms = filtered_terms
-        #self._sqlite.delete_candidate_terms()
+        #self._sqlite.delete_candidate_terms() to use if we don't want to have 2 different tables
 
         self._sqlite.insert_filtered_candidate_terms(self._terms)
         print(f"TSR filter completed. {len(self._terms)} candidates saved.")

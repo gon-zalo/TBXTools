@@ -1,15 +1,17 @@
 from TBXTools import Extractor, StatisticalMethodology
 
 regexes = [".+ health"]
+tsr_terms="tsr_terms.txt"
 
 extractor = Extractor(
     methodology=StatisticalMethodology(
         nmin=2,
         nmax=3,
         exclusion_regexes=regexes,
-        case_normalization=True
+        case_normalization=True,
+        tsr_terms=tsr_terms
     ),
-    project_name="statistical-example",
+    project_name="statistical-example_combined_tsr",
     corpus="Mental_disorder.txt",
     language="english",
     overwrite_project=True,
@@ -19,11 +21,12 @@ results = extractor.extract(verbose=False)
 
 results.nest_normalization(verbose=False)
 results.regex_exclusion(verbose=False)
-# results.save_candidates("statistical-candidates.txt")
+results.tsr(type="flexible", max_iterations=10, verbose=True)
+#results.save_candidates("statistical-candidates.txt")
 
 # Results can be inspected with the following methods:
 all_terms = results.terms(limit=None)
-print(f"\nNumber of terms: {len(all_terms)}. Expected number: 239")
+print(f"\nNumber of terms: {len(all_terms)}. Expected number: 239") #controlla cos'è all terms
 print(f"\nTerms: {results.terms()}")
 print(f"\nNgrams: {results.ngrams()}")
 print(f"\nTokens: {results.tokens()}") 
