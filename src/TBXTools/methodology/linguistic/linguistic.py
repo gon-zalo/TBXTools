@@ -58,7 +58,7 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
             print("Linguistic patterns not found. Starting automatic pattern learning")
             pattern_learner = PatternsLearning()
 
-            learn_dict = pattern_learner.learn_linguistic_patterns(outputfile="learned_linguistic_patterns.txt", evaluation_terms=self.evaluation_terms, filtered_tagged_ngrams=filtered_tagged_ngrams, verbose=verbose)
+            learn_dict = pattern_learner.learn_linguistic_patterns(outputfile="learned_linguistic_patterns.txt", filtered_tagged_ngrams=filtered_tagged_ngrams, verbose=verbose)
  
             if learn_dict:
                 linguistic_patterns = list(learn_dict.keys())
@@ -99,19 +99,12 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
             if filtered_ngram is None:
                 continue
 
-#you could move Move this logic into a separate function within the processor
             for pattern in processed_patterns:
-                match = re.search(pattern, tagged_ngram) #tupla como en las demás funciones
-                if match:
-                        
+                match = re.search(pattern, tagged_ngram) 
+                if match:          
                         if match.group(0) == tagged_ngram:
                             candidate =" ".join(match.groups()[1:])
-                            record=[]
-                            record.append(candidate)     
-                            record.append(n)  
-                            record.append("frequency")
-                            record.append(frequency)   
-                            raw_candidates.append(record)
+                            raw_candidates.append((candidate, n, "frequency", frequency))
                             break
         
         candidate_frequencies= Counter()
