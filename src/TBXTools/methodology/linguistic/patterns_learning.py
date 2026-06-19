@@ -2,80 +2,88 @@ import operator
 
 class PatternsLearning:
     '''
-    Manages automatic learning of POS patterns to perform linguistic extraction
+    Manages automatic learning of POS patterns to perform linguistic extraction.
     '''
     def __init__(self): 
         pass
          
-    #almost the same as the old code- it works but you'll have to make it more pythonic
-    def learn_linguistic_patterns(self,outputfile, evaluation_terms,filtered_tagged_ngrams, showfrequencies=False, encoding="utf-8",verbose=False,representativity=100):
-        learntpatterns={}
-        sortida = open(outputfile, "w", encoding=encoding)
-        acufreq=0 
+    def learn_linguistic_patterns(self,outputfile,filtered_tagged_ngrams, showfrequencies=True, encoding="utf-8",verbose=False,representativity=100):
+        '''
+        Automatically extracts linguistic patterns from a collection of pre-filtered, POS-tagged n-grams. It sorts the patterns from most to least frequent and writes them to an external text file, using a percentage threshold (representativity) to discard rare patterns.
 
-        # for evaluation_term in evaluation_terms:
-            # results = self._sqlite.get_tagged_ngrams(ngram_filter=evaluation_term[0])
+        Args:
 
-        results = filtered_tagged_ngrams
+        outputfile (str): The file path where the learned linguistic patterns will be saved.
+        filtered_tagged_ngrams (list of tuples): A collection of rows fetched from the database, where each tuple contains (tagged_ngram_string, n_size, frequency).
+        showfrequencies (bool, optional): If True, displays the pattern's frequency into the output file. Defaults to True.
+        encoding (str, optional): Defaults to "utf-8".
+        verbose (bool, optional): Defaults to False.
+        representativity (int, optional): A setting (0 to 100) that decides how many patterns to save based on their frequency. It sorts patterns from most to least common and stops saving once your chosen percentage of the total data is reached (setting it to 100 saves everything).
+
+        Returns:
+        
+        learntpatterns (dict): A dictionary of learned patterns where keys are the generated rule strings (e.g., "|#|NOUN #||ADJ") and values are their corresponding frequencies.
+        '''
+       
+        learntpatterns={} #the key is the pattern and the value is its frequency
+        acufreq=0  #to accumulate the frequencies
+
+        results = filtered_tagged_ngrams #('health|health|NOUN professionals|professional|NOUN', 2, 7)- this is filtered tagged ngrams
         if len(results)>0: 
-            for a in results:
-                if a:
-                    ng = a[0]
-                    n = a[1]
-                    frequency = a[2]
-                    # ng=a[0]
-                    
-                    nglist=ng.split()
-                    # n=a[1]
-                    # frequency=a[2]
+            for tagged_ngram in results:
+                if tagged_ngram:
+                    tagged_ngram_string = tagged_ngram[0]
+                    n = tagged_ngram[1]
+                    frequency = tagged_ngram[2]
 
-                    candidate=[]
-                    ngtokenstag=ng.split()
-                    for ngt in ngtokenstag:
-                        candidate.append(ngt.split("|")[0])
-                    candidate=" ".join(candidate)
+                    candidate_words=[]
+                    ngram_components=tagged_ngram_string.split() #['mental|mental|ADJ', 'disorders|disorder|NOUN']
+                    for component in ngram_components:
+                        candidate_words.append(component.split("|")[0]) #lista con mental, disorder, ecc...
+                    candidate_string=" ".join(candidate_words) #mental disorders
 
-                    t2=ng.split()
-                    t1=candidate.split()
+                    tagged_components=tagged_ngram_string.split() #['mental|mental|ADJ', 'disorders|disorder|NOUN']
+                    clean_components=candidate_string.split() #['mental', 'disorders']
                     patternbrut=[]
 
                     for position in range(0,n):
-                        t2f=t2[position].split("|")[0]
-                        t2l=t2[position].split("|")[1]
-                        t2t=t2[position].split("|")[2]
+                        clean_text=tagged_components[position].split("|")[0] #mental
+                        clean_lemma=tagged_components[position].split("|")[1]
+                        clean_tag=tagged_components[position].split("|")[2]
                         patternpart=""
-                        if t1[position]==t2l:
-                            patternpart="|#|"+t2t
-                        elif t1[position]==t2f:
-                            patternpart="#||"+t2t
+                        if clean_components[position]==clean_lemma: #if mental da ['mental', 'disorders'] == mental
+                            patternpart="|#|"+clean_tag
+                        elif clean_components[position]==clean_text:
+                            patternpart="#||"+clean_tag
                         patternbrut.append(patternpart)
 
                     pattern=" ".join(patternbrut)
 
                     if pattern in learntpatterns:
-                        learntpatterns[pattern]+=n
-                        acufreq+=n
+                        learntpatterns[pattern]+=frequency
+                        acufreq+=frequency
                     else:
-                        learntpatterns[pattern]=n
-                        acufreq+=n
+                        learntpatterns[pattern]=frequency
+                        acufreq+=frequency
 
-        sorted_x = sorted(learntpatterns.items(), key=operator.itemgetter(1),reverse=True)
-        results=[]
+        sorted_patterns = sorted(learntpatterns.items(), key=operator.itemgetter(1),reverse=True) #Sorts the dictionary entries into a list of tuples ordered by their score value in descending order (reverse=True), putting the most prominent patterns at the top
         acufreq2=0
         
-        for s in sorted_x:
-            percent=100*acufreq2/acufreq
-            if percent>representativity:
-                break
-            acufreq2+=s[1]
-            if showfrequencies:
-                cadena=str(s[1])+"\t"+s[0]
-            else:
-                cadena=s[0]
-            sortida.write(cadena+"\n")
-            if verbose:
-                print(cadena)
+        with open(outputfile, "w", encoding=encoding) as sortida:
+            for pattern, score in sorted_patterns:
+                percent = 100 * acufreq2 / acufreq
+                if percent > representativity:
+                    break
+                acufreq2 += score  
+    
+                if showfrequencies:
+                    cadena = str(score) + "\t" + pattern
+                else:
+                    cadena = pattern
         
-        sortida.close()
+                sortida.write(cadena+"\n")
+                if verbose:
+                    print(cadena)
 
-        return learntpatterns
+        return learntpatterns 
+       
