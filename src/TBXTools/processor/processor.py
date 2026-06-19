@@ -392,7 +392,6 @@ class Processor:
                                 hashvalue[candidate]=value
                                 new=True #Because a brand-new valid term was discovered during this round, the new flag is flipped back to True.
                                 
-                                #vedi se tenere le prossime 3 linee di debug
                                 w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
                                 firstcomponent[w_first_low]=1 
                                 lastcomponent[w_last_low]=1
