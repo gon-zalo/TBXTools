@@ -63,8 +63,8 @@ class SQLite:
             self.cur.execute("CREATE TABLE tokenized_corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, tokenized_segment TEXT)")
             self.cur.execute("CREATE TABLE tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT, frequency INTEGER)")
             self.cur.execute("CREATE TABLE ngrams (id INTEGER PRIMARY KEY AUTOINCREMENT, ngram TEXT, n INTEGER, frequency INTEGER)")
-            self.cur.execute("CREATE TABLE candidate_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, candidate TEXT, n INTEGER, measure TEXT, value INTEGER)")
-            self.cur.execute("CREATE TABLE filtered_candidate_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, filtered_candidate TEXT, n INTEGER, frequency INTEGER, measure TEXT, value INTEGER)")
+            self.cur.execute("CREATE TABLE candidate_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, candidate TEXT, n INTEGER, measure, frequency INTEGER)")
+            # self.cur.execute("CREATE TABLE filtered_candidate_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, filtered_candidate TEXT, n INTEGER, frequency INTEGER, measure TEXT, value INTEGER)")
             # self.cur.execute("CREATE TABLE external_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, external_term TEXT)")
             self.cur.execute("CREATE TABLE tsr_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, tsr_term TEXT)")
             self.cur.execute("CREATE TABLE stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, stopword TEXT)")
@@ -163,14 +163,35 @@ class SQLite:
     def load_linguistic_patterns(self, linguistic_patterns, encoding="utf-8"):
 
         data= []
+        
         if linguistic_patterns:
+            
             if isinstance(linguistic_patterns, list):
                 data = [(linguistic_pattern,) for linguistic_pattern in linguistic_patterns]
                 print("Linguistic patterns loaded")
 
             else:
                 with open(linguistic_patterns, "r", encoding=encoding) as f:
-                    data = [(line.rstrip(),) for line in f]
+                    first_line= f.readline()
+                    print(first_line)
+
+                    if "frequency" in first_line.lower():
+
+                        for line in f:
+                            line = line.rstrip()
+                            if line:
+                                parts = line.split('\t')
+                                data.append((parts[0],))
+                    
+                    else:
+                        if first_line.strip():
+                            data.append((first_line.strip().split('\t')[0],))
+                            
+                        for line in f:
+                            line = line.strip()
+                            if line:
+                                data.append((line.split('\t')[0],))
+
                 print("Linguistic patterns loaded from file")
                 
             with self.conn:
@@ -281,7 +302,7 @@ class SQLite:
         '''Inserts candidate terms into the database'''
         if not self.table_is_populated("candidate_terms"):
             with self.conn:
-                self.cur.executemany("INSERT INTO candidate_terms (candidate, n, measure, value) VALUES (?,?,?,?)", data)
+                self.cur.executemany("INSERT INTO candidate_terms (candidate, n, measure, frequency) VALUES (?,?,?,?)", data)
             
     def insert_filtered_candidate_terms(self, data):
         with self.conn:
@@ -365,7 +386,7 @@ class SQLite:
         '''Gets the list of candidate terms from the database'''
         candidate_terms = []
         with self.conn:
-            self.cur.execute("SELECT candidate, n, measure, value FROM candidate_terms ORDER BY value DESC")
+            self.cur.execute("SELECT candidate, n, measure, frequency FROM candidate_terms ORDER BY frequency DESC")
 
             for candidates_row in self.cur.fetchall():
                 candidate_terms.append(candidates_row)
@@ -444,9 +465,10 @@ class SQLite:
             self.cur.execute("DELETE FROM candidate_terms")
             self.cur.execute("DELETE FROM sqlite_sequence WHERE name='candidate_terms'")
 
-    def delete_specific_candidate_term(self, candidate):
+    def delete_specific_candidate_term(self, candidates):
         with self.conn:
-            self.cur.execute("DELETE FROM candidate_terms WHERE candidate=?", (candidate,))
+            for candidate in candidates:
+                self.cur.execute("DELETE FROM candidate_terms WHERE candidate=?", (candidate,))
 
 # ADD FUNCTIONS
     def add_stopwords(self, stopwords_list):
