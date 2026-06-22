@@ -8,8 +8,8 @@ tsr_terms = "tsr_terms.txt"
 # Scenario A
 print("--- SCENARIO A ---\n")
 extractor = Extractor(
-    methodology=LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=True, linguistic_patterns=linguistic_patterns, tsr_terms=tsr_terms),
-    project_name="linguistic-example_1",
+    methodology=LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=True, linguistic_patterns=linguistic_patterns),
+    project_name="linguistic-example",
     corpus=tagged_corpus,
     language="english",
     overwrite_project=True
@@ -18,9 +18,9 @@ extractor = Extractor(
 results = extractor.extract(verbose=False)
 
 results.nest_normalization(verbose=False)
-results.tsr(type="strict", max_iterations=10, verbose=False)
+#results.tsr(tsr_terms=tsr_terms, type="strict", max_iterations=10, verbose=False)
 all_terms = results.terms(limit=None)
-print(f"\nNumber of terms: {len(all_terms)}. Expected number: 114") #questa vedi come cambiarla
+print(f"\nNumber of terms: {len(all_terms)}. Expected number: 114") 
 print(f"\nTerms: {results.terms()}")
 print(f"\nTagged Ngrams: {results.tagged_ngrams()}")
 del extractor
@@ -40,7 +40,7 @@ extractor = Extractor(
 
 results = extractor.extract(verbose=False)
 results.nest_normalization(verbose=False)
-#results.tsr(type="strict", max_iterations=10, verbose=False)
+#results.tsr(tsr_terms=tsr_terms, type="strict", max_iterations=10, verbose=False)
 all_terms = results.terms(limit=None)
 print(f"\nNumber of terms: {len(all_terms)}. Expected number: 134")
 print(f"\nTerms: {results.terms()}")
@@ -62,7 +62,7 @@ extractor = Extractor(
 
 results = extractor.extract(verbose=False)
 results.nest_normalization(verbose=False)
-#results.tsr(type="strict", max_iterations=10, verbose=False)
+#results.tsr(tsr_terms=tsr_terms, type="strict", max_iterations=10, verbose=False)
 all_terms = results.terms(limit=None)
 print(f"\nNumber of terms: {len(all_terms)}. Expected number: 114")
 print(f"\nTerms: {results.terms()}")
@@ -84,7 +84,7 @@ extractor = Extractor(
 
 results = extractor.extract(verbose=False)
 results.nest_normalization(verbose=False)
-#results.tsr(type="strict", max_iterations=10, verbose=False)
+#results.tsr(tsr_terms=tsr_terms, type="strict", max_iterations=10, verbose=False)
 all_terms = results.terms(limit=None)
 print(f"\nNumber of terms: {len(all_terms)}. Expected number: 135")
 print(f"\nTerms: {results.terms()}")
