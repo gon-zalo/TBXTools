@@ -13,17 +13,11 @@ class StatisticalMethodology(BaseMethodology):
         _processor (Processor): An internal instance of the Processor class used to handle text preprocessing tasks.
     '''
     
-    def __init__(self, nmin, nmax, exclusion_regexes=None, tsr_terms= None, case_normalization=False):
+    def __init__(self, nmin, nmax, case_normalization=True):
         
         self.name = "StatisticalMethodology"
-        self.exclusion_regexes = exclusion_regexes
         self.case_normalization = case_normalization
-        self.tsr_terms = tsr_terms 
-        #sino lo haces con tsr= False
-        #self.tsr= tsr
-        #va a ser True si lo queremos usar como argumento de statistical
-        #luego se lo pasaríamos directamente a results- pero hay que trasformarlo en lista de terminos- que sería como lo saca del db 
-
+        
         self.processor = Processor()
         self.processor.nmin = nmin    
         self.processor.nmax = nmax    
