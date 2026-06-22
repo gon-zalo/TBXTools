@@ -5,7 +5,7 @@ from ...processor import Processor
 from .patterns_learning import PatternsLearning
 from collections import Counter
 
-class LinguisticMethodology(BaseMethodology): #add the attributes that you added to the doc string- mira si quitart cosas internas como extractor info y processor- el usuario no lo tiene que importar
+class LinguisticMethodology(BaseMethodology): 
 
     '''
     Manages linguistic terminology extraction.
@@ -61,7 +61,9 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
             learn_dict = pattern_learner.learn_linguistic_patterns(outputfile="learned_linguistic_patterns.txt", filtered_tagged_ngrams=filtered_tagged_ngrams, verbose=verbose)
  
             if learn_dict:
-                linguistic_patterns = list(learn_dict.keys())
+                #added to order the patterns by frequency
+                sorted_patterns = sorted(learn_dict.keys(), key=lambda x: learn_dict[x], reverse=True)
+                linguistic_patterns = list(sorted_patterns)
                 self.linguistic_patterns = [(linguistic_pattern,) for linguistic_pattern in linguistic_patterns] # strings must be in tuples
 
             else:
