@@ -311,20 +311,20 @@ class Processor:
         Returns:
             updated_terms(list of list): Final candidate terms that passed the tsr filter structured as [term, n, freq, measure, value].
         '''
-        component={}  
-        firstcomponent={}
-        middlecomponent={}
-        lastcomponent={}
+        component = {}  
+        firstcomponent = {}
+        middlecomponent = {}
+        lastcomponent = {}
         
         #from tsr terms list to the 4 dictionaries
         for tsr_term in tsr_terms:
-            tsr_ngrams=tsr_term.split() 
+            tsr_ngrams = tsr_term.split() 
             if len(tsr_ngrams)==1: #UNIGRAMS
-                firstcomponent[tsr_ngrams[0].lower()]=1 
-                lastcomponent[tsr_ngrams[0].lower()]=1
-            if len(tsr_ngrams)>=2: 
-                firstcomponent[tsr_ngrams[0].lower()]=1
-                lastcomponent[tsr_ngrams[-1].lower()]=1
+                firstcomponent[tsr_ngrams[0].lower()] = 1 
+                lastcomponent[tsr_ngrams[0].lower()] = 1
+            if len(tsr_ngrams)>= 2: 
+                firstcomponent[tsr_ngrams[0].lower()] = 1
+                lastcomponent[tsr_ngrams[-1].lower()] = 1
                 component[tsr_ngrams[0].lower()]=1
                 component[tsr_ngrams[-1].lower()]=1
                 if len(tsr_ngrams)>=3:
@@ -334,7 +334,7 @@ class Processor:
 
         new=True  #flag used to control the loop- initialized True to ensure the loop runs at least once
         newcandidates={} #candidate-frequency
-        hashmeasure={} #to store the measurement types for each accepted candidate ("tsr")
+        #hashmeasure={} #to store the measurement types for each accepted candidate ("tsr")
         hashvalue={} #stores the values for each accepted candidate
         
         iterations=0 #how many times the loop executes
@@ -360,7 +360,6 @@ class Processor:
                 first_n = str(rcamps[0]).lower()
                 last_n = str(rcamps[-1]).lower()
                 
-                #controlla per ogni candidato se sta in first components o meno
                 if first_n in firstcomponent: 
                     first_c=True
                     truesfalses.append(True)
@@ -386,9 +385,9 @@ class Processor:
 
                 if type=="strict":
                         if not False in truesfalses:
-                            if not candidate in newcandidates: #controlla se non era già in new candidates
+                            if not candidate in newcandidates: 
                                 newcandidates[candidate]=frequency
-                                hashmeasure[candidate]=measure
+                                #hashmeasure[candidate]=measure
                                 hashvalue[candidate]=value
                                 new=True #Because a brand-new valid term was discovered during this round, the new flag is flipped back to True.
                                 
@@ -396,11 +395,11 @@ class Processor:
                                 firstcomponent[w_first_low]=1 
                                 lastcomponent[w_last_low]=1
 
-                elif type=="flexible": #almeno un True
+                elif type=="flexible": 
                     if True in truesfalses:
                         if not candidate in newcandidates:
                             newcandidates[candidate]=frequency
-                            hashmeasure[candidate]=measure
+                            #hashmeasure[candidate]=measure
                             hashvalue[candidate]=value
                             new=True
                             w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
@@ -411,10 +410,10 @@ class Processor:
 
                 elif type=="combined":
                     if iterations== 1:
-                        if not False in truesfalses: #inizia come strict
+                        if not False in truesfalses: 
                             if not candidate in newcandidates:
                                 newcandidates[candidate]=frequency
-                                hashmeasure[candidate]=measure
+                                #hashmeasure[candidate]=measure
                                 hashvalue[candidate]=value     
                                 new=True                         
                                 w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
@@ -428,9 +427,9 @@ class Processor:
                     else:
                         if True in truesfalses:
                             if not candidate in newcandidates:
-                                newcandidates[candidate]=frequency
-                                hashmeasure[candidate]=measure
-                                hashvalue[candidate]=value
+                                newcandidates[candidate] = frequency
+                                #hashmeasure[candidate] = measure
+                                hashvalue[candidate] = value
                                 new=True
                                 
                                 w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
@@ -449,9 +448,9 @@ class Processor:
             term= new_candidate
             n=len(new_candidate.split())
             freqtotal=newcandidates[new_candidate]
-            measure=hashmeasure[new_candidate]
+            #measure=hashmeasure[new_candidate]
             value=hashvalue[new_candidate]
             
-            updated_terms.append((term, n, freqtotal, measure, value))
+            updated_terms.append((term, n, value, freqtotal))
               
         return updated_terms
