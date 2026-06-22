@@ -69,7 +69,12 @@ class PatternsLearning:
         sorted_patterns = sorted(learntpatterns.items(), key=operator.itemgetter(1),reverse=True) #Sorts the dictionary entries into a list of tuples ordered by their score value in descending order (reverse=True), putting the most prominent patterns at the top
         acufreq2=0
         
-        with open(outputfile, "w", encoding=encoding) as sortida:
+        with open(outputfile, "w", encoding=encoding) as f:
+            if showfrequencies:
+                f.write("term\tfrequency\n")
+            else:
+                f.write("term\n")
+
             for pattern, score in sorted_patterns:
                 percent = 100 * acufreq2 / acufreq
                 if percent > representativity:
@@ -77,13 +82,15 @@ class PatternsLearning:
                 acufreq2 += score  
     
                 if showfrequencies:
-                    cadena = str(score) + "\t" + pattern
+                    output = pattern + "\t" + str(score)
                 else:
-                    cadena = pattern
+                    output = pattern
         
-                sortida.write(cadena+"\n")
+                f.write(output+"\n")
                 if verbose:
-                    print(cadena)
-
+                    print(output)
+        
+        print(learntpatterns)
         return learntpatterns 
+    
        
