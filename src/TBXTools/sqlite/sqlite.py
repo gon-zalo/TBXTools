@@ -163,7 +163,7 @@ class SQLite:
     def load_linguistic_patterns(self, linguistic_patterns, encoding="utf-8"):
 
         data= []
-        
+
         if linguistic_patterns:
             
             if isinstance(linguistic_patterns, list):
@@ -173,8 +173,6 @@ class SQLite:
             else:
                 with open(linguistic_patterns, "r", encoding=encoding) as f:
                     first_line= f.readline()
-                    print(first_line)
-
                     if "frequency" in first_line.lower():
 
                         for line in f:
@@ -218,7 +216,6 @@ class SQLite:
         with self.conn:
             self.cur.executemany('INSERT INTO evaluation_terms (evaluation_term) VALUES (?)',data)
     
-    #see if it works
     def load_tsr_terms(self, tsr_terms,encoding="utf-8"):
         '''Loads the TSR terms from a text file (one term per line).'''
         data = []
