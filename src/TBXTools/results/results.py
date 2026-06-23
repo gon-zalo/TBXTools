@@ -18,7 +18,7 @@ class Results:
         self._tokens = tokens or []
 
         self._methodology = None
-        self._sqlite = None
+        self._extractor = None
 
     # [0] is the first element in the tuple (table row)
     def terms(self, limit=20):
@@ -30,7 +30,7 @@ class Results:
         Return:
             list: a list of terms.        
         '''
-        terms = [term[0] for term in self._terms]
+        terms = [term[0] for term in self._terms] # in self._extractor._sqlite.get_candidate_terms()
 
         if limit == None:
             return terms
@@ -96,8 +96,8 @@ class Results:
 
         filtered_terms = self._methodology.processor.nest_normalization(candidate_terms=candidate_terms, percent=percent, verbose=verbose)
 
-        self._sqlite.delete_candidate_terms()
-        self._sqlite.insert_candidate_terms(filtered_terms)
+        self._extractor._sqlite.delete_candidate_terms()
+        self._extractor._sqlite.insert_candidate_terms(filtered_terms)
         self._terms = filtered_terms
             
     def regex_exclusion(self, verbose=False):
@@ -105,7 +105,7 @@ class Results:
         Deletes term candidates matching a set of regular expresions loaded in the Extractor() class.
         '''
         print("Applying regex exclusion")
-        regexes = self._sqlite.get_exclusion_regexes()
+        regexes = self._extractor._sqlite.get_exclusion_regexes()
 
         if not regexes:
             print("Exclusion regexes not found. Not applying regex exclusion.")
@@ -136,7 +136,7 @@ class Results:
 
         path = Path(path)
         extension = path.suffix.lower()
-        candidate_terms = self._terms
+        candidate_terms = self._extractor._sqlite.get_candidate_terms()
         output = pd.DataFrame(candidate_terms, columns=['candidate', 'n', 'measure', 'value'], index=None)
 
         if not extension:
