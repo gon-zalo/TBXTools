@@ -104,10 +104,10 @@ class Results:
 
         print("Applying TSR filter")
 
-        tsr_terms = self._sqlite.load_tsr_terms(tsr_terms=tsr_terms)
+        tsr_terms = self._extractor._sqlite.load_tsr_terms(tsr_terms=tsr_terms)
     
         if tsr_terms is None:
-            tsr_terms = self._sqlite.get_tsr_terms()
+            tsr_terms = self._extractor._sqlite.get_tsr_terms()
 
         if not tsr_terms:
             print("TSR terms not found. Not applying TSR filter")
@@ -117,8 +117,8 @@ class Results:
         filtered_terms = self._methodology.processor.apply_tsr_filter(tsr_terms=tsr_terms, candidate_terms=candidate_terms, type=type, max_iterations= max_iterations, verbose=verbose)
         
         self._terms = filtered_terms
-        self._sqlite.delete_candidate_terms() 
-        self._sqlite.insert_candidate_terms(self._terms)
+        self._extractor._sqlite.delete_candidate_terms() 
+        self._extractor._sqlite.insert_candidate_terms(self._terms)
         print(f"TSR filter completed. {len(self._terms)} candidates saved.")
             
     def regex_exclusion(self, regexes=None, verbose=False):
