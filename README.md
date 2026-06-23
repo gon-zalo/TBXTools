@@ -21,7 +21,8 @@ extractor = Extractor(
         nmin=2,
         nmax=3,
         case_normalization=True,
-        exclusion_regexes=None
+        exclusion_regexes=None,
+        tsr_terms=None
     ),
     project_name="statistical-example",
     corpus="example-corpus.txt",
@@ -34,6 +35,7 @@ results = extractor.extract(verbose=False)
 # Once the terms are extracted, we can perform other methods like the following:
 results.nest_normalization(verbose=False)
 results.regex_exclusion(verbose=False)
+results.tsr(type={"strict" | "flexible" | "combined"}, max_iteration= <integer>, verbose=False)
 results.save_candidates("statistical-candidates.txt")
 
 # Results can be inspected at any time with the following methods:
@@ -58,7 +60,8 @@ extractor = Extractor(
         nmin=2, 
         nmax=3, 
         is_corpus_tagged=True,
-        linguistic_patterns="example-patterns.txt"
+        linguistic_patterns="example-patterns.txt",
+        tsr_terms=None
     ),
     project_name="linguistic-example",
     corpus="tagged-corpus.txt",
@@ -70,6 +73,7 @@ results = extractor.extract(verbose=False)
 
 # Once the terms are extracted, we can perform other methods like the following:
 results.nest_normalization(verbose=False)
+results.tsr(type={"strict" | "flexible" | "combined"}, max_iteration= <integer>, verbose=False)
 results.save_candidates("linguistic-candidates.txt")
 
 # Results can be inspected at any time with the following methods:
@@ -88,7 +92,8 @@ extractor = Extractor(
         nmin=2, 
         nmax=3, 
         is_corpus_tagged=True,
-        evaluation_terms="evaluation_terms.txt"
+        evaluation_terms="evaluation_terms.txt",
+        tsr_terms=None
     ),
     project_name="linguistic-example",
     corpus="tagged-corpus.txt",
@@ -100,6 +105,7 @@ results = extractor.extract(verbose=False)
 
 # Once the terms are extracted, we can perform other methods like the following:
 results.nest_normalization(verbose=False)
+results.tsr(type={"strict" | "flexible" | "combined"}, max_iteration= <integer>, verbose=False)
 results.save_candidates("linguistic-candidates.txt")
 
 # Results can be inspected at any time with the following methods:
@@ -118,7 +124,8 @@ extractor = Extractor(
         nmin=2, 
         nmax=3, 
         is_corpus_tagged=False,
-        linguistic_patterns="example-patterns.txt"
+        linguistic_patterns="example-patterns.txt",
+        tsr_terms=None
     ),
     project_name="linguistic-example",
     corpus="raw_corpus.txt",
@@ -130,6 +137,7 @@ results = extractor.extract(verbose=False)
 
 # Once the terms are extracted, we can perform other methods like the following:
 results.nest_normalization(verbose=False)
+results.tsr(type={"strict" | "flexible" | "combined"}, max_iteration= <integer>, verbose=False)
 results.save_candidates("linguistic-candidates.txt")
 
 # Results can be inspected at any time with the following methods:
@@ -150,7 +158,8 @@ extractor = Extractor(
         nmin=2, 
         nmax=3, 
         is_corpus_tagged=False,
-        evaluation_terms="evaluation_terms.txt"
+        evaluation_terms="evaluation_terms.txt",
+        tsr_terms=None
     ),
     project_name="linguistic-example",
     corpus="raw_corpus.txt",
@@ -162,6 +171,7 @@ results = extractor.extract(verbose=False)
 
 # Once the terms are extracted, we can perform other methods like the following:
 results.nest_normalization(verbose=False)
+results.tsr(type={"strict" | "flexible" | "combined"}, max_iteration= <integer>, verbose=False)
 results.save_candidates("linguistic-candidates.txt")
 
 # Results can be inspected at any time with the following methods:

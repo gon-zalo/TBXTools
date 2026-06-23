@@ -46,6 +46,7 @@ class Extractor: #remember to add the attributes that you added while implementi
             exclusion_regexes=getattr(self._methodology,'exclusion_regexes', None),
             linguistic_patterns=getattr(self._methodology, 'linguistic_patterns', None),
             evaluation_terms=getattr(self._methodology,'evaluation_terms', None),
+            tsr_terms=getattr(self._methodology, "tsr_terms", None),
             overwrite_project=overwrite_project,
             )
 
@@ -63,13 +64,13 @@ class Extractor: #remember to add the attributes that you added while implementi
         print(f"\n{self._methodology.name} initialized", flush=True)
         print("Running term extraction", flush=True)
         
-        segments = self._sqlite.get_segments()
+        segments = self._sqlite.get_segments(is_corpus_tagged=False)
 
         if self._methodology.name == "LinguisticMethodology":
 
             self._methodology.evaluation_terms = self._sqlite.get_evaluation_terms()
             self._methodology.linguistic_patterns = self._sqlite.get_linguistic_patterns()
-            tagged_segments = self._sqlite.get_tagged_segments()
+            tagged_segments = self._sqlite.get_segments(is_corpus_tagged=True)
 
             results, returned_segments = self._methodology.extract(segments=segments, tagged_segments=tagged_segments, verbose=verbose)
 

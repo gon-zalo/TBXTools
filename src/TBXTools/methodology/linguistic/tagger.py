@@ -1,17 +1,14 @@
 import sys
 import subprocess
-import spacy  #requirements?
-
-#class to perform pos tagging of a raw corpus
+import spacy  
 
 class LinguisticTagger:
-    '''Manages linguistic POS-tagging
+    '''
+    Manages linguistic POS-tagging
     
     Attributes:
-        model_name (str): The name of the spaCy model to load (e.g.,
-          'en_core_web_sm').
-        nlp (spacy.Language or None): The loaded spaCy pipeline instance used
-          for tagging.
+        model_name (str): The name of the spaCy model to load (e.g.,'en_core_web_sm').
+        nlp (spacy.Language or None): The loaded spaCy pipeline instance used for tagging.
     '''
     def __init__(self, model_name):
         self.model_name = model_name
@@ -23,8 +20,7 @@ class LinguisticTagger:
         Checks for the spaCy model, downloading it via subprocess if missing, then loads it into self.nlp.
 
         Attributes:
-            self.model_name (str): The name of the spaCy model to be loaded (e.g.,
-          'en_core_web_sm').
+            self.model_name (str): The name of the spaCy model to be loaded (e.g.,'en_core_web_sm').
         
         Raises:
             SystemExit: If the model download fails, the program terminates with an
