@@ -68,7 +68,8 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
         translated_linguistic_patterns = self.processor.translate_pattern(self.linguistic_patterns)
         candidate_terms = self._linguistic_extraction(ngrams_output=tagged_ngrams, linguistic_patterns=translated_linguistic_patterns, minfreq=minfreq)
 
-        return Results(tagged_ngrams=tagged_ngrams, 
+        return Results(tagged_ngrams=tagged_ngrams,
+                       ngrams=clean_ngrams, 
                        terms=candidate_terms, 
                        linguistic_patterns=self.linguistic_patterns), tagged_segments # returning these, in case they were created, to be stored in the db
     
