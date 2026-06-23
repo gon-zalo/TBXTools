@@ -2120,6 +2120,9 @@ class TBXTools:
     #EVALUATION
     
     
+    #valuta efficacia di mia estrazione
+    # confronta candidate terms con gold standard 
+    # calcola precision, recall e f1
      
     def evaluate_pos(self,limit,order="desc",iterations=1000,ignore_case=True):
         '''Performs the evaluation of the term candidates using the evaluation_terms loaded with the load_evaluation_terms method.'''
@@ -2135,9 +2138,10 @@ class TBXTools:
         results=self.cur.fetchall()
         for r in results:
             tsr_terms.append(r[0])
-        evaluation_terms.extend(self.tsr_terms)
-        with self.conn:
-            for i in range(0,iterations):
+        evaluation_terms.extend(self.tsr_terms) # il gold standards saranno gli evaluation terms e i tsr terms tutti insieme 
+        
+        with self.conn: #ciclo for per estrarre da term candidates
+            for i in range(0,iterations): #vengono presi candidati peggiori (i primi) e candidati migliori (gli ultimi della "lista")
                 if order=="desc":
                     self.cur.execute("SELECT candidate,value from term_candidates where n<="+str(self.n_max)+" order by value desc, frequency desc, random() limit "+str(limit))
                 elif order=="asc":
@@ -2145,10 +2149,10 @@ class TBXTools:
                 else:
                     raise NameError('Order must be desc (decending) or asc (ascending). Defaulf value: desc')
                 #self.cur.execute("SELECT candidate from term_candidates order by id limit "+str(limit))
-                for s in self.cur.fetchall():
-                    total+=1
+                for s in self.cur.fetchall(): #controlla se il candidate term è presente tra i termini di gold standard- se si lo mette tra i corretti
+                    total+=1 
                     candidate=s[0]
-                    if ignore_case:
+                    if ignore_case: 
                         if candidate in evaluation_terms:
                             correct+=1
                         elif candidate.lower() in evaluation_terms:
@@ -2158,7 +2162,8 @@ class TBXTools:
                             correct+=1
             correct=correct/iterations
             total=total/iterations
-            
+        
+        #si calcolano precision, recall e f1 score
         try:
             precisio=100*correct/total
             recall=100*correct/len(evaluation_terms)
@@ -2166,6 +2171,8 @@ class TBXTools:
             return(limit,correct,total,precisio,recall,f1)
         except:
             return(limit,0,0,0,0,0)
+        
+        
 
     def association_measures(self,measure="raw_freq"):
         measurename=measure

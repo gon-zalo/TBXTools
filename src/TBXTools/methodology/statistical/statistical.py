@@ -13,12 +13,11 @@ class StatisticalMethodology(BaseMethodology):
         _processor (Processor): An internal instance of the Processor class used to handle text preprocessing tasks.
     '''
     
-    def __init__(self, nmin, nmax, exclusion_regexes=None, case_normalization=False):
+    def __init__(self, nmin, nmax, case_normalization=True):
         
         self.name = "StatisticalMethodology"
-        self.exclusion_regexes = exclusion_regexes
         self.case_normalization = case_normalization
-
+        
         self.processor = Processor()
         self.processor.nmin = nmin    
         self.processor.nmax = nmax    

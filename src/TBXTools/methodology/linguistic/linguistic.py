@@ -3,8 +3,9 @@ from ..base.base import BaseMethodology
 from ...results import Results
 from ...processor import Processor
 from .patterns_learning import PatternsLearning
+from collections import Counter
 
-class LinguisticMethodology(BaseMethodology): #add the attributes that you added to the doc string- mira si quitart cosas internas como extractor info y processor- el usuario no lo tiene que importar
+class LinguisticMethodology(BaseMethodology): 
 
     '''
     Manages linguistic terminology extraction.
@@ -16,12 +17,13 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
 
     '''
 
-    def __init__(self, nmin, nmax, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None):
+    def __init__(self, nmin, nmax, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None, tsr_terms=None):
         
         self.name = "LinguisticMethodology"
         self.is_corpus_tagged = is_corpus_tagged
         self.linguistic_patterns = linguistic_patterns
         self.evaluation_terms = evaluation_terms
+        self.tsr_terms = tsr_terms 
         
         self.processor = Processor()
         self.processor.nmin = nmin 
@@ -56,10 +58,12 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
             print("Linguistic patterns not found. Starting automatic pattern learning")
             pattern_learner = PatternsLearning()
 
-            learn_dict = pattern_learner.learn_linguistic_patterns(outputfile="learned_linguistic_patterns.txt", evaluation_terms=self.evaluation_terms, filtered_tagged_ngrams=filtered_tagged_ngrams, verbose=verbose)
+            learn_dict = pattern_learner.learn_linguistic_patterns(outputfile="learned_linguistic_patterns.txt", filtered_tagged_ngrams=filtered_tagged_ngrams, verbose=verbose)
  
             if learn_dict:
-                linguistic_patterns = list(learn_dict.keys())
+                #added to order the patterns by frequency
+                sorted_patterns = sorted(learn_dict.keys(), key=lambda x: learn_dict[x], reverse=True)
+                linguistic_patterns = list(sorted_patterns)
                 self.linguistic_patterns = [(linguistic_pattern,) for linguistic_pattern in linguistic_patterns] # strings must be in tuples
 
             else:
@@ -98,38 +102,18 @@ class LinguisticMethodology(BaseMethodology): #add the attributes that you added
             if filtered_ngram is None:
                 continue
 
-#you could move Move this logic into a separate function within the processor
             for pattern in processed_patterns:
-                match = re.search(pattern, tagged_ngram)
-                if match:
-                        
-                        if match.group(0)== tagged_ngram:
+                match = re.search(pattern, tagged_ngram) 
+                if match:          
+                        if match.group(0) == tagged_ngram:
                             candidate =" ".join(match.groups()[1:])
-                            record=[]
-                            record.append(candidate)     
-                            record.append(n)  
-                            record.append("frequency")
-                            record.append(frequency)   
-                            raw_candidates.append(record)
+                            raw_candidates.append((candidate, n, "frequency", frequency))
                             break
-         
-#make this more pythonic        
-        tcaux={}
-        for a in raw_candidates: # tuple is (tagged_ngram, n, "frequency", frequency)
-            cand_name=a[0]
-            cand_freq=a[3]
-            if not cand_name in tcaux:
-                tcaux[cand_name]=cand_freq
-            else:
-                tcaux[cand_name]+= cand_freq
         
-        data=[] 
-        for tc in tcaux:
-            record=[]
-            record.append(tc)            
-            record.append(len(tc.split()))    
-            record.append("frequency")
-            record.append(tcaux[tc])   
-            data.append(record)
+        candidate_frequencies= Counter()
+        for candidate, n, _, frequency in raw_candidates: # underscore to ignore the third element "frequency" - not needed for aggregation
+            candidate_frequencies[candidate] += frequency # If the candidate already exists, aggregate its frequency
         
-        return data
+        # Generate and return the final data structure 
+        return [[term, len(term.split()), "frequency", freq] for term, freq in candidate_frequencies.items()]  # .items() yields (term, total_frequency) pairs from the Counter
+        

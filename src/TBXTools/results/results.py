@@ -99,8 +99,29 @@ class Results:
         self._extractor._sqlite.delete_candidate_terms()
         self._extractor._sqlite.insert_candidate_terms(filtered_terms)
         self._terms = filtered_terms
+  
+    def tsr(self, tsr_terms=None, type=None, max_iterations=10000000000, verbose=True):
+
+        print("Applying TSR filter")
+
+        tsr_terms = self._sqlite.load_tsr_terms(tsr_terms=tsr_terms)
+    
+        if tsr_terms is None:
+            tsr_terms = self._sqlite.get_tsr_terms()
+
+        if not tsr_terms:
+            print("TSR terms not found. Not applying TSR filter")
+            return
+
+        candidate_terms = self._terms
+        filtered_terms = self._methodology.processor.apply_tsr_filter(tsr_terms=tsr_terms, candidate_terms=candidate_terms, type=type, max_iterations= max_iterations, verbose=verbose)
+        
+        self._terms = filtered_terms
+        self._sqlite.delete_candidate_terms() 
+        self._sqlite.insert_candidate_terms(self._terms)
+        print(f"TSR filter completed. {len(self._terms)} candidates saved.")
             
-    def regex_exclusion(self, verbose=False):
+    def regex_exclusion(self, regexes=None, verbose=False):
         '''
         Deletes term candidates matching a set of regular expresions loaded in the Extractor() class.
         '''
@@ -109,6 +130,7 @@ class Results:
 
         if not regexes:
             print("Exclusion regexes not found. Not applying regex exclusion.")
+            return
 
         else:
             candidate_terms = self._sqlite.get_candidate_terms()
@@ -116,8 +138,7 @@ class Results:
             candidates_to_exclude = self._methodology.processor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms, verbose=verbose)
 
             if candidates_to_exclude:
-                for candidate in candidates_to_exclude:
-                    self._sqlite.delete_specific_candidate_term(candidate=candidate)
+                self._sqlite.delete_specific_candidate_term(candidates=candidates_to_exclude)
                 print(f"Excluded {len(candidates_to_exclude)} terms")
             else:
                 print("No candidate terms excluded")
