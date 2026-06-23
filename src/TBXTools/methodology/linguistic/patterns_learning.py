@@ -90,7 +90,6 @@ class PatternsLearning:
                 if verbose:
                     print(output)
         
-        print(learntpatterns)
         return learntpatterns 
     
        

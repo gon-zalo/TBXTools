@@ -334,21 +334,21 @@ class Processor:
 
         new=True  #flag used to control the loop- initialized True to ensure the loop runs at least once
         newcandidates={} #candidate-frequency
-        #hashmeasure={} #to store the measurement types for each accepted candidate ("tsr")
-        hashvalue={} #stores the values for each accepted candidate
+        hashmeasure={} #to store the measurement types for each accepted candidate ("tsr")
+        #hashvalue={} #stores the values for each accepted candidate
         
         iterations=0 #how many times the loop executes
         while new: #the loop keeps running as long as new is True
             iterations+=1
             if verbose: print("ITERATION",iterations)
             new=False #Immediately resets the new flag to False at the beginning of the round. If the code later finds and accepts a new candidate term, it will set this back to True to trigger another iteration. If no new terms are found, the loop will exit.
-            value=max_iterations-iterations 
+            #value=max_iterations-iterations 
             
             for term in candidate_terms:
                 candidate=term[0]
                 n=term[1]
                 frequency=term[3]
-                measure="tsr" 
+                measure="frequency" 
                 
                 #Setting Up Validation Flags for the Current Candidate
                 first_c=False #It will be switched to True if the first word of the candidate matches the valid component criteria
@@ -387,8 +387,8 @@ class Processor:
                         if not False in truesfalses:
                             if not candidate in newcandidates: 
                                 newcandidates[candidate]=frequency
-                                #hashmeasure[candidate]=measure
-                                hashvalue[candidate]=value
+                                hashmeasure[candidate]=measure
+                                #hashvalue[candidate]=value
                                 new=True #Because a brand-new valid term was discovered during this round, the new flag is flipped back to True.
                                 
                                 w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
@@ -399,8 +399,8 @@ class Processor:
                     if True in truesfalses:
                         if not candidate in newcandidates:
                             newcandidates[candidate]=frequency
-                            #hashmeasure[candidate]=measure
-                            hashvalue[candidate]=value
+                            hashmeasure[candidate]=measure
+                            #hashvalue[candidate]=value
                             new=True
                             w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
                             firstcomponent[w_first_low]=1
@@ -413,8 +413,8 @@ class Processor:
                         if not False in truesfalses: 
                             if not candidate in newcandidates:
                                 newcandidates[candidate]=frequency
-                                #hashmeasure[candidate]=measure
-                                hashvalue[candidate]=value     
+                                hashmeasure[candidate]=measure
+                                #hashvalue[candidate]=value     
                                 new=True                         
                                 w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
                                 firstcomponent[w_first_low]=1
@@ -428,8 +428,8 @@ class Processor:
                         if True in truesfalses:
                             if not candidate in newcandidates:
                                 newcandidates[candidate] = frequency
-                                #hashmeasure[candidate] = measure
-                                hashvalue[candidate] = value
+                                hashmeasure[candidate] = measure
+                                #hashvalue[candidate] = value
                                 new=True
                                 
                                 w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
@@ -448,9 +448,9 @@ class Processor:
             term= new_candidate
             n=len(new_candidate.split())
             freqtotal=newcandidates[new_candidate]
-            #measure=hashmeasure[new_candidate]
-            value=hashvalue[new_candidate]
+            measure=hashmeasure[new_candidate]
+            #value=hashvalue[new_candidate]
             
-            updated_terms.append((term, n, value, freqtotal))
+            updated_terms.append((term, n, measure, freqtotal))
               
         return updated_terms
