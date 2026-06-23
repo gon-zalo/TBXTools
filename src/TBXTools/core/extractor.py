@@ -1,7 +1,6 @@
 from ..sqlite import SQLite
 from ..results import Results
 from ..resources import Resources
-from ..methodology.bert import BertTrainer
 from ..utils import get_lang
 
 class Extractor: #remember to add the attributes that you added while implementing the linguistic extractor
@@ -50,7 +49,6 @@ class Extractor: #remember to add the attributes that you added while implementi
             tsr_terms=getattr(self._methodology, "tsr_terms", None),
             overwrite_project=overwrite_project,
             )
-        
 
 # EXTRACTION FUNCTIONS
     def extract(self, verbose=False) -> Results:
@@ -129,3 +127,11 @@ class Extractor: #remember to add the attributes that you added while implementi
             self._sqlite.add_inner_stopwords(inner_stopwords_list=inner_stopwords_list)
             self._methodology.processor.inner_stopwords = self._sqlite.get_inner_stopwords()
             self.inner_stopwords = self._sqlite.get_inner_stopwords()
+
+    def train_bert(self, trainer=None):
+
+        trainer = trainer
+
+        segments = self._sqlite.get_segments()
+
+        trainer._train(train_data=segments)

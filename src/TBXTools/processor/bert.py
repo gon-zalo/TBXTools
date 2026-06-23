@@ -269,12 +269,4 @@ class BertProcessor():
 
         return batch
 
-    def prepare_fine_tuning(self, model, external_terms, labels, lr, batch_size, epochs, weight_decay):
-        from transformers import Trainer, TrainingArguments, BertForTokenClassification, DataCollatorForTokenClassification, AutoTokenizer, set_seed
-        import torch
-        from sklearn.model_selection import train_test_split
-        from datasets import Dataset
-        set_seed(123)
-
-
-        return model, training_args, data_collator, trainer
+        
