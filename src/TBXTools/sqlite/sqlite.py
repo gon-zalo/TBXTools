@@ -63,7 +63,7 @@ class SQLite:
             self.cur.execute("CREATE TABLE tokenized_corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, tokenized_segment TEXT)")
             self.cur.execute("CREATE TABLE tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT, frequency INTEGER)")
             self.cur.execute("CREATE TABLE ngrams (id INTEGER PRIMARY KEY AUTOINCREMENT, ngram TEXT, n INTEGER, frequency INTEGER)")
-            self.cur.execute("CREATE TABLE candidate_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, candidate TEXT, n INTEGER, measure, frequency INTEGER)")
+            self.cur.execute("CREATE TABLE candidate_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, candidate TEXT, n INTEGER, measure TEXT, value INTEGER)")
             # self.cur.execute("CREATE TABLE filtered_candidate_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, filtered_candidate TEXT, n INTEGER, frequency INTEGER, measure TEXT, value INTEGER)")
             # self.cur.execute("CREATE TABLE external_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, external_term TEXT)")
             self.cur.execute("CREATE TABLE tsr_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, tsr_term TEXT)")
@@ -299,7 +299,7 @@ class SQLite:
         '''Inserts candidate terms into the database'''
         if not self.table_is_populated("candidate_terms"):
             with self.conn:
-                self.cur.executemany("INSERT INTO candidate_terms (candidate, n, measure, frequency) VALUES (?,?,?,?)", data)
+                self.cur.executemany("INSERT INTO candidate_terms (candidate, n, measure, value) VALUES (?,?,?,?)", data)
             
     def insert_filtered_candidate_terms(self, data):
         with self.conn:
@@ -383,7 +383,7 @@ class SQLite:
         '''Gets the list of candidate terms from the database'''
         candidate_terms = []
         with self.conn:
-            self.cur.execute("SELECT candidate, n, measure, frequency FROM candidate_terms ORDER BY frequency DESC")
+            self.cur.execute("SELECT candidate, n, measure, value FROM candidate_terms ORDER BY value DESC")
 
             for candidates_row in self.cur.fetchall():
                 candidate_terms.append(candidates_row)
