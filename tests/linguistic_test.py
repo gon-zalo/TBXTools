@@ -2,7 +2,7 @@ from TBXTools import Extractor, LinguisticMethodology
 
 evaluation_terms = "evaluation_terms.txt"
 linguistic_patterns="ling_pat-en.txt"
-tagged_corpus = "tagged_corpus.txt"
+tagged_corpus = "tagged-corpus.txt"
 corpus = "Mental_disorder.txt"
 tsr_terms = "tsr_terms.txt"
 # Scenario A

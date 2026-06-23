@@ -18,7 +18,7 @@ class Results:
         self._tokens = tokens or []
 
         self._methodology = None
-        self._sqlite = None
+        self._extractor = None
 
     # [0] is the first element in the tuple (table row)
     def terms(self, limit=20):
@@ -30,7 +30,7 @@ class Results:
         Return:
             list: a list of terms.        
         '''
-        terms = [term[0] for term in self._terms]
+        terms = [term[0] for term in self._terms] # in self._extractor._sqlite.get_candidate_terms()
 
         if limit == None:
             return terms
@@ -96,18 +96,18 @@ class Results:
 
         filtered_terms = self._methodology.processor.nest_normalization(candidate_terms=candidate_terms, percent=percent, verbose=verbose)
 
-        self._sqlite.delete_candidate_terms()
-        self._sqlite.insert_candidate_terms(filtered_terms)
+        self._extractor._sqlite.delete_candidate_terms()
+        self._extractor._sqlite.insert_candidate_terms(filtered_terms)
         self._terms = filtered_terms
   
     def tsr(self, tsr_terms=None, type=None, max_iterations=10000000000, verbose=True):
 
         print("Applying TSR filter")
 
-        tsr_terms = self._sqlite.load_tsr_terms(tsr_terms=tsr_terms)
+        tsr_terms = self._extractor._sqlite.load_tsr_terms(tsr_terms=tsr_terms)
     
         if tsr_terms is None:
-            tsr_terms = self._sqlite.get_tsr_terms()
+            tsr_terms = self._extractor._sqlite.get_tsr_terms()
 
         if not tsr_terms:
             print("TSR terms not found. Not applying TSR filter")
@@ -117,8 +117,8 @@ class Results:
         filtered_terms = self._methodology.processor.apply_tsr_filter(tsr_terms=tsr_terms, candidate_terms=candidate_terms, type=type, max_iterations= max_iterations, verbose=verbose)
         
         self._terms = filtered_terms
-        self._sqlite.delete_candidate_terms() 
-        self._sqlite.insert_candidate_terms(self._terms)
+        self._extractor._sqlite.delete_candidate_terms() 
+        self._extractor._sqlite.insert_candidate_terms(self._terms)
         print(f"TSR filter completed. {len(self._terms)} candidates saved.")
             
     def regex_exclusion(self, regexes=None, verbose=False):
@@ -126,11 +126,7 @@ class Results:
         Deletes term candidates matching a set of regular expresions loaded in the Extractor() class.
         '''
         print("Applying regex exclusion")
-       
-        regexes = self._sqlite.load_exclusion_regexes(exclusion_regexes=regexes)
-
-        if regexes is None:
-            regexes = self._sqlite.get_exclusion_regexes()
+        regexes = self._extractor._sqlite.get_exclusion_regexes()
 
         if not regexes:
             print("Exclusion regexes not found. Not applying regex exclusion.")
@@ -161,7 +157,7 @@ class Results:
 
         path = Path(path)
         extension = path.suffix.lower()
-        candidate_terms = self._terms
+        candidate_terms = self._extractor._sqlite.get_candidate_terms()
         output = pd.DataFrame(candidate_terms, columns=['candidate', 'n', 'measure', 'value'], index=None)
 
         if not extension:

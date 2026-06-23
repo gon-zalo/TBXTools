@@ -15,4 +15,4 @@ extractor = Extractor(
 
 results = extractor.extract(verbose=False)
 
-# print(results._tokens)
+print(results.terms())

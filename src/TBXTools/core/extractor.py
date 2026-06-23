@@ -76,6 +76,7 @@ class Extractor: #remember to add the attributes that you added while implementi
 
             self._sqlite.insert_segments(returned_segments, tagged=True)
             self._sqlite.insert_tagged_ngrams(results._tagged_ngrams)
+            self._sqlite.insert_ngrams(results._ngrams)
             self._sqlite.insert_linguistic_patterns(self._methodology.linguistic_patterns)
 
         if self._methodology.name == "StatisticalMethodology":
@@ -85,9 +86,15 @@ class Extractor: #remember to add the attributes that you added while implementi
             self._sqlite.insert_tokens(results._tokens)
             self._sqlite.insert_ngrams(results._ngrams)
 
-        # passing the sqlite connection and the methodology to the Results object
-        results._sqlite = self._sqlite
-        results._methodology = self._methodology  
+        if self._methodology.name == "BertMethodology":
+
+            results, tokenized_corpus = self._methodology.extract(segments=segments, verbose=False)
+
+            self._sqlite.insert_segments(data=tokenized_corpus, tagged=False, tokenized=True)
+            self._sqlite.insert_tokens(data=results._tokens)
+
+        results._extractor = self  
+        results._methodology = self._methodology
 
         self._sqlite.delete_candidate_terms() # keep an eye on this
         self._sqlite.insert_candidate_terms(results._terms)   
@@ -120,3 +127,11 @@ class Extractor: #remember to add the attributes that you added while implementi
             self._sqlite.add_inner_stopwords(inner_stopwords_list=inner_stopwords_list)
             self._methodology.processor.inner_stopwords = self._sqlite.get_inner_stopwords()
             self.inner_stopwords = self._sqlite.get_inner_stopwords()
+
+    def train_bert(self, trainer=None):
+
+        trainer = trainer
+
+        segments = self._sqlite.get_segments()
+
+        trainer._train(train_data=segments)

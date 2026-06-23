@@ -268,12 +268,14 @@ class SQLite:
                 self.cur.executemany('INSERT INTO external_terms (external_term) VALUES (?)', data)
 
     # INSERT METHODS
-    def insert_segments(self, data, tagged):
+    def insert_segments(self, data, tagged=False, tokenized=False):
         '''Inserts the segmented corpus into the database.'''
         data = [(segment,) for segment in data]
         with self.conn:
             if tagged:
                 self.cur.executemany("INSERT INTO tagged_corpus (tagged_segment) VALUES (?)", data)
+            elif tokenized:
+                self.cur.executemany("INSERT INTO tokenized_corpus (tokenized_segment) VALUES (?)", data)
             else:
                 self.cur.executemany("INSERT INTO corpus (segment) VALUES (?)", data)
 
