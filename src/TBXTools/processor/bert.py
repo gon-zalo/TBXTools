@@ -1,72 +1,60 @@
 class BertProcessor():
 
     def __init__(self, model_name):
-        from transformers import AutoTokenizer, BertForTokenClassification, DataCollatorForTokenClassification, Trainer
-
         self.model_name = model_name
         
+        self.model = None
+        self.tokenizer = None
+        self.data_collator = None
+        self.trainer = None
+
+        self.labels = None
+    
+    def load_transformers(self):
+        from transformers import AutoTokenizer, BertForTokenClassification, DataCollatorForTokenClassification, Trainer
+
         self.model = BertForTokenClassification.from_pretrained(self.model_name)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, max_length=512, force_download=False, do_lower_case=False)
         self.data_collator = DataCollatorForTokenClassification(tokenizer=self.tokenizer)
         self.trainer = Trainer(model=self.model, data_collator=self.data_collator)
 
-        self.labels = None
-    
     def flatten_list(self, list_of_lists): # needed for bio_tag
 
         output = [element for sublist in list_of_lists for element in sublist]
         return output
 
-    def bio_tag(self, text, tokenizer, terms=None, external_terms=None): # tokenizes and tags data
+    def bio_tag(self, tokenized_segment, tokenizer, external_terms): # tokenizes and tags data
 
-        tokenized_text = []
-        token_ids = self.tokenizer(text)
-        tokens = self.tokenizer.convert_ids_to_tokens(token_ids["input_ids"])
-        tokenized_text.append(tokens)
+        # tokenizing terms
+        tokenized_terms = []
+        for term in external_terms:
+            tokenized_terms.append(tokenizer.tokenize(term))
 
-        tokenized_text = self.flatten_list(tokenized_text)
+        tokenized_terms  = sorted(tokenized_terms, reverse=True, key=len) # sorting by length in descending order
 
-        if terms:
-            # tokenizing terms in terms column
-            tokenized_terms = []
-            for term in terms:
-                tokenized_terms.append(tokenizer.tokenize(term))
+        # initializing labels
+        bio_labels = ["O"] * len(tokenized_segment)
+        n_tokens_in_segment = len(tokenized_segment)
 
-            if external_terms is not None: 
-                all_terms = tokenized_terms + external_terms
-            else:
-                all_terms = tokenized_terms
-            
-            all_terms  = sorted(all_terms, reverse=True, key=len) # sorting by length in descending order
+        # tagging abstracts
+        for term in tokenized_terms:
 
-            # initializing labels
-            bio_labels = ["O"] * len(tokenized_text)
-            n_tokens_in_sent = len(tokenized_text)
-
-            # tagging abstracts
-            for term in all_terms:
-
-                tokens_in_term = len(term)
-            
-                for start_idx in range(n_tokens_in_sent - tokens_in_term + 1):
-
-                    # window to check tokens
-                    token_window = tokenized_text[start_idx:start_idx + tokens_in_term]
-
-                    # comparing terms with what's found in token window that's going through the tokenized_text
-                    if token_window == term and bio_labels[start_idx] == "O":
-
-                        bio_labels[start_idx] = "B" # tagging the match with a B
-
-                        for remaining_tokens in range(1, tokens_in_term): # label remaining tokens in the term
-                            bio_labels[start_idx + remaining_tokens] = "I"
-
-            bio_labels = bio_labels
-
-            return tokenized_text, tokenized_terms, bio_labels
+            tokens_in_term = len(term)
         
-        else:
-            return tokenized_text
+            for start_idx in range(n_tokens_in_segment - tokens_in_term + 1):
+
+                # window to check tokens
+                token_window = tokenized_segment[start_idx:start_idx + tokens_in_term]
+
+                # comparing terms with what's found in token window that's going through the tokenized_text
+                if token_window == term and bio_labels[start_idx] == "O":
+
+                    bio_labels[start_idx] = "B" # tagging the match with a B
+
+                    for remaining_tokens in range(1, tokens_in_term): # label remaining tokens in the term
+                        bio_labels[start_idx + remaining_tokens] = "I"
+
+        return bio_labels
 
     def tokenize_terms(self, terms):
         tokenized_terms = []
@@ -133,7 +121,7 @@ class BertProcessor():
         if labels == "bio":
             return ['O', 'B', 'I']
 
-    def preprocess(self, segments, verbose):
+    def preprocess(self, segments, verbose=False):
         import pandas as pd
         import nltk
         tokensFD = nltk.probability.FreqDist()
@@ -214,13 +202,6 @@ class BertProcessor():
         return reconstructed_tokens
 
 # train processing
-
-    def prepare_data(self, data):
-        import pandas as pd
-        df = pd.read_json(data, orient='records', lines=True)
-
-        return df
-
     def prepare_pretokenized_inputs(self, batch):
         tokenizer = self.tokenizer
 
@@ -233,26 +214,26 @@ class BertProcessor():
         attention_masks = []
         labels = []
 
-        for tokens, token_labels in zip(batch['abstract_tokens'], batch['abstract_labels']):
+        for tokenized_segment, segment_labels in zip(batch['tokenized_segment'], batch['segment_labels']):
 
-            tokens = tokens[:max_length]
-            token_labels = token_labels[:max_length]
+            tokenized_segment = tokenized_segment[:max_length]
+            segment_labels = segment_labels[:max_length]
 
-            pad_length = max_length - len(tokens)
-            tokens += ['[PAD]'] * pad_length
-            token_labels += [-100] * pad_length
+            pad_length = max_length - len(tokenized_segment)
+            tokenized_segment += ['[PAD]'] * pad_length
+            segment_labels += [-100] * pad_length
 
             # tokens to input ids
-            input_ids.append(tokenizer.convert_tokens_to_ids(tokens))
+            input_ids.append(tokenizer.convert_tokens_to_ids(tokenized_segment))
 
             # attention mask
-            attention_masks.append([1 if token != '[PAD]' else 0 for token in tokens])
+            attention_masks.append([1 if token != '[PAD]' else 0 for token in tokenized_segment])
 
             # bio labels to ids
             ignore_tokens = {"[CLS]", "[SEP]", "[PAD]"}
 
             num_labels = []
-            for token, label in zip(tokens, token_labels):
+            for token, label in zip(tokenized_segment, segment_labels):
                 if token in ignore_tokens:
                     num_labels.append(-100)
                 elif label == -100:
@@ -268,5 +249,3 @@ class BertProcessor():
         batch['labels'] = labels
 
         return batch
-
-        

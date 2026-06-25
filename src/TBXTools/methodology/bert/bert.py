@@ -1,7 +1,6 @@
 from ..base import BaseMethodology
 from ...results import Results
 from ...processor.bert import BertProcessor
-import nltk
 from transformers import logging
 from collections import Counter
 
@@ -10,8 +9,6 @@ logging.set_verbosity_error()
 class BertMethodology(BaseMethodology):
 
     def __init__(self, model, labels=None, external_terms=None):
-        from transformers import AutoTokenizer, BertForTokenClassification, DataCollatorForTokenClassification, Trainer
-
         self.name = "BertMethodology"
         self.model_name = model
 
@@ -25,8 +22,8 @@ class BertMethodology(BaseMethodology):
         from datasets import Dataset
         import numpy as np
 
-        tokens_output, tokenized_corpus, dataframe = self.processor.preprocess(segments=segments, verbose=verbose)
-
+        self.processor.load_transformers()
+        tokens_output, tokenized_corpus_for_sqlite, dataframe = self.processor.preprocess(segments=segments, verbose=verbose)
         labels = self.processor.choose_labels(self.labels)
         label2id = {l: i for i, l in enumerate(labels)}
         id2label = {i: l for l, i in label2id.items()}
@@ -40,11 +37,10 @@ class BertMethodology(BaseMethodology):
         # print(df.head())
         # df.to_csv("ins.csv", index=False)
 
-        print("Predicting terms")
+        print("\nPredicting terms")
         trainer = self.processor.trainer
         prediction_logits, _, _ = trainer.predict(eval_data)
         predictions = np.argmax(prediction_logits, axis=2)
-
         predicted_tokens = []
         for i in range(len(eval_data)):
             tokens = eval_data[i]['tokenized_segment']
@@ -72,5 +68,5 @@ class BertMethodology(BaseMethodology):
             candidate_terms.append((term, n, "count", count))
 
         return Results(tokens=tokens_output, 
-                       terms=candidate_terms), tokenized_corpus   
+                       terms=candidate_terms), tokenized_corpus_for_sqlite   
     
