@@ -7,7 +7,7 @@ class SQLite:
     Manage SQLite functions.
     '''
 
-    def __init__(self, stopwords, inner_stopwords, project_name, corpus, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None, exclusion_regexes=None, tsr_terms=None, overwrite_project=False):
+    def __init__(self, project_name, corpus, stopwords=None, inner_stopwords=None, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None, exclusion_regexes=None, tsr_terms=None, overwrite_project=False):
 
         self.cur = None
         self.MAX_INSERTS = 10000
@@ -64,8 +64,7 @@ class SQLite:
             self.cur.execute("CREATE TABLE tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT, frequency INTEGER)")
             self.cur.execute("CREATE TABLE ngrams (id INTEGER PRIMARY KEY AUTOINCREMENT, ngram TEXT, n INTEGER, frequency INTEGER)")
             self.cur.execute("CREATE TABLE candidate_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, candidate TEXT, n INTEGER, measure TEXT, value INTEGER)")
-            # self.cur.execute("CREATE TABLE filtered_candidate_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, filtered_candidate TEXT, n INTEGER, frequency INTEGER, measure TEXT, value INTEGER)")
-            # self.cur.execute("CREATE TABLE external_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, external_term TEXT)")
+            self.cur.execute("CREATE TABLE external_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, external_term TEXT)")
             self.cur.execute("CREATE TABLE tsr_terms (id INTEGER PRIMARY KEY AUTOINCREMENT, tsr_term TEXT)")
             self.cur.execute("CREATE TABLE stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, stopword TEXT)")
             self.cur.execute("CREATE TABLE inner_stopwords (id INTEGER PRIMARY KEY AUTOINCREMENT, inner_stopword TEXT)")
@@ -263,7 +262,8 @@ class SQLite:
                 with open(external_terms, "r", encoding=encoding) as f:
                     data = [(line.rstrip(),) for line in f]
                 print("External terms loaded from file")
-
+            
+            data = set(data)
             with self.conn:
                 self.cur.executemany('INSERT INTO external_terms (external_term) VALUES (?)', data)
 
@@ -314,11 +314,11 @@ class SQLite:
                 self.cur.executemany("INSERT INTO linguistic_patterns (linguistic_pattern) VALUES (?)", data)
 
     # GET METHODS
-    def get_segments(self, is_corpus_tagged):
+    def get_segments(self, tagged=False):
         '''Gets the segmented corpus as a list of segments from the database.'''
         segments = []
         with self.conn:
-            if is_corpus_tagged:
+            if tagged:
                 self.cur.execute("SELECT tagged_segment from tagged_corpus")
             
             else:
@@ -432,6 +432,16 @@ class SQLite:
                 tsr_terms.append(tsr_term_row[0])
 
         return tsr_terms
+    
+    def get_external_terms(self):
+        external_terms= []
+        with self.conn:
+            self.cur.execute("SELECT external_term FROM external_terms")
+
+            for external_term in self.cur.fetchall():
+                external_terms.append(external_term[0])
+
+        return external_terms
 
     # DELETE METHODS
     def delete_corpus(self):
@@ -509,10 +519,13 @@ class SQLite:
             
     def load_data_to_tables(self, table_names, corpus, is_corpus_tagged, stopwords, inner_stopwords, linguistic_patterns, evaluation_terms, tsr_terms, exclusion_regexes):
 
-        loaders = {
-            "stopwords": lambda: self.load_stopwords(stopwords=stopwords),
-            "inner_stopwords": lambda: self.load_inner_stopwords(inner_stopwords=inner_stopwords)
-        }
+        loaders = {}
+
+        if stopwords:
+            loaders["stopwords"] = lambda: self.load_stopwords(stopwords=stopwords)
+        
+        if inner_stopwords:
+            loaders["inner_stopwords"] = lambda: self.load_inner_stopwords(inner_stopwords=inner_stopwords)
 
         if is_corpus_tagged==False:
             loaders["corpus"] = lambda: self.load_corpus(corpus=corpus, is_corpus_tagged=False)
@@ -536,5 +549,3 @@ class SQLite:
             # if the table does not have data, it is loaded in
             if loader and not self.table_is_populated(table_name=table):
                 loader()
-
-    
