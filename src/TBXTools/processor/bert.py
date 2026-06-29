@@ -23,15 +23,7 @@ class BertProcessor():
         output = [element for sublist in list_of_lists for element in sublist]
         return output
 
-    def bio_tag(self, tokenized_segment, tokenizer, external_terms): # tokenizes and tags data
-
-        # tokenizing terms
-        tokenized_terms = []
-        for term in external_terms:
-            tokenized_terms.append(tokenizer.tokenize(term))
-
-        tokenized_terms  = sorted(tokenized_terms, reverse=True, key=len) # sorting by length in descending order
-
+    def bio_tag(self, tokenized_segment, tokenized_terms): # annotates data
         # initializing labels
         bio_labels = ["O"] * len(tokenized_segment)
         n_tokens_in_segment = len(tokenized_segment)
@@ -56,10 +48,12 @@ class BertProcessor():
 
         return bio_labels
 
-    def tokenize_terms(self, terms):
+    def tokenize_terms(self, external_terms):
         tokenized_terms = []
-        for term in terms:
+        for term in external_terms:
             tokenized_terms.append(self.tokenizer.tokenize(term))
+
+        tokenized_terms = sorted(tokenized_terms, reverse=True, key=len) # sorting by length in descending order
 
         return tokenized_terms
 
@@ -141,12 +135,12 @@ class BertProcessor():
             tokens_row = (token, freq)
             tokens_output.append(tokens_row)
 
-        tokenized_corpus_for_sqlite = [" ".join(segment) for segment in tokenized_segments] #list to str to introduce in sqlite
+        # tokenized_corpus_for_sqlite = [" ".join(segment) for segment in tokenized_segments] #list to str to introduce in sqlite
 
-        data = {"segment": pd.Series(segments), "tokenized_segment": pd.Series(tokenized_segments)}
+        data = {"tokenized_segment": pd.Series(tokenized_segments)}
         dataframe = pd.DataFrame(data=data)
 
-        return tokens_output, tokenized_corpus_for_sqlite, dataframe
+        return tokens_output, tokenized_segments, dataframe
 
     def prepare_data(self, tokenizer):
         def prepare_unlabeled_inputs(batch): # same func as above without labels
@@ -203,7 +197,6 @@ class BertProcessor():
 
 # train processing
     def prepare_pretokenized_inputs(self, batch):
-        tokenizer = self.tokenizer
 
         bio_labels = ['O', 'B', 'I']
         label2id = {l: i for i, l in enumerate(bio_labels)}
@@ -224,7 +217,7 @@ class BertProcessor():
             segment_labels += [-100] * pad_length
 
             # tokens to input ids
-            input_ids.append(tokenizer.convert_tokens_to_ids(tokenized_segment))
+            input_ids.append(self.tokenizer.convert_tokens_to_ids(tokenized_segment))
 
             # attention mask
             attention_masks.append([1 if token != '[PAD]' else 0 for token in tokenized_segment])
