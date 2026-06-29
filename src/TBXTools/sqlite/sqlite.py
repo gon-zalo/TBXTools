@@ -11,7 +11,8 @@ class SQLite:
 
         self.cur = None
         self.MAX_INSERTS = 10000
-
+        self.overwrite_project = overwrite_project
+        self.project_name = None
         self.TABLES_TO_LOAD_AT_START = ["corpus", "tagged_corpus", "stopwords", "inner_stopwords", "linguistic_patterns", "evaluation_terms", "tsr_terms", "exclusion_regexes"]
 
     # Initializing project, corpus, stopwords, etc.
@@ -36,6 +37,7 @@ class SQLite:
     def initialize_project(self, project_name, overwrite_project):
         '''Initialize the SQLite project, either opening an existing one or creating a new one.'''
         file_name = self.add_extension(project_name=project_name)
+        self.project_name = file_name
 
         if file_name.exists() and overwrite_project==False:
             self.open_project(project_name=project_name)
@@ -45,7 +47,7 @@ class SQLite:
         
         else:
             self.create_project(project_name=project_name)
-
+        
     def create_project(self,project_name,overwrite=False):
         '''Opens a project. If the project already exists, it raises an exception. To avoid the exception use overwrite=True. To open existing projects, use the open_project method.'''
 
@@ -72,7 +74,8 @@ class SQLite:
             self.cur.execute("CREATE TABLE linguistic_patterns (id INTEGER PRIMARY KEY AUTOINCREMENT, linguistic_pattern TEXT)")
             self.cur.execute("CREATE TABLE tagged_ngrams (id INTEGER PRIMARY KEY AUTOINCREMENT, tagged_ngram TEXT, n INTEGER, frequency INTEGER)")
             self.cur.execute("CREATE TABLE tagged_corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, tagged_segment TEXT)")
-            self.cur.execute("CREATE TABLE evaluation_terms(id INTEGER PRIMARY KEY AUTOINCREMENT, evaluation_term TEXT)") 
+            self.cur.execute("CREATE TABLE evaluation_terms(id INTEGER PRIMARY KEY AUTOINCREMENT, evaluation_term TEXT)")
+            self.cur.execute("CREATE TABLE segment_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, labels TEXT)") 
 
     def open_project(self,project_name):
         '''Opens an existing project. If the project doesn't exist it raises an exception.'''
@@ -270,11 +273,15 @@ class SQLite:
     # INSERT METHODS
     def insert_segments(self, data, tagged=False, tokenized=False):
         '''Inserts the segmented corpus into the database.'''
+        if tokenized:
+            data = [" ".join(segment) for segment in data]
+        
         data = [(segment,) for segment in data]
         with self.conn:
             if tagged:
                 self.cur.executemany("INSERT INTO tagged_corpus (tagged_segment) VALUES (?)", data)
             elif tokenized:
+
                 self.cur.executemany("INSERT INTO tokenized_corpus (tokenized_segment) VALUES (?)", data)
             else:
                 self.cur.executemany("INSERT INTO corpus (segment) VALUES (?)", data)
@@ -313,19 +320,34 @@ class SQLite:
             with self.conn:
                 self.cur.executemany("INSERT INTO linguistic_patterns (linguistic_pattern) VALUES (?)", data)
 
+    def insert_segment_labels(self, data):
+        '''Insert segment labels to train BERT models into the database.'''
+        data = [(" ".join(labels),) for labels in data]
+        print(data)
+        if not self.table_is_populated("segment_labels"):
+            with self.conn:
+                self.cur.executemany("INSERT INTO segment_labels (labels) VALUES (?)", data)
+
+
     # GET METHODS
-    def get_segments(self, tagged=False):
+    def get_segments(self, tagged=False, tokenized=False):
         '''Gets the segmented corpus as a list of segments from the database.'''
         segments = []
         with self.conn:
             if tagged:
                 self.cur.execute("SELECT tagged_segment from tagged_corpus")
             
+            elif tokenized:
+                self.cur.execute("SELECT tokenized_segment from tokenized_corpus")
+            
             else:
                 self.cur.execute("SELECT segment from corpus")
                 
             for row in self.cur.fetchall():
-                segment = row[0]
+                if tokenized:
+                    segment = row[0].split()
+                else:
+                    segment = row[0]
                 segments.append(segment)
         
         return segments
@@ -442,6 +464,16 @@ class SQLite:
                 external_terms.append(external_term[0])
 
         return external_terms
+    
+    def get_segment_labels(self):
+        labels = []
+        with self.conn:
+            self.cur.execute("SELECT labels FROM segment_labels")
+
+            for labels_row in self.cur.fetchall():
+                labels.append(labels_row[0].split())
+
+        return labels
 
     # DELETE METHODS
     def delete_corpus(self):
