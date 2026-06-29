@@ -8,13 +8,11 @@ logging.set_verbosity_error()
 
 class BertMethodology(BaseMethodology):
 
-    def __init__(self, model, labels=None, external_terms=None):
+    def __init__(self, model, labels=None):
         self.name = "BertMethodology"
         self.model_name = model
 
         self.processor = BertProcessor(model_name=self.model_name)
-
-        self.external_terms = external_terms
         self.labels = labels.lower() if labels else None
 
         

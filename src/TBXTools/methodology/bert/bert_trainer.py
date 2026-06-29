@@ -1,14 +1,19 @@
 from ...processor.bert import BertProcessor
 from ...sqlite import SQLite
+from transformers import TrainingArguments
 
 class BertTrainer:
 
-    def __init__(self, project_name, corpus, model, external_terms, labels=None, lr=None, batch_size=None, epochs=None, weight_decay=None):
+    def __init__(self, project_name, corpus, model,external_terms, labels=None, split=False, training_args=None, lr=None, batch_size=None, epochs=None, weight_decay=None):
 
         self.model_name = model
 
         self.external_terms = external_terms
         self.labels = labels.lower()
+        self.split = split
+        # self.training_args = training_args or self.default_args
+        # self.default_args = {"lr": 5e-05, "batch_size": 16, "epochs": 3, "weight_decay": 0.03}
+
         self.lr = lr or 5e-05 # learning rate
         self.batch_size = batch_size or 16
         self.epochs = epochs or 3
@@ -18,21 +23,33 @@ class BertTrainer:
         self._sqlite = SQLite(project_name=project_name, corpus=corpus, overwrite_project=True)
 
     def train(self, save_as=None):
-        from transformers import Trainer, TrainingArguments, BertForTokenClassification, DataCollatorForTokenClassification, AutoTokenizer, set_seed
+        from transformers import Trainer, BertForTokenClassification, DataCollatorForTokenClassification, set_seed
         import torch
         from sklearn.model_selection import train_test_split
         from datasets import Dataset
         set_seed(123)
-
-        dataframe = self._prepare_data()
-        dataframe = Dataset.from_pandas(dataframe)
-        dataframe = dataframe.map(self._processor.prepare_pretokenized_inputs, batched=True)
 
         print(f'\nInitializing model:  {self.model_name}', flush=True)
         tokenizer = self._processor.tokenizer
         labels = self._processor.choose_labels(labels=self.labels)
         label2id = {l: i for i, l in enumerate(labels)}
         id2label = {i: l for l, i in label2id.items()}
+
+        if not self.split:
+            dataframe = self._prepare_data()
+            dataframe = Dataset.from_pandas(dataframe)
+            dataframe = dataframe.map(self._processor.prepare_pretokenized_inputs, batched=True)
+        
+        elif self.split:
+            print("Splitting training data into train (0.7) and eval (0.3)")
+            dataframe = self._prepare_data()
+            train_df, eval_df = train_test_split(dataframe, test_size=0.3, random_state=123)
+
+            train_df = Dataset.from_pandas(train_df)
+            eval_df = Dataset.from_pandas(eval_df)
+
+            train_data = train_df.map(self._processor.prepare_pretokenized_inputs, batched=True)
+            eval_data = eval_df.map(self._processor.prepare_pretokenized_inputs, batched=True)
 
         device = torch.device("cuda")
         model = BertForTokenClassification.from_pretrained(
@@ -43,21 +60,34 @@ class BertTrainer:
 
         training_args = TrainingArguments(
             eval_strategy="no",
-            logging_strategy="no", # disable the trainer_output folder?
+            logging_strategy="no", # this disables the trainer_output folder?
             learning_rate=self.lr,
             per_device_train_batch_size=self.batch_size,
             num_train_epochs=self.epochs,
-            weight_decay=self.weight_decay
+            weight_decay=self.weight_decay,
+            seed=123,
+            data_seed=123
         )
 
         data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer)
 
-        trainer = Trainer(
-            model=model,
-            args=training_args,
-            train_dataset=dataframe,
-            data_collator=data_collator # needed to pad the sentences
-        )
+        if self.split:
+            trainer = Trainer(
+                model=model,
+                args=training_args,
+                train_dataset=train_data,
+                eval_dataset=eval_data,
+                compute_metrics=self._compute_metrics,
+                data_collator=data_collator # needed to pad the sentences
+            )
+        else:
+            trainer = Trainer(
+                model=model,
+                args=training_args,
+                train_dataset=dataframe,
+                data_collator=data_collator # needed to pad the sentences
+            )
+
 
         print('Fine-tuning model', flush=True)
         trainer.train()
@@ -67,9 +97,43 @@ class BertTrainer:
         trainer.save_model(f'{save_as}')
         print(f"Model saved as '{save_as}'")
 
+    def _compute_metrics(self, p, eval_data, id2label):
+        import numpy as np
+        prediction_logits, label_ids = p # label_ids are true padded label IDs from eval_data
+        predictions = np.argmax(prediction_logits, axis=2)
+
+        all_pred_terms = []
+        all_true_terms = []
+
+        for i in range(len(eval_data)):
+            original_tokens = eval_data[i]['abstract_tokens']
+
+            pred_ids = predictions[i]
+            true_ids = label_ids[i]
+
+            reconstructed_predicted_terms = self._processor.pred_labels_to_tokens(original_tokens, pred_ids, id2label)
+            all_pred_terms.extend(reconstructed_predicted_terms)
+
+            reconstructed_true_terms = self._processor.pred_labels_to_tokens(original_tokens, true_ids, id2label)
+            all_true_terms.extend(reconstructed_true_terms)
+
+        precision, recall, f1 = self.score(all_pred_terms, all_true_terms)
+
+        return {"precision": precision, "recall": recall, "f1": f1}
+
+    def score(self, pred_terms, true_terms): # my score func
+        pred_terms = set(pred_terms)
+        true_terms = set(true_terms)
+
+        tp = len(pred_terms & true_terms) # common terms in both sets
+
+        precision = tp / len(pred_terms)
+        recall = tp / len(true_terms)
+        f1 = 2 * precision * recall / (precision + recall)
+
+        return precision, recall, f1
+
     def _prepare_data(self):
-        import pandas as pd
-        from datasets import Dataset
         print("\nBertTrainer initialized")
 
         self._sqlite.load_external_terms(self.external_terms)
