@@ -323,7 +323,6 @@ class SQLite:
     def insert_segment_labels(self, data):
         '''Insert segment labels to train BERT models into the database.'''
         data = [(" ".join(labels),) for labels in data]
-        print(data)
         if not self.table_is_populated("segment_labels"):
             with self.conn:
                 self.cur.executemany("INSERT INTO segment_labels (labels) VALUES (?)", data)
