@@ -4,13 +4,14 @@ from transformers import TrainingArguments
 
 class BertTrainer:
 
-    def __init__(self, project_name, corpus, model,external_terms, labels=None, split=False, training_args=None, lr=None, batch_size=None, epochs=None, weight_decay=None):
+    def __init__(self, project_name, corpus, model, external_terms, overwrite_project=False, labels=None, split=False, training_args=None, lr=None, batch_size=None, epochs=None, weight_decay=None):
 
         self.model_name = model
 
         self.external_terms = external_terms
         self.labels = labels.lower()
         self.split = split
+
         # self.training_args = training_args or self.default_args
         # self.default_args = {"lr": 5e-05, "batch_size": 16, "epochs": 3, "weight_decay": 0.03}
 
@@ -20,13 +21,14 @@ class BertTrainer:
         self.weight_decay = weight_decay or 0.03
 
         self._processor = BertProcessor(model_name=self.model_name)
-        self._sqlite = SQLite(project_name=project_name, corpus=corpus, overwrite_project=True)
+        self._sqlite = SQLite(project_name=project_name, corpus=corpus, overwrite_project=overwrite_project)
 
     def train(self, save_as=None):
         from transformers import Trainer, BertForTokenClassification, DataCollatorForTokenClassification, set_seed
         import torch
         from sklearn.model_selection import train_test_split
         from datasets import Dataset
+        from pathlib import Path
         set_seed(123)
 
         print(f'\nInitializing model:  {self.model_name}', flush=True)
@@ -34,15 +36,35 @@ class BertTrainer:
         labels = self._processor.choose_labels(labels=self.labels)
         label2id = {l: i for i, l in enumerate(labels)}
         id2label = {i: l for l, i in label2id.items()}
+        self._processor.load_transformers()
+
+        if self._sqlite.overwrite_project == False and Path(self._sqlite.project_name).exists():
+            import pandas as pd
+            print("\nExisting database found. Accessing data", flush=True)
+
+            tokenized_segments = self._sqlite.get_segments(tagged=False, tokenized=True)
+            segment_labels = self._sqlite.get_segment_labels()
+
+            if tokenized_segments and segment_labels:
+                print("Tokenized segments and labels found in database")
+                data = { 
+                    "tokenized_segment": pd.Series(tokenized_segments), 
+                    "segment_labels": pd.Series(segment_labels)
+                    }
+                
+                dataframe = pd.DataFrame(data=data)
+            else:
+                raise RuntimeError("Tokenized segments and/or segment labels not found in database. Create another project or overwrite the existing one using 'overwrite_project=True'")
+
+        else:
+            dataframe = self._prepare_data()
 
         if not self.split:
-            dataframe = self._prepare_data()
             dataframe = Dataset.from_pandas(dataframe)
             dataframe = dataframe.map(self._processor.prepare_pretokenized_inputs, batched=True)
         
         elif self.split:
-            print("Splitting training data into train (0.7) and eval (0.3)")
-            dataframe = self._prepare_data()
+            print("\nSplitting training data into train (0.7) and eval (0.3)")
             train_df, eval_df = train_test_split(dataframe, test_size=0.3, random_state=123)
 
             train_df = Dataset.from_pandas(train_df)
@@ -134,23 +156,37 @@ class BertTrainer:
         return precision, recall, f1
 
     def _prepare_data(self):
+        from tqdm import tqdm
         print("\nBertTrainer initialized")
 
         self._sqlite.load_external_terms(self.external_terms)
-        self._processor.load_transformers()
-        tokens_output, tokenized_corpus_for_sqlite, dataframe = self._processor.preprocess(segments=self._sqlite.get_segments())
+        tokens_output, tokenized_segments, dataframe = self._processor.preprocess(segments=self._sqlite.get_segments())
 
-        self._sqlite.insert_segments(data=tokenized_corpus_for_sqlite, tagged=False, tokenized=True)
+        self._sqlite.insert_segments(data=tokenized_segments, tagged=False, tokenized=True)
         self._sqlite.insert_tokens(data=tokens_output)
 
-        print(f"\nAnnotating segments with {self.labels.upper()} labels", flush=True)
-        dataframe["segment_labels"] = dataframe.apply(
-            lambda row: self._processor.bio_tag(
-                row["tokenized_segment"],
-                tokenizer=self._processor.tokenizer,
-                external_terms=self._sqlite.get_external_terms()
-            ),
-            axis=1)
+        external_terms = self._sqlite.get_external_terms()
+
+        print(f"\nStarting segment annotation", flush=True)
+
+        tokenized_terms = self._processor.tokenize_terms(external_terms=external_terms)
+
+        segment_labels = []
+        for segment in tqdm(
+            dataframe["tokenized_segment"], 
+            desc=f"Annotating segments with {self.labels.upper()} labels", 
+            total=len(dataframe)
+            ):
+            labels = self._processor.bio_tag(
+                segment,
+                tokenized_terms=tokenized_terms,
+            )
+            segment_labels.append(labels)
+
+        self._sqlite.insert_segment_labels(segment_labels)
+
+        dataframe["segment_labels"] = segment_labels
+
         print("Annotation finished")
         return dataframe
         
