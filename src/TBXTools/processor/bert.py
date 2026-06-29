@@ -137,7 +137,7 @@ class BertProcessor():
 
         # tokenized_corpus_for_sqlite = [" ".join(segment) for segment in tokenized_segments] #list to str to introduce in sqlite
 
-        data = {"tokenized_segment": pd.Series(tokenized_segments)}
+        data = {"tokenized_segments": pd.Series(tokenized_segments)}
         dataframe = pd.DataFrame(data=data)
 
         return tokens_output, tokenized_segments, dataframe
@@ -149,7 +149,7 @@ class BertProcessor():
             input_ids = []
             attention_masks = []
 
-            for tokens in batch['tokenized_segment']:
+            for tokens in batch['tokenized_segments']:
                 # tokens = tokens.split(" ")
 
                 tokens = tokens[:max_length]
@@ -207,7 +207,7 @@ class BertProcessor():
         attention_masks = []
         labels = []
 
-        for tokenized_segment, segment_labels in zip(batch['tokenized_segment'], batch['segment_labels']):
+        for tokenized_segment, segment_labels in zip(batch['tokenized_segments'], batch['segment_labels']):
 
             tokenized_segment = tokenized_segment[:max_length]
             segment_labels = segment_labels[:max_length]

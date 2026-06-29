@@ -162,7 +162,6 @@ class BertTrainer:
         self._sqlite.load_external_terms(self.external_terms)
         tokens_output, tokenized_segments, dataframe = self._processor.preprocess(segments=self._sqlite.get_segments())
 
-        self._sqlite.insert_segments(data=tokenized_segments, tagged=False, tokenized=True)
         self._sqlite.insert_tokens(data=tokens_output)
 
         external_terms = self._sqlite.get_external_terms()
@@ -173,7 +172,7 @@ class BertTrainer:
 
         segment_labels = []
         for segment in tqdm(
-            dataframe["tokenized_segment"], 
+            dataframe["tokenized_segments"], 
             desc=f"Annotating segments with {self.labels.upper()} labels", 
             total=len(dataframe)
             ):
@@ -182,10 +181,15 @@ class BertTrainer:
                 tokenized_terms=tokenized_terms,
             )
             segment_labels.append(labels)
-
-        self._sqlite.insert_segment_labels(segment_labels)
-
         dataframe["segment_labels"] = segment_labels
+
+        # only keeping rows that contain B or I labels
+        filter = dataframe["segment_labels"].apply(lambda seg_labels: any(label in ["B", "I"] for label in seg_labels))
+
+        dataframe = dataframe[filter]
+
+        self._sqlite.insert_segments(data=dataframe["tokenized_segments"].tolist(), tagged=False, tokenized=True)
+        self._sqlite.insert_segment_labels(data=dataframe["segment_labels"])
 
         print("Annotation finished")
         return dataframe
