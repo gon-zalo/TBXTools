@@ -1,5 +1,4 @@
 from TBXTools import BertTrainer, TrainingArguments
-from sklearn.model_selection import train_test_split
 
 biobert = 'dmis-lab/biobert-base-cased-v1.2'
 herbert = "allegro/herbert-base-cased"
@@ -15,9 +14,9 @@ corpus_mini = "corpus-wmt-pl-mini.txt"
 corpus_nano = "corpus-wmt-pl-nano.txt"
 
 trainer = BertTrainer(
-    project_name="bert-train-test",
-    corpus=corpus_nano,
-    overwrite_project=False,
+    project_name="bert-train-small",
+    corpus=corpus_small,
+    overwrite_project=True,
     model=polbert,
     external_terms='pl_iate.txt', 
     labels="bio",
