@@ -2,12 +2,14 @@ class BertProcessor():
 
     def __init__(self, model_name):
         self.model_name = model_name
-        
+        self.stopwords = None
+        self.inner_stopwords = None
+        self._lang_code = None
+
         self.model = None
         self.tokenizer = None
         self.data_collator = None
         self.trainer = None
-
         self.labels = None
     
     def load_transformers(self):
@@ -17,11 +19,6 @@ class BertProcessor():
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, max_length=512, force_download=False, do_lower_case=False)
         self.data_collator = DataCollatorForTokenClassification(tokenizer=self.tokenizer)
         self.trainer = Trainer(model=self.model, data_collator=self.data_collator)
-
-    def flatten_list(self, list_of_lists): # needed for bio_tag
-
-        output = [element for sublist in list_of_lists for element in sublist]
-        return output
 
     def bio_tag(self, tokenized_segment, tokenized_terms): # annotates data
         # initializing labels
@@ -58,11 +55,10 @@ class BertProcessor():
         return tokenized_terms
 
     def merge_tokens(self, predicted_terms):
+        # a mess that works but could be optimized
         import re
-        stop_words = []
 
         merged_terms = []
-
         for token in predicted_terms:
             if token in ['[SEP]', '[UNK]', '[CLS]']: # handling special tokens and UNK
                 continue
@@ -101,7 +97,7 @@ class BertProcessor():
             token = re.sub(r"\[SEP]", "", token)
             token = token.strip()
 
-            if token.lower() in stop_words or token == "" or len(token) == 1: # might want to remove len(token) == 1
+            if token.lower() in self.stopwords or token == "" or len(token) == 1: # might want to remove len(token) == 1
                 continue
 
             merged_terms.append(token)
@@ -135,39 +131,12 @@ class BertProcessor():
             tokens_row = (token, freq)
             tokens_output.append(tokens_row)
 
-        # tokenized_corpus_for_sqlite = [" ".join(segment) for segment in tokenized_segments] #list to str to introduce in sqlite
-
         data = {"tokenized_segments": pd.Series(tokenized_segments)}
         dataframe = pd.DataFrame(data=data)
 
-        return tokens_output, tokenized_segments, dataframe
+        return tokens_output, dataframe
 
-    def prepare_data(self, tokenizer):
-        def prepare_unlabeled_inputs(batch): # same func as above without labels
-
-            max_length = 512
-            input_ids = []
-            attention_masks = []
-
-            for tokens in batch['tokenized_segments']:
-                # tokens = tokens.split(" ")
-
-                tokens = tokens[:max_length]
-
-                pad_length = max_length - len(tokens)
-                tokens += ['[PAD]'] * pad_length
-                # tokens to input ids
-                input_ids.append(tokenizer.convert_tokens_to_ids(tokens))
-
-                # attention mask
-                attention_masks.append([1 if token != '[PAD]' else 0 for token in tokens])
-
-            batch['input_ids'] = input_ids
-            batch['attention_mask'] = attention_masks
-
-            return batch
-        return prepare_unlabeled_inputs
-
+    # works with BIO labels, will need to expand if another labels are used
     def pred_labels_to_tokens(self, tokens, predicted_ids, id2label): # predicted labels to tokens func
         reconstructed_tokens = []
         current_term = []
@@ -194,8 +163,31 @@ class BertProcessor():
             reconstructed_tokens.append(' '.join(current_term))
 
         return reconstructed_tokens
+    
+    def prepare_unlabeled_inputs(self, batch):
 
-# train processing
+        max_length = 512
+        input_ids = []
+        attention_masks = []
+
+        for tokens in batch['tokenized_segments']:
+            # tokens = tokens.split(" ")
+
+            tokens = tokens[:max_length]
+
+            pad_length = max_length - len(tokens)
+            tokens += ['[PAD]'] * pad_length
+            # tokens to input ids
+            input_ids.append(self.tokenizer.convert_tokens_to_ids(tokens))
+
+            # attention mask
+            attention_masks.append([1 if token != '[PAD]' else 0 for token in tokens])
+
+        batch['input_ids'] = input_ids
+        batch['attention_mask'] = attention_masks
+
+        return batch
+
     def prepare_pretokenized_inputs(self, batch):
 
         bio_labels = ['O', 'B', 'I']
