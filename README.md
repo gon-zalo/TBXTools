@@ -38,7 +38,12 @@ Use this scenario if you already have both a POS Tagged corpus and a set of pred
 ```python
 from TBXTools import Extractor, LinguisticMethodology
 
-methodology = LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=True, linguistic_patterns="example_patterns.txt")
+methodology = LinguisticMethodology(
+    nmin=2, 
+    nmax=3, 
+    is_corpus_tagged=True, 
+    linguistic_patterns="example_patterns.txt")
+
 extractor = Extractor(
     methodology=methodology,
     project_name="linguistic-example",
@@ -56,7 +61,12 @@ Use this scenario if your corpus is already pos tagged, but you need the program
 ```python
 from TBXTools import Extractor, LinguisticMethodology
 
-methodology = LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=True, evaluation_terms="evaluation_terms.txt")
+methodology = LinguisticMethodology(
+    nmin=2, 
+    nmax=3, 
+    is_corpus_tagged=True, 
+    evaluation_terms="evaluation_terms.txt")
+
 extractor = Extractor(
     methodology=methodology,
     project_name="linguistic-example",
@@ -74,7 +84,12 @@ Use this scenario if you already have a fixed set of linguistic patterns, but yo
 ```python
 from TBXTools import Extractor, LinguisticMethodology
 
-methodology = LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=False, linguistic_patterns="example_patterns.txt")
+methodology = LinguisticMethodology(
+    nmin=2, 
+    nmax=3, 
+    is_corpus_tagged=False, 
+    linguistic_patterns="example_patterns.txt")
+
 extractor = Extractor(
     methodology=methodology,
     project_name="linguistic-example",
@@ -94,7 +109,12 @@ Use this scenario when starting completely from raw inputs. Both assets are gene
 ```python
 from TBXTools import Extractor, LinguisticMethodology
 
-methodology = LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=False, evaluation_terms="evaluation_terms.txt")
+methodology = LinguisticMethodology(
+    nmin=2, 
+    nmax=3, 
+    is_corpus_tagged=False, 
+    evaluation_terms="evaluation_terms.txt")
+
 extractor = Extractor(
     methodology=methodology,
     project_name="linguistic-example",
@@ -143,12 +163,20 @@ results = extractor.extract(verbose=False)
 
 ## Results postprocessing
 
+Once the terms have been extracted, we can perform other methods like the following:
+
 ```python
-# Once the terms have been extracted, we can perform other methods like the following:
 results.nest_normalization(verbose=False)
-results.regex_exclusion(exclusion_regexes="regexes.txt", verbose=False) # You may also pass a Python list, e.g. [".+ health", ".+ diseases"]
-results.tsr(tsr_terms="tsr.txt", type="strict", max_iteration=<integer>, verbose=False) # For 'type' you may choose between strict, flexible and combined
+
+results.regex_exclusion(exclusion_regexes="regexes.txt", verbose=False)
+# The 'exclusion_regexes' arg accepts a text file or a Python list, e.g. regexes = [".+ health", ".+ diseases"]
+
+results.tsr(tsr_terms="tsr.txt", type="strict", max_iteration=10, verbose=False)
+# In 'type' you may choose between: strict, flexible, and combined
+# In 'max_iteration' you may introduce any integer
+
 results.save_candidates("candidates.txt")
+# Candidates can be saved in .txt, .csv, and .xlsx changing the file extension
 
 # Results can also  be inspected at any time with the following methods, depending on the methodology:
 print(results.terms())
