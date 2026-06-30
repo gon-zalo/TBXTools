@@ -40,3 +40,12 @@ def get_model_from_code(lang_code):
         }
     
         return spacy_models.get(lang_code, None)
+
+# maybe for the future
+def check_required_data(required_data, sqlite_tables_loaded, name):
+
+    for table in required_data:
+        # if required data has not been loaded
+        if table not in sqlite_tables_loaded:
+
+            raise RuntimeError(f"Missing '{table}' data in database. You must provide the '{table}' argument to {name}.")
