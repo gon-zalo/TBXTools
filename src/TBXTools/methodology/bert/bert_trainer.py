@@ -10,7 +10,7 @@ class BertTrainer:
 
         self.external_terms = external_terms
         self.labels = labels.lower()
-        self.split = split
+        self._seed = 123
 
         # self.training_args = training_args or self.default_args
         # self.default_args = {"lr": 5e-05, "batch_size": 16, "epochs": 3, "weight_decay": 0.03}
@@ -23,13 +23,13 @@ class BertTrainer:
         self._processor = BertProcessor(model_name=self.model_name)
         self._sqlite = SQLite(project_name=project_name, corpus=corpus, overwrite_project=overwrite_project)
 
-    def train(self, save_as=None):
+    def train(self, save_as=None, split=False):
         from transformers import Trainer, BertForTokenClassification, DataCollatorForTokenClassification, set_seed
         import torch
         from sklearn.model_selection import train_test_split
         from datasets import Dataset
         from pathlib import Path
-        set_seed(123)
+        set_seed(self._seed)
 
         print(f'\nInitializing model:  {self.model_name}', flush=True)
         tokenizer = self._processor.tokenizer
@@ -38,40 +38,12 @@ class BertTrainer:
         id2label = {i: l for l, i in label2id.items()}
         self._processor.load_transformers()
 
+        # if not overwrite and db exists
         if self._sqlite.overwrite_project == False and Path(self._sqlite.project_name).exists():
-            import pandas as pd
-            print("\nExisting database found. Accessing data", flush=True)
-
-            tokenized_segments = self._sqlite.get_segments(tagged=False, tokenized=True)
-            segment_labels = self._sqlite.get_segment_labels()
-
-            if tokenized_segments and segment_labels:
-                print("Tokenized segments and labels found in database")
-                data = { 
-                    "tokenized_segment": pd.Series(tokenized_segments), 
-                    "segment_labels": pd.Series(segment_labels)
-                    }
-                
-                dataframe = pd.DataFrame(data=data)
-            else:
-                raise RuntimeError("Tokenized segments and/or segment labels not found in database. Create another project or overwrite the existing one using 'overwrite_project=True'")
+            dataframe = self._fetch_data_from_db()
 
         else:
-            dataframe = self._prepare_data()
-
-        if not self.split:
-            dataframe = Dataset.from_pandas(dataframe)
-            dataframe = dataframe.map(self._processor.prepare_pretokenized_inputs, batched=True)
-        
-        elif self.split:
-            print("\nSplitting training data into train (0.7) and eval (0.3)")
-            train_df, eval_df = train_test_split(dataframe, test_size=0.3, random_state=123)
-
-            train_df = Dataset.from_pandas(train_df)
-            eval_df = Dataset.from_pandas(eval_df)
-
-            train_data = train_df.map(self._processor.prepare_pretokenized_inputs, batched=True)
-            eval_data = eval_df.map(self._processor.prepare_pretokenized_inputs, batched=True)
+            dataframe = self._prepare_training_data()
 
         device = torch.device("cuda")
         model = BertForTokenClassification.from_pretrained(
@@ -80,36 +52,58 @@ class BertTrainer:
             id2label=id2label,
             label2id=label2id).to(device)
 
-        training_args = TrainingArguments(
+        data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer)
+
+        if not split:
+            dataframe = Dataset.from_pandas(dataframe)
+            dataframe = dataframe.map(self._processor.prepare_pretokenized_inputs, batched=True)
+
+            training_args = TrainingArguments(
             eval_strategy="no",
             logging_strategy="no", # this disables the trainer_output folder?
             learning_rate=self.lr,
             per_device_train_batch_size=self.batch_size,
             num_train_epochs=self.epochs,
             weight_decay=self.weight_decay,
-            seed=123,
-            data_seed=123
-        )
-
-        data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer)
-
-        if self.split:
-            trainer = Trainer(
-                model=model,
-                args=training_args,
-                train_dataset=train_data,
-                eval_dataset=eval_data,
-                compute_metrics=self._compute_metrics,
-                data_collator=data_collator # needed to pad the sentences
+            seed=self._seed,
+            data_seed=self._seed
             )
-        else:
+
             trainer = Trainer(
                 model=model,
                 args=training_args,
                 train_dataset=dataframe,
                 data_collator=data_collator # needed to pad the sentences
             )
+        
+        elif split:
+            print("\nSplitting training data into train (0.7) and eval (0.3)")
+            train_df, eval_df = train_test_split(dataframe, test_size=0.3, random_state=self._seed)
 
+            train_df = Dataset.from_pandas(train_df)
+            eval_df = Dataset.from_pandas(eval_df)
+
+            train_data = train_df.map(self._processor.prepare_pretokenized_inputs, batched=True)
+            eval_data = eval_df.map(self._processor.prepare_pretokenized_inputs, batched=True)
+
+            training_args = TrainingArguments(
+            eval_strategy="epoch",
+            learning_rate=self.lr,
+            per_device_train_batch_size=self.batch_size,
+            num_train_epochs=self.epochs,
+            weight_decay=self.weight_decay,
+            seed=self._seed,
+            data_seed=self._seed
+            )
+
+            trainer = Trainer(
+                model=model,
+                args=training_args,
+                train_dataset=train_data,
+                eval_dataset=eval_data,
+                compute_metrics=self._compute_metrics,
+                data_collator=data_collator
+            )
 
         print('Fine-tuning model', flush=True)
         trainer.train()
@@ -154,22 +148,47 @@ class BertTrainer:
         f1 = 2 * precision * recall / (precision + recall)
 
         return precision, recall, f1
+    
+    def _fetch_data_from_db(self):
+        import pandas as pd
+        print("\nExisting database found. Accessing data", flush=True)
 
-    def _prepare_data(self):
+        tokenized_segments = self._sqlite.get_segments(tagged=False, tokenized=True)
+        segment_labels = self._sqlite.get_segment_labels()
+
+        if tokenized_segments and segment_labels:
+            print("Tokenized segments and labels found in database")
+            data = { 
+                "tokenized_segment": pd.Series(tokenized_segments), 
+                "segment_labels": pd.Series(segment_labels)
+                }
+            
+            dataframe = pd.DataFrame(data=data)
+
+            return dataframe
+        else:
+            raise RuntimeError("Tokenized segments and/or segment labels not found in database. Create another project or overwrite the existing one using 'overwrite_project=True'")
+        
+    def _prepare_training_data(self):
         from tqdm import tqdm
+        import random
+        random.seed(self._seed)
         print("\nBertTrainer initialized")
 
         self._sqlite.load_external_terms(self.external_terms)
-        tokens_output, tokenized_segments, dataframe = self._processor.preprocess(segments=self._sqlite.get_segments())
+        segments = self._sqlite.get_segments()
+
+        # sampling 50k random sentences TEMPORARY CODE, could be an arg?
+        segments_50k = random.sample(segments, 50000)
+
+        tokens_output, dataframe = self._processor.preprocess(segments=segments_50k)
 
         self._sqlite.insert_tokens(data=tokens_output)
 
         external_terms = self._sqlite.get_external_terms()
-
-        print(f"\nStarting segment annotation", flush=True)
-
         tokenized_terms = self._processor.tokenize_terms(external_terms=external_terms)
 
+        print(f"\nStarting segment annotation", flush=True)
         segment_labels = []
         for segment in tqdm(
             dataframe["tokenized_segments"], 
@@ -183,14 +202,14 @@ class BertTrainer:
             segment_labels.append(labels)
         dataframe["segment_labels"] = segment_labels
 
+        print(f"\nFiltering out segments that only contain '{labels[0]}' labels", flush=True)
         # only keeping rows that contain B or I labels
         filter = dataframe["segment_labels"].apply(lambda seg_labels: any(label in ["B", "I"] for label in seg_labels))
-
         dataframe = dataframe[filter]
+        print(f"Remaining segments: {len(dataframe)}")
 
         self._sqlite.insert_segments(data=dataframe["tokenized_segments"].tolist(), tagged=False, tokenized=True)
         self._sqlite.insert_segment_labels(data=dataframe["segment_labels"])
 
         print("Annotation finished")
         return dataframe
-        
