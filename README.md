@@ -13,17 +13,12 @@
 
 ## Statistical methodology example
 The `StatisticalMethodology` module allows you to extract terms from a corpus using statistical methods. Below you can find an example script.
-```
+```python
 from TBXTools import Extractor, StatisticalMethodology
 
+methodology = StatisticalMethodology(nmin=2, nmax=3, case_normalization=True)
 extractor = Extractor(
-    methodology=StatisticalMethodology(
-        nmin=2,
-        nmax=3,
-        case_normalization=True,
-        exclusion_regexes=None,
-        tsr_terms=None
-    ),
+    methodology=methodology,
     project_name="statistical-example",
     corpus="example-corpus.txt",
     language="english",
@@ -31,19 +26,7 @@ extractor = Extractor(
 )
 
 results = extractor.extract(verbose=False)
-
-# Once the terms are extracted, we can perform other methods like the following:
-results.nest_normalization(verbose=False)
-results.regex_exclusion(verbose=False)
-results.tsr(type={"strict" | "flexible" | "combined"}, max_iteration= <integer>, verbose=False)
-results.save_candidates("statistical-candidates.txt")
-
-# Results can be inspected at any time with the following methods:
-print(results.terms())
-print(results.ngrams())
-print(results.tokens())
 ```
-To make use of the `exclusion_regexes` argument you may pass a text file with regular expressions, or a Python list, e.g. `regexes = [".+ health", ".+ diseases"]`.
 
 ## Linguistic methodology example
 
@@ -52,17 +35,12 @@ The `LinguisticMethodology` module allows you to extract terms based on differen
 ### Scenario A: Using Pre-existing Tagged Corpus and Linguistic Patterns
 Use this scenario if you already have both a POS Tagged corpus and a set of predefined linguistic patterns.
 
-```
+```python
 from TBXTools import Extractor, LinguisticMethodology
 
+methodology = LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=True, linguistic_patterns="example_patterns.txt")
 extractor = Extractor(
-    methodology=LinguisticMethodology(
-        nmin=2, 
-        nmax=3, 
-        is_corpus_tagged=True,
-        linguistic_patterns="example-patterns.txt",
-        tsr_terms=None
-    ),
+    methodology=methodology,
     project_name="linguistic-example",
     corpus="tagged-corpus.txt",
     language="english",
@@ -70,31 +48,17 @@ extractor = Extractor(
 )
 
 results = extractor.extract(verbose=False)
-
-# Once the terms are extracted, we can perform other methods like the following:
-results.nest_normalization(verbose=False)
-results.tsr(type={"strict" | "flexible" | "combined"}, max_iteration= <integer>, verbose=False)
-results.save_candidates("linguistic-candidates.txt")
-
-# Results can be inspected at any time with the following methods:
-print(f"\nTerms: {results.terms()}")
-print(f"\nTagged Ngrams: {results.tagged_ngrams()}")
 ```
 
 ### Scenario B: Using Pre-existing Tagged Corpus and Generating Linguistic Patterns from Scratch
 Use this scenario if your corpus is already pos tagged, but you need the program to automatically extract new linguistic patterns using a list of evaluation terms.
 
-```
+```python
 from TBXTools import Extractor, LinguisticMethodology
 
+methodology = LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=True, evaluation_terms="evaluation_terms.txt")
 extractor = Extractor(
-    methodology=LinguisticMethodology(
-        nmin=2, 
-        nmax=3, 
-        is_corpus_tagged=True,
-        evaluation_terms="evaluation_terms.txt",
-        tsr_terms=None
-    ),
+    methodology=methodology,
     project_name="linguistic-example",
     corpus="tagged-corpus.txt",
     language="english",
@@ -102,31 +66,17 @@ extractor = Extractor(
 )
 
 results = extractor.extract(verbose=False)
-
-# Once the terms are extracted, we can perform other methods like the following:
-results.nest_normalization(verbose=False)
-results.tsr(type={"strict" | "flexible" | "combined"}, max_iteration= <integer>, verbose=False)
-results.save_candidates("linguistic-candidates.txt")
-
-# Results can be inspected at any time with the following methods:
-print(f"\nTerms: {results.terms()}")
-print(f"\nTagged Ngrams: {results.tagged_ngrams()}")
 ```
 
 ### Scenario C: Using Pre-existing Linguistic Patterns and Generating Tagged Corpus from Scratch
 Use this scenario if you already have a fixed set of linguistic patterns, but you need to process a raw, untagged corpus to generate its tagged version.
 
-```
+```python
 from TBXTools import Extractor, LinguisticMethodology
 
+methodology = LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=False, linguistic_patterns="example_patterns.txt")
 extractor = Extractor(
-    methodology=LinguisticMethodology(
-        nmin=2, 
-        nmax=3, 
-        is_corpus_tagged=False,
-        linguistic_patterns="example-patterns.txt",
-        tsr_terms=None
-    ),
+    methodology=methodology,
     project_name="linguistic-example",
     corpus="raw_corpus.txt",
     language="english",
@@ -134,15 +84,6 @@ extractor = Extractor(
 )
 
 results = extractor.extract(verbose=False)
-
-# Once the terms are extracted, we can perform other methods like the following:
-results.nest_normalization(verbose=False)
-results.tsr(type={"strict" | "flexible" | "combined"}, max_iteration= <integer>, verbose=False)
-results.save_candidates("linguistic-candidates.txt")
-
-# Results can be inspected at any time with the following methods:
-print(f"\nTerms: {results.terms()}")
-print(f"\nTagged Ngrams: {results.tagged_ngrams()}")
 ```
 
 ### Scenario D: Generating Corpus and Patterns from Scratch
@@ -150,17 +91,12 @@ Use this scenario when starting completely from raw inputs. Both assets are gene
 * **Tagged Corpus:** Generated from a raw, untagged corpus.
 * **Linguistic Patterns:** Generated using a list of evaluation terms.
 
-```
+```python
 from TBXTools import Extractor, LinguisticMethodology
 
+methodology = LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=False, evaluation_terms="evaluation_terms.txt")
 extractor = Extractor(
-    methodology=LinguisticMethodology(
-        nmin=2, 
-        nmax=3, 
-        is_corpus_tagged=False,
-        evaluation_terms="evaluation_terms.txt",
-        tsr_terms=None
-    ),
+    methodology=methodology,
     project_name="linguistic-example",
     corpus="raw_corpus.txt",
     language="english",
@@ -168,13 +104,55 @@ extractor = Extractor(
 )
 
 results = extractor.extract(verbose=False)
+```
 
-# Once the terms are extracted, we can perform other methods like the following:
+## Bert methodology example (WORK IN PROGRESS)
+The `BertMethodology` allows you to extract terms using a BERT model. To use this methodology, you need a fine-tuned model on terminology extraction using BIO labels.
+You may fine-tune such a model using the `BertTrainer` class. For this, you need a list of external terms and a corpus. The tool will automatically annotate the corpus based on the external terms list
+and it will fine-tune your model of choice on that corpus. Below you can find an example of the whole process:
+
+```python
+from TBXTools import BertTrainer, BertMethodology, Extractor
+
+distilbert = "distilbert/distilbert-base-multilingual-cased"
+
+trainer = BertTrainer(
+    project_name="bert-train-example",
+    corpus="example-train-corpus.txt",
+    model=distilbert,
+    external_terms="example_terms.txt"
+    lr=5e-05,
+    batch_size=16,
+    epochs=3,
+    weight_decay=0.03
+)
+
+trainer.train(save_as="bert-model-example", split=False)
+
+fine_tuned_model = "bert-model-example"
+methodology = BertMethodology(model="bert-model-example")
+extractor = Extractor(
+    project_name=fine_tuned_model,
+    methodology=methodology,
+    corpus="example-eval-corpus.txt",
+    language="en",
+)
+
+results = extractor.extract(verbose=False)
+```
+
+## Results postprocessing
+
+```python
+# Once the terms have been extracted, we can perform other methods like the following:
 results.nest_normalization(verbose=False)
-results.tsr(type={"strict" | "flexible" | "combined"}, max_iteration= <integer>, verbose=False)
-results.save_candidates("linguistic-candidates.txt")
+results.regex_exclusion(exclusion_regexes="regexes.txt", verbose=False) # You may also pass a Python list, e.g. [".+ health", ".+ diseases"]
+results.tsr(tsr_terms="tsr.txt", type="strict", max_iteration=<integer>, verbose=False) # For 'type' you may choose between strict, flexible and combined
+results.save_candidates("candidates.txt")
 
-# Results can be inspected at any time with the following methods:
-print(f"\nTerms: {results.terms()}")
-print(f"\nTagged Ngrams: {results.tagged_ngrams()}")
+# Results can also  be inspected at any time with the following methods, depending on the methodology:
+print(results.terms())
+print(results.ngrams())
+print(results.tokens())
+print(results.tagged_ngrams())
 ```

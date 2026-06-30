@@ -14,7 +14,9 @@ dependencies = [
     "torch",
     "pandas",
     "openpyxl",
-    "spacy"
+    "spacy",
+    "scikit-learn",
+    "datasets"
 ]
 
 [tool.setuptools.packages.find]

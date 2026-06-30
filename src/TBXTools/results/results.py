@@ -30,7 +30,7 @@ class Results:
         Return:
             list: a list of terms.        
         '''
-        terms = [term[0] for term in self._terms] # in self._extractor._sqlite.get_candidate_terms()
+        terms = [term[0] for term in self._terms]
 
         if limit == None:
             return terms
@@ -142,6 +142,9 @@ class Results:
                 print(f"Excluded {len(candidates_to_exclude)} terms")
             else:
                 print("No candidate terms excluded")
+
+            filtered_terms = self._extractor._sqlite.get_candidate_terms()
+            self._terms = filtered_terms[0]
 
     def save_candidates(self, path):
         '''

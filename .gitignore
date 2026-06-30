@@ -9,3 +9,5 @@ biobert_detech_run2/
 biobert_detech/
 tmp_trainer/
 tests/*.csv
+tests/bert-model-test
+.vscode

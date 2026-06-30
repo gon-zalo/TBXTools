@@ -1,12 +1,16 @@
 from TBXTools import Extractor, BertMethodology
 
-corpus = 'bert-corpus.txt'
-# model_name = 'dmis-lab/biobert-base-cased-v1.2'
+corpus = 'bert_eval.txt'
 model = 'biobert_detech_run2'
-methodology = BertMethodology(model=model)
+test_model = 'bert-model-test'
+
+methodology = BertMethodology(
+    model=model, 
+    labels="bio"
+)
 
 extractor = Extractor(
-    project_name="bert-test",
+    project_name="bert-eval-test-detech",
     methodology=methodology,
     corpus=corpus,
     language="english",
