@@ -20,10 +20,9 @@ trainer = BertTrainer(
     model=polbert,
     external_terms='pl_iate.txt', 
     labels="bio",
-    split=False, 
     lr=5e-05,
     batch_size=16,
     epochs=6,
     weight_decay=0.03)
 
-trainer.train(save_as='wmt-termlgy-test-polbert')
+trainer.train(save_as='wmt-termlgy-test-polbert', split=False)
