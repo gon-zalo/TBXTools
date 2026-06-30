@@ -13,10 +13,11 @@ class StatisticalMethodology(BaseMethodology):
         _processor (Processor): An internal instance of the Processor class used to handle text preprocessing tasks.
     '''
     
-    def __init__(self, nmin, nmax, case_normalization=True):
+    def __init__(self, nmin, nmax, case_normalization=False, lemmatization=False):
         
         self.name = "StatisticalMethodology"
         self.case_normalization = case_normalization
+        self.lemmatization = lemmatization
         
         self.processor = Processor()
         self.processor.nmin = nmin    
@@ -37,12 +38,14 @@ class StatisticalMethodology(BaseMethodology):
         
         ngrams, tokens, candidate_terms = self._statistical_extraction(segments=segments)
 
-        if self.case_normalization:
-            
-            candidate_terms = self.processor.case_normalization(
+        if self.lemmatization: 
+             candidate_terms = self.processor.lemmatization(candidate_terms=candidate_terms, verbose=verbose)
+
+        elif self.case_normalization:
+             candidate_terms = self.processor.case_normalization(
                 candidate_terms=candidate_terms, 
                 verbose=verbose) 
-
+                
         return Results(terms=candidate_terms, ngrams=ngrams, tokens=tokens)
     
 # COMPUTING FUNCTIONS

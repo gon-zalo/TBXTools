@@ -1,4 +1,5 @@
 from ..utils.utils import get_model_from_code
+from ..methodology.linguistic.tagger import LinguisticTagger
 
 class Processor:
 
@@ -16,8 +17,10 @@ class Processor:
         self.nmin = None
         self.nmax = None
         self.lang_code = None
+        self.nlp = None
+
     
-    def case_normalization(self, candidate_terms, verbose=False): 
+    def case_normalization(self, candidate_terms, verbose=True): 
         '''
         Performs case normalization. If a capitalized term exists as non-capitalized, the capitalized one will be deleted and the frequency of the non-capitalized one will be increased by the frequency of the capitalized.
 
@@ -48,6 +51,63 @@ class Processor:
 
             if verbose:
                 print(term, "->", freq)
+
+        return normalized_terms
+    
+    def lemmatization(self, candidate_terms, verbose=True):
+        
+        if self.nlp is None:
+            tagger = LinguisticTagger(get_model_from_code(self.lang_code))
+            self.nlp = tagger._load_model()
+            self.nlp = tagger.nlp
+        
+        print("Applying lemmatization")
+        freq_dict = {}
+
+        for terms_row in candidate_terms:
+            term = terms_row[0].strip()
+            freq = terms_row[3]
+
+            doc = self.nlp(term)
+            lemmatized_tokens= []
+
+            for token in doc:
+                lemma = token.lemma_.lower().strip()
+
+                if token.tag_ in ("NNS", "NNPS") and lemma.endswith("s"):
+                    if "Number=Plur" in str(token.morph):
+                        if lemma.endswith("ies"):   
+                            lemma = lemma[:-3] + "y"
+                        elif lemma.endswith("es"):     
+                            lemma = lemma[:-2]
+                        elif lemma.endswith("s"): 
+                            lemma = lemma[:-1]
+                
+                lemmatized_tokens.append(lemma)
+
+            lemmatized_term = " ".join(lemmatized_tokens)
+            freq_dict[lemmatized_term] = freq_dict.get(lemmatized_term, 0) + freq
+
+
+
+            
+            
+            #lemmatized_term = " ".join([token.lemma_.lower().strip() for token in doc])
+
+            #if self.lang_code == "en" and lemmatized_term.endswith("s") and not term.endswith("s"):
+                #pass
+
+            #freq_dict[lemmatized_term] = freq_dict.get(lemmatized_term, 0) + freq
+
+        normalized_terms = []
+        for lemma, freq in freq_dict.items():
+            n = len(lemma.split())
+
+            row = (lemma, n, "frequency", freq)
+            normalized_terms.append(row)
+
+            if verbose:
+                print(f"{lemma} -> {freq}")
 
         return normalized_terms
     
@@ -248,7 +308,7 @@ class Processor:
         return translated_patterns
     
     def create_tagged_segments(self, segments):
-        from ..methodology.linguistic.tagger import LinguisticTagger
+        #from ..methodology.linguistic.tagger import LinguisticTagger
 
         tagger = LinguisticTagger(get_model_from_code(self.lang_code))
 
