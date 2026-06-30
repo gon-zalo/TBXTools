@@ -1,10 +1,10 @@
 from ..sqlite import SQLite
 from ..results import Results
 from ..resources import Resources
-from ..utils import get_lang
+from ..utils.utils import get_lang
 from ..methodology.bert.bert_trainer import BertTrainer
 
-class Extractor: #remember to add the attributes that you added while implementing the linguistic extractor
+class Extractor:
     """
     Orchestrates the terminology extraction pipeline.
 
@@ -21,7 +21,7 @@ class Extractor: #remember to add the attributes that you added while implementi
         _sqlite (SQLiteManager): Internal component to manage database interactions.
     """
 
-    def __init__(self, project_name, methodology, corpus= None, stopwords=None, inner_stopwords=None, language=None, overwrite_project=False):
+    def __init__(self, project_name, methodology, corpus=None, stopwords=None, inner_stopwords=None, language=None, overwrite_project=False):
         
         self.lang, self._lang_code = get_lang(language.lower())
 

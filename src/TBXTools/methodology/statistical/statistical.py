@@ -26,7 +26,7 @@ class StatisticalMethodology(BaseMethodology):
 # MAIN FUNCTION
     def extract(self, segments, verbose=False):
         '''
-        Extracts candidate terms from text segments using a statistical methodology. This methodology is based on calculating n-grams and filtering candidates using stopwords and inner stopwords. Specifically, it removes any terms that start or end with a word in the stopword list, as well as terms that contain an inner stopword. The actual extraction logic is delegated to the '_statistical_extraction' method.
+    Extracts candidate terms from text segments using a statistical methodology. This methodology is based on calculating n-grams and filtering candidates using stopwords and inner stopwords. Specifically, it removes any terms that start or end with a word in the stopword list, as well as terms that contain an inner stopword. The actual extraction logic is delegated to the '_statistical_extraction' method.
 
     Args:
         segments: A list of text segments to process.

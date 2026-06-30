@@ -7,6 +7,13 @@ from collections import Counter
 logging.set_verbosity_error()
 
 class BertMethodology(BaseMethodology):
+    '''
+    Manages terminology extraction with a BERT model.
+
+    Attributes:
+        model (str): Fine-tuned model for terminology extraction using labels.
+        labels (str): The labels used in the fine-tuning of the model.
+    '''
 
     def __init__(self, model, labels=None):
         self.name = "BertMethodology"
@@ -17,6 +24,16 @@ class BertMethodology(BaseMethodology):
 
         
     def extract(self, segments, verbose):
+        '''
+        Extracts candidate terms using BERT. This methodology uses a previously fine-tuned model on automatically annotated data to predict labels for each token of the evaluation data.
+
+        Args:
+            segments: A list of segments to process.
+            verbose (bool, optional): If True, enables detailed logging. Defaults to False.
+        
+        Returns:
+            Results: An object containing the tokens, candidate terms. It also returns separately the tokenized corpus.
+        '''
         from datasets import Dataset
         import numpy as np
 
