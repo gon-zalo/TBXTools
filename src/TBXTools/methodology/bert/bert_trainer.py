@@ -3,12 +3,25 @@ from ...sqlite import SQLite
 from transformers import TrainingArguments
 
 class BertTrainer:
+    '''
+    Trains a BERT model for automatic terminology extraction.
 
-    def __init__(self, project_name, corpus, model, external_terms, overwrite_project=False, labels=None, split=False, training_args=None, lr=None, batch_size=None, epochs=None, weight_decay=None):
+    Attributes:
+        project_name (str): The unique name identifier for the current project, which also determines the filename of the generated SQLite database.
+        corpus: The text corpus used as the training data.
+        model (str, optional): The BERT model to be fine-tuned. Defaults to distilbert-base-multilingual-cased.
+        external_terms: File path to the terms that will be used in the data annotation process.
+        labels (str, optional): The labels to annotate the data with. Defaults to BIO.
+        lr (int, optional): Learning rate of the model. Defaults to 5e-05.
+        batch_size (int, optional): Defaults to 16.
+        epochs (int, optional): Defaults to 3.
+        weight_decay (int, optional): Defaults to 0.01.
+    '''
 
-        self.model_name = model
+    def __init__(self, project_name, corpus, model, external_terms, overwrite_project=False, labels=None, lr=None, batch_size=None, epochs=None, weight_decay=None):
 
-        self.external_terms = external_terms
+        self.model_name = model or "distilbert/distilbert-base-multilingual-cased"
+        self.name = "BertTrainer"
         self.labels = labels.lower()
         self._seed = 123
 
@@ -18,12 +31,23 @@ class BertTrainer:
         self.lr = lr or 5e-05 # learning rate
         self.batch_size = batch_size or 16
         self.epochs = epochs or 3
-        self.weight_decay = weight_decay or 0.03
+        self.weight_decay = weight_decay or 0.01
 
         self._processor = BertProcessor(model_name=self.model_name)
-        self._sqlite = SQLite(project_name=project_name, corpus=corpus, overwrite_project=overwrite_project)
+        self._sqlite = SQLite(
+            project_name=project_name, 
+            corpus=corpus, 
+            overwrite_project=overwrite_project, 
+            external_terms=external_terms)
 
     def train(self, save_as=None, split=False):
+        '''
+        Fine-tunes the chosen model for automatic terminology extraction. It annotates the data with the chosen labels and then fine-tunes the model on said data. The model is finally saved to disk.
+
+        Args:
+            save_as (str, optional): Path of the model to save to disk. Defaults to 'fine-tuned-bert'
+            split (bool, optional): If True, it splits the data in train and eval.
+        '''
         from transformers import Trainer, BertForTokenClassification, DataCollatorForTokenClassification, set_seed
         import torch
         from sklearn.model_selection import train_test_split
@@ -38,8 +62,8 @@ class BertTrainer:
         id2label = {i: l for l, i in label2id.items()}
         self._processor.load_transformers()
 
-        # if not overwrite and db exists
-        if self._sqlite.overwrite_project == False and Path(self._sqlite.project_name).exists():
+        # if not overwrite
+        if self._sqlite.overwrite_project == False:
             dataframe = self._fetch_data_from_db()
 
         else:
@@ -175,7 +199,6 @@ class BertTrainer:
         random.seed(self._seed)
         print("\nBertTrainer initialized")
 
-        self._sqlite.load_external_terms(self.external_terms)
         segments = self._sqlite.get_segments()
 
         # sampling 50k random sentences TEMPORARY CODE, could be an arg?
