@@ -233,17 +233,17 @@ class SQLite:
         data = []
 
         if not tsr_terms:
-            print("No TSR Terms to load into the database")
+            print("TSR terms not found. Not applying TSR filtering.")
             return
         
         if isinstance(tsr_terms, list):
             data = [(tsr_term,) for tsr_term in tsr_terms]
-            print("TSR terms loaded")
+            # print("TSR terms loaded")
 
         else: 
             with open(tsr_terms, "r", encoding=encoding) as f:
                 data = [(line.rstrip(),) for line in f]        
-            print("TSR terms loaded")
+            # print("TSR terms loaded")
 
         with self.conn:
             self.cur.executemany('INSERT INTO tsr_terms (tsr_term) VALUES (?)',data)
