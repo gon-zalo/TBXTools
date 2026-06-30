@@ -101,14 +101,23 @@ class Results:
         self._terms = filtered_terms
   
     def tsr(self, tsr_terms=None, type=None, max_iterations=10000000000, verbose=True):
+        '''
+        Filters the extracted candidate terms using Token Slot Recognition (TSR). The algorithm is based on the concept of terminological token, i.e., it filters out term candidates by taking into account their tokens.
+
+        If type is 'strict', a term candidate will be kept only if all the tokens are present in the corresponding position. If type is 'flexible', a term candidate will be kept if any of the tokens is present in the corresponding position. If type is 'combined', strict filtering is first used and is then followed by flexible filtering.
+
+        Args:
+            tsr_terms: The reference standard terms.
+            type (str, optional): Filtering mode ("strict", "flexible", "combined"). Defaults to "combined".
+            max_iterations (int, optional): Loop ceiling for recursion. Defaults to 10000000000.
+            verbose (bool, optional): Defaults to False.
+        '''
 
         print("Applying TSR filter")
 
-        tsr_terms = self._extractor._sqlite.load_tsr_terms(tsr_terms=tsr_terms)
+        self._extractor._sqlite.load_tsr_terms(tsr_terms=tsr_terms)
+        tsr_terms = self._extractor._sqlite.get_tsr_terms()
     
-        if tsr_terms is None:
-            tsr_terms = self._extractor._sqlite.get_tsr_terms()
-
         if not tsr_terms:
             print("TSR terms not found. Not applying TSR filter")
             return
@@ -126,6 +135,7 @@ class Results:
         Deletes term candidates matching a set of regular expresions loaded in the Extractor() class.
         '''
         print("Applying regex exclusion")
+        
         regexes = self._extractor._sqlite.get_exclusion_regexes()
 
         if not regexes:
