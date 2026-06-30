@@ -7,28 +7,32 @@ class SQLite:
     Manage SQLite functions.
     '''
 
-    def __init__(self, project_name, corpus, stopwords=None, inner_stopwords=None, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None, exclusion_regexes=None, tsr_terms=None, overwrite_project=False):
+    def __init__(self, project_name, corpus, stopwords=None, inner_stopwords=None, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None, exclusion_regexes=None, tsr_terms=None, external_terms=None, overwrite_project=False):
 
         self.cur = None
         self.MAX_INSERTS = 10000
         self.overwrite_project = overwrite_project
         self.project_name = None
-        self.TABLES_TO_LOAD_AT_START = ["corpus", "tagged_corpus", "stopwords", "inner_stopwords", "linguistic_patterns", "evaluation_terms", "tsr_terms", "exclusion_regexes"]
+        self.TABLES_TO_LOAD_AT_START = ["corpus", "tagged_corpus", "stopwords", "inner_stopwords", "linguistic_patterns", "evaluation_terms", "external_terms"]
+
+        self.TABLES_LOADED = []
 
     # Initializing project, corpus, stopwords, etc.
-        self.initialize_project(
+        load_data = self.initialize_project(
             project_name=project_name, 
-            overwrite_project=overwrite_project)
-        self.load_data_to_tables(
-            table_names=self.TABLES_TO_LOAD_AT_START, 
-            corpus=corpus, 
-            stopwords=stopwords, 
-            inner_stopwords=inner_stopwords, 
-            linguistic_patterns=linguistic_patterns,
-            evaluation_terms=evaluation_terms,
-            tsr_terms= tsr_terms,
-            exclusion_regexes=exclusion_regexes,
-            is_corpus_tagged=is_corpus_tagged)
+            overwrite_project=self.overwrite_project)
+        
+        if load_data:
+            print("Loading data to database")
+            self.load_data_to_tables(
+                table_names=self.TABLES_TO_LOAD_AT_START, 
+                corpus=corpus, 
+                stopwords=stopwords, 
+                inner_stopwords=inner_stopwords, 
+                linguistic_patterns=linguistic_patterns,
+                evaluation_terms=evaluation_terms,
+                external_terms=external_terms,
+                is_corpus_tagged=is_corpus_tagged)
 
     def add_extension(self, project_name):
         '''Adds the extension .sqlite to the database file.'''
@@ -42,12 +46,18 @@ class SQLite:
         if file_name.exists() and overwrite_project==False:
             self.open_project(project_name=project_name)
 
+            return False
+
         elif file_name.exists() and overwrite_project==True:
-            self.create_project(project_name=project_name, overwrite=True)
-        
+            self.create_project(project_name=project_name, overwrite=True)  
+
+            return True
+
         else:
             self.create_project(project_name=project_name)
-        
+
+            return True
+
     def create_project(self,project_name,overwrite=False):
         '''Opens a project. If the project already exists, it raises an exception. To avoid the exception use overwrite=True. To open existing projects, use the open_project method.'''
 
@@ -81,7 +91,8 @@ class SQLite:
         '''Opens an existing project. If the project doesn't exist it raises an exception.'''
 
         project_name = self.add_extension(project_name)
-        print(f"Opening project: {project_name}")
+        print(f"Opening project: {project_name}", flush=True)
+        print(f"Accesing data", flush=True)
 
         if not os.path.isfile(project_name):
                 raise Exception("Project not found")
@@ -106,7 +117,6 @@ class SQLite:
             self.insert_segments(data=data, tagged=is_corpus_tagged)
 
     # LOAD METHODS
-    
     def load_corpus(self, corpus, is_corpus_tagged, encoding="utf-8", compoundify=False, comp_symbol="▁"):
 
         corpora_list = corpus if isinstance(corpus, list) else [corpus]
@@ -548,7 +558,7 @@ class SQLite:
             else:
                 return False
             
-    def load_data_to_tables(self, table_names, corpus, is_corpus_tagged, stopwords, inner_stopwords, linguistic_patterns, evaluation_terms, tsr_terms, exclusion_regexes):
+    def load_data_to_tables(self, table_names, corpus, is_corpus_tagged, stopwords, inner_stopwords, linguistic_patterns, evaluation_terms, tsr_terms, exclusion_regexes, external_terms):
 
         loaders = {}
 
@@ -560,23 +570,22 @@ class SQLite:
 
         if is_corpus_tagged==False:
             loaders["corpus"] = lambda: self.load_corpus(corpus=corpus, is_corpus_tagged=False)
+
         elif is_corpus_tagged==True:
             loaders["tagged_corpus"] = lambda: self.load_corpus(corpus=corpus, is_corpus_tagged=True)
 
         if evaluation_terms:
             loaders["evaluation_terms"] = lambda: self.load_evaluation_terms(evaluation_terms=evaluation_terms)
 
-        if exclusion_regexes:
-            loaders["exclusion_regexes"] = lambda: self.load_exclusion_regexes(exclusion_regexes=exclusion_regexes)
-
         if linguistic_patterns:
             loaders["linguistic_patterns"] = lambda: self.load_linguistic_patterns(linguistic_patterns=linguistic_patterns)
 
-        if tsr_terms:
-            loaders["tsr_terms"] = lambda: self.load_tsr_terms(tsr_terms=tsr_terms)
+        if external_terms:
+            loaders["external_terms"] = lambda: self.load_external_terms(external_terms=external_terms)
 
         for table in table_names:
             loader = loaders.get(table)
             # if the table does not have data, it is loaded in
             if loader and not self.table_is_populated(table_name=table):
                 loader()
+                self.TABLES_LOADED.append(table)
