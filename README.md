@@ -11,7 +11,9 @@
 
 4. Now you can use the package.
 
-## Statistical methodology example
+## Term extraction methodologies
+
+### Statistical methodology
 The `StatisticalMethodology` module allows you to extract terms from a corpus using statistical methods. Below you can find an example script.
 ```python
 from TBXTools import Extractor, StatisticalMethodology
@@ -28,11 +30,11 @@ extractor = Extractor(
 results = extractor.extract(verbose=False)
 ```
 
-## Linguistic methodology example
+### Linguistic methodology
 
 The `LinguisticMethodology` module allows you to extract terms based on different availability of pre-existing data. Below are the four main execution scenarios.
 
-### Scenario A: Using Pre-existing Tagged Corpus and Linguistic Patterns
+#### Scenario A: Using Pre-existing Tagged Corpus and Linguistic Patterns
 Use this scenario if you already have both a POS Tagged corpus and a set of predefined linguistic patterns.
 
 ```python
@@ -55,7 +57,7 @@ extractor = Extractor(
 results = extractor.extract(verbose=False)
 ```
 
-### Scenario B: Using Pre-existing Tagged Corpus and Generating Linguistic Patterns from Scratch
+#### Scenario B: Using Pre-existing Tagged Corpus and Generating Linguistic Patterns from Scratch
 Use this scenario if your corpus is already pos tagged, but you need the program to automatically extract new linguistic patterns using a list of evaluation terms.
 
 ```python
@@ -78,7 +80,7 @@ extractor = Extractor(
 results = extractor.extract(verbose=False)
 ```
 
-### Scenario C: Using Pre-existing Linguistic Patterns and Generating Tagged Corpus from Scratch
+#### Scenario C: Using Pre-existing Linguistic Patterns and Generating Tagged Corpus from Scratch
 Use this scenario if you already have a fixed set of linguistic patterns, but you need to process a raw, untagged corpus to generate its tagged version.
 
 ```python
@@ -101,7 +103,7 @@ extractor = Extractor(
 results = extractor.extract(verbose=False)
 ```
 
-### Scenario D: Generating Corpus and Patterns from Scratch
+#### Scenario D: Generating Corpus and Patterns from Scratch
 Use this scenario when starting completely from raw inputs. Both assets are generated automatically:
 * **Tagged Corpus:** Generated from a raw, untagged corpus.
 * **Linguistic Patterns:** Generated using a list of evaluation terms.
@@ -126,7 +128,7 @@ extractor = Extractor(
 results = extractor.extract(verbose=False)
 ```
 
-## Bert methodology example (WORK IN PROGRESS)
+### Bert methodology (WORK IN PROGRESS)
 The `BertMethodology` allows you to extract terms using a BERT model. To use this methodology, you need a fine-tuned model on terminology extraction using BIO labels.
 You may fine-tune such a model using the `BertTrainer` class. For this, you need a list of external terms and a corpus. The tool will automatically annotate the corpus based on the external terms list
 and it will fine-tune your model of choice on that corpus. Below you can find an example of the whole process:
