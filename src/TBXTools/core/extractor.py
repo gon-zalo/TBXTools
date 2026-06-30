@@ -2,6 +2,7 @@ from ..sqlite import SQLite
 from ..results import Results
 from ..resources import Resources
 from ..utils import get_lang
+from ..methodology.bert.bert_trainer import BertTrainer
 
 class Extractor: #remember to add the attributes that you added while implementing the linguistic extractor
     """
@@ -64,7 +65,7 @@ class Extractor: #remember to add the attributes that you added while implementi
         print(f"\n{self._methodology.name} initialized", flush=True)
         print("Running term extraction", flush=True)
         
-        segments = self._sqlite.get_segments(is_corpus_tagged=False)
+        segments = self._sqlite.get_segments(tagged=False)
 
         if self._methodology.name == "LinguisticMethodology":
 
@@ -128,10 +129,15 @@ class Extractor: #remember to add the attributes that you added while implementi
             self._methodology.processor.inner_stopwords = self._sqlite.get_inner_stopwords()
             self.inner_stopwords = self._sqlite.get_inner_stopwords()
 
-    def train_bert(self, trainer=None):
-
+    def train_bert(self, trainer: BertTrainer) -> None:
+        # from ..methodology.bert.bert_trainer import BertTrainer
+        print("Running BERT fine-tuning")
         trainer = trainer
+        self._sqlite.load_external_terms(trainer.external_terms)
 
-        segments = self._sqlite.get_segments()
 
-        trainer._train(train_data=segments)
+        # segments = self._sqlite.get_segments()
+        
+        # corpus, tokenized_corpus, labels = trainer._prepare_fine_tuning()
+
+        # trainer._train(train_data=segments)
