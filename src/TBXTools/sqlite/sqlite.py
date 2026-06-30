@@ -558,7 +558,7 @@ class SQLite:
             else:
                 return False
             
-    def load_data_to_tables(self, table_names, corpus, is_corpus_tagged, stopwords, inner_stopwords, linguistic_patterns, evaluation_terms, tsr_terms, exclusion_regexes, external_terms):
+    def load_data_to_tables(self, table_names, corpus, is_corpus_tagged, stopwords, inner_stopwords, linguistic_patterns, evaluation_terms, external_terms):
 
         loaders = {}
 
