@@ -99,6 +99,17 @@ class Results:
         self._extractor._sqlite.delete_candidate_terms()
         self._extractor._sqlite.insert_candidate_terms(filtered_terms)
         self._terms = filtered_terms
+
+    def lemmatize(self, verbose=False):
+
+        candidate_terms = self._terms
+
+        filtered_terms = self._methodology.processor.lemmatize(candidate_terms=candidate_terms, verbose=verbose)
+        
+        self._extractor._sqlite.delete_candidate_terms()
+        self._extractor._sqlite.insert_candidate_terms(filtered_terms)
+        self._terms = filtered_terms
+
   
     def tsr(self, tsr_terms=None, type=None, max_iterations=10000000000, verbose=True):
         '''

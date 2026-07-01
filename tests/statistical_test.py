@@ -7,8 +7,7 @@ extractor = Extractor(
     methodology=StatisticalMethodology(
         nmin=2,
         nmax=3,
-        case_normalization=True,
-        lemmatization=False
+        case_normalization=True
     ),
     project_name="statistical-example",
     corpus="Mental_disorder.txt",

@@ -238,12 +238,12 @@ class SQLite:
         
         if isinstance(tsr_terms, list):
             data = [(tsr_term,) for tsr_term in tsr_terms]
-            # print("TSR terms loaded")
+            print("TSR terms loaded")
 
         else: 
             with open(tsr_terms, "r", encoding=encoding) as f:
                 data = [(line.rstrip(),) for line in f]        
-            # print("TSR terms loaded")
+            print("TSR terms loaded from file")
 
         with self.conn:
             self.cur.executemany('INSERT INTO tsr_terms (tsr_term) VALUES (?)',data)

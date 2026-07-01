@@ -2,15 +2,20 @@ from ..utils.utils import get_model_from_code
 
 class Processor:
 
-    '''Manages the text preprocessing pipeline for terminology extraction. This class provides methods for tokenizing text segments, applying case and nest normalizations, and filtering candidate terms using stopwords and regular expressions.
+    '''Manages the text preprocessing pipeline for terminology extraction. This class provides methods for tokenizing text segments, applying lemmatization, case and nest normalizations, and filtering candidate terms using stopwords and regular expressions.
 
     Attributes:
         stopwords (list/set): A collection of standard words to filter out.
-        inner_stopwords (list/set): A collection of words to filter out when found inside a term.   
+        inner_stopwords (list/set): A collection of words to filter out when found inside a term.
+        nmin (int): The minimum number of words a candidate term can contain.
+        nmax (int): The maximum number a candidate term can contain.
+        lang_code: The ISO code for the language.
+        nlp: The NLP pipeline or model used for text processing.
+        
+        
     '''
 
     def __init__(self):
-
         self.stopwords = None
         self.inner_stopwords = None
         self.nmin = None
@@ -53,17 +58,24 @@ class Processor:
 
         return normalized_terms
     
-    def lemmatization(self, candidate_terms, verbose=True):
+    def lemmatize(self, candidate_terms, verbose=False):
+        '''
+        Performs lemmatization. Applies lemmatization to all candidate terms and merges duplicates by summing their frequencies.
 
-        import stanza
-
+        Args:
+          candidate_terms: a list of tuple containing the candidate terms 
+          verbose: If True, enables detailed logging. Defaults to False.
+        
+        Returns:
+          normalized_terms: A new list of tuple after applying lemmatization.
+        '''
+        import spacy 
         if self.nlp is None:
-            print(f"Initializing Stanza Pipeline for language: {self.lang_code}")
+            model_name = get_model_from_code(self.lang_code)
 
-            self.nlp = stanza.Pipeline(
-                lang=self.lang_code, 
-                processors='tokenize,mwt,pos,lemma',
-                verbose=False)
+            config = {"components": {"lemmatizer": {"mode": "rule"}}}
+            self.nlp = spacy.load(model_name, config=config)
+    
 
         print("Applying lemmatization")
         freq_dict = {}
@@ -74,7 +86,7 @@ class Processor:
 
             doc = self.nlp(term)
 
-            lemmatized_term = " ".join([word.lemma.lower().strip() for sentence in doc.sentences for word in sentence.words])
+            lemmatized_term = " ".join([token.lemma_.strip() for token in doc])
 
             freq_dict[lemmatized_term] = freq_dict.get(lemmatized_term, 0) + freq
 
@@ -89,6 +101,7 @@ class Processor:
                 print(f"{lemma} -> {freq}")
 
         return normalized_terms
+        
     
     def nest_normalization(self, candidate_terms, percent=10, verbose=False):
         """
@@ -244,6 +257,16 @@ class Processor:
         return term
     
     def filter_by_stopwords_linguistic(self, term):
+        """
+        Filters a candidate term (in this case a tagged ngram) by checking for invalid stopwords. A term is rejected (returns None) if it
+        contains a standard stopword at its boundaries (start/end).
+
+        Args: 
+          term(str): The candidate term string to validate.
+        
+        Returns:
+          str or None: The original term string if it passes all stopword filters, otherwise None.
+        """
         split_term = term.lower().split()
         
         first_word = split_term[0].split("|")[1]
@@ -258,6 +281,16 @@ class Processor:
     
     # linguistic processing
     def translate_pattern(self, linguistic_patterns):
+        """
+        Translates a list of linguistic patterns into valid regular expressions.
+
+        This method processes each pattern string (or the first element of a tuple), tokenizes it by whitespace, and converts specific custom syntax elements into regex equivalents.
+
+        Args:
+           linguistic_patterns (list of str or list of tuple): A list containing the linguistic patterns to be translated. If an element is a tuple, only the first string item is processed.
+
+        Returns:
+           list of str: A list of compiled regular expression strings."""
 
         translated_patterns= []
         
@@ -287,6 +320,15 @@ class Processor:
         return translated_patterns
     
     def create_tagged_segments(self, segments):
+        """
+        Pos tags a list of text segments.
+
+        Args:
+          segment (list of str): The input text string to be processed.
+
+        Returns:
+          tagged_segments (list of str): A list of POS tagged segments.
+        """
         from ..methodology.linguistic.tagger import LinguisticTagger
 
         tagger = LinguisticTagger(get_model_from_code(self.lang_code))
@@ -302,6 +344,20 @@ class Processor:
         return tagged_segments
     
     def ngram_calculation(self, segments, is_corpus_tagged=False, minfreq=2):
+        '''
+        Calculates ngrmas and their frequencies from a list of text segments.
+
+        If the corpus is tagged, it extracts both the raw text ngrams and the tagged ngrams to use when applying the linguistic extraction.
+
+        Args:
+          segments (list) : A list of text segments to process.
+          is_corpus_tagged (bool) : If True the corpus is tagged. If False the corpus is not tagged. Defaults to False
+          min_freq(int) : The minimum frequency threshold. Only ngrams appearing at least "minfreq" times will be included in the output.
+
+        Returns:
+          -ngrams_output (list of tuple) : A list of tuples containing the ngram strings with their lenght and frequency.
+          -tagged_ngrams_output (list of tuple) : A list of tuples containing the original tagged n-grams with their length and frequency. This list remains empty if `is_corpus_tagged` is False.       
+        '''
         import nltk
         from nltk.util import ngrams as compute_ngrams
         
