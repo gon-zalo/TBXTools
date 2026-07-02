@@ -295,18 +295,17 @@ class SQLite:
                 self.cur.executemany("INSERT INTO tokenized_corpus (tokenized_segment) VALUES (?)", data)
             else:
                 self.cur.executemany("INSERT INTO corpus (segment) VALUES (?)", data)
+    
+    def insert_ngrams(self, data, tagged=False):
+        '''Inserts Ngrams and Tagged Ngrams into the database.'''
+        
+        table = "tagged_ngrams" if tagged else "ngrams"
+        column = "tagged_ngram" if tagged else "ngram"
 
-    def insert_ngrams(self, data):
-        '''Inserts Ngrams into the database.'''
-        if not self.table_is_populated("ngrams"):
+        if not self.table_is_populated(table):
+            query = f"INSERT INTO {table} ({column}, n, frequency) VALUES (?,?,?)"
             with self.conn:
-                self.cur.executemany("INSERT INTO ngrams (ngram, n, frequency) VALUES (?,?,?)", data)
-
-    def insert_tagged_ngrams(self, data):
-        '''Inserts Tagged Ngrams into the database.'''
-        if not self.table_is_populated("tagged_ngrams"):
-            with self.conn:
-                self.cur.executemany("INSERT INTO tagged_ngrams (tagged_ngram, n, frequency) VALUES (?,?,?)", data)
+                self.cur.executemany(query, data)
     
     def insert_tokens(self, data):
         '''Inserts tokens into the database'''
@@ -383,34 +382,19 @@ class SQLite:
 
         return inner_stopwords
     
-    def get_ngrams(self):
-        '''Gets the list of Ngrams from the database'''
-        ngrams = []
+    def get_ngrams(self, tagged=False):
+        '''Gets the list of Ngrams of tagged ngrams from the database'''
+        data = []
         with self.conn:
-            self.cur.execute("SELECT ngram, n, frequency FROM ngrams ORDER BY frequency DESC")
-
-            for ngram_row in self.cur.fetchall():
-                ngrams.append(ngram_row)
-
-        return ngrams
-       
-    def get_tagged_ngrams(self, ngram_filter= None): 
-        '''
-        Retrieve the list of tagged n-grams from the database.
-        If a filter is provided, it returns only the matching n-grams.
-        Otherwise, it returns all n-grams ordered by frequency in descending order.
-        '''
-        tagged_ngrams = []
-        with self.conn:
-            if ngram_filter:
-                self.cur.execute("SELECT tagged_ngram, n, frequency FROM tagged_ngrams WHERE ngram= ?", (ngram_filter,))
-            else:
+            if tagged:
                 self.cur.execute("SELECT tagged_ngram, n, frequency FROM tagged_ngrams ORDER BY frequency DESC")
+            else:
+                self.cur.execute("SELECT ngram, n, frequency FROM ngrams ORDER BY frequency DESC")
 
-            for tagged_ngram_row in self.cur.fetchall():
-                tagged_ngrams.append(tagged_ngram_row)
+            for row in self.cur.fetchall():
+                data.append(row)
 
-        return tagged_ngrams
+        return data
 
     def get_candidate_terms(self):
         '''Gets the list of candidate terms from the database'''
@@ -483,7 +467,18 @@ class SQLite:
                 labels.append(labels_row[0].split())
 
         return labels
+    
+    def delete(self, table):
+        tables = ["corpus", "ngrams", "tokens", "linguistic_patterns", "tsr_terms", "candidate_terms"] #questo si può togliere
+        
+        if table in tables: #in quel caso togli anche questa linea ovviamente
+            with self.conn:
+                query_1 = f"DELETE FROM {table}"
+                self.cur.execute(query_1)
 
+                query_2 = f"DELETE FROM sqlite_sequence WHERE name='{table}'"
+                self.cur.execute(query_2)
+  
     # DELETE METHODS
     def delete_corpus(self):
         with self.conn:

@@ -76,7 +76,7 @@ class Extractor:
             results, returned_segments = self._methodology.extract(segments=segments, tagged_segments=tagged_segments, verbose=verbose)
 
             self._sqlite.insert_segments(returned_segments, tagged=True)
-            self._sqlite.insert_tagged_ngrams(results._tagged_ngrams)
+            self._sqlite.insert_ngrams(results._tagged_ngrams, tagged=True)
             self._sqlite.insert_ngrams(results._ngrams)
             self._sqlite.insert_linguistic_patterns(self._methodology.linguistic_patterns)
 
@@ -97,7 +97,7 @@ class Extractor:
         results._extractor = self  
         results._methodology = self._methodology
 
-        self._sqlite.delete_candidate_terms() # keep an eye on this
+        self._sqlite.delete("candidate_terms") # keep an eye on this
         self._sqlite.insert_candidate_terms(results._terms)   
 
         if not results._methodology.name:
