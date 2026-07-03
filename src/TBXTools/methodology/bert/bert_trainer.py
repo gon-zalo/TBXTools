@@ -22,9 +22,13 @@ class BertTrainer:
 
         self.model_name = model or "distilbert/distilbert-base-multilingual-cased"
         self.name = "BertTrainer"
-        self.labels = labels.lower()
+        self._labels = labels.lower() or "bio"
+        self._processor = BertProcessor(model_name=self.model_name)
+        self._labels_list = self._processor.choose_labels(labels=self._labels)
         self._seed = 123
 
+        self._label2id = {l: i for i, l in enumerate(self._labels_list)}
+        self._id2label = {i: l for l, i in self._label2id.items()}
         # self.training_args = training_args or self.default_args
         # self.default_args = {"lr": 5e-05, "batch_size": 16, "epochs": 3, "weight_decay": 0.03}
 
@@ -33,18 +37,20 @@ class BertTrainer:
         self.epochs = epochs or 3
         self.weight_decay = weight_decay or 0.01
 
-        self._processor = BertProcessor(model_name=self.model_name)
         self._sqlite = SQLite(
             project_name=project_name, 
             corpus=corpus, 
             overwrite_project=overwrite_project, 
             external_terms=external_terms)
+        
+        self._eval_data = None
 
-    def train(self, save_as=None, split=False):
+    def train(self, sample, save_as=None, split=False):
         '''
-        Fine-tunes the chosen model for automatic terminology extraction. It annotates the data with the chosen labels and then fine-tunes the model on said data. The model is finally saved to disk.
+        Fine-tunes the chosen model for automatic terminology extraction. It annotates the data with the chosen labels and then fine-tunes the model on said data. The model is saved to disk afterwards.
 
         Args:
+            sample (int, optional): Number of sentences to randomly sample out of the corpus. Useful for testing purposes
             save_as (str, optional): Path of the model to save to disk. Defaults to 'fine-tuned-bert'
             split (bool, optional): If True, it splits the data in train and eval.
         '''
@@ -56,31 +62,29 @@ class BertTrainer:
         set_seed(self._seed)
 
         print(f'\nInitializing model:  {self.model_name}', flush=True)
-        tokenizer = self._processor.tokenizer
-        labels = self._processor.choose_labels(labels=self.labels)
-        label2id = {l: i for i, l in enumerate(labels)}
-        id2label = {i: l for l, i in label2id.items()}
         self._processor.load_transformers()
+        tokenizer = self._processor.tokenizer
+        # labels = self._processor.choose_labels(labels=self._labels)
 
-        # if not overwrite
+        # if not overwrite,
+        # need to fix this, it wont work now
         if self._sqlite.overwrite_project == False:
             dataframe = self._fetch_data_from_db()
 
         else:
-            dataframe = self._prepare_training_data()
+            dataframe = self._prepare_train_data(sample=sample, label2id=self._label2id, split=split)
 
         device = torch.device("cuda")
         model = BertForTokenClassification.from_pretrained(
             self.model_name,
-            num_labels=len(labels),
-            id2label=id2label,
-            label2id=label2id).to(device)
+            num_labels=len(self._labels_list),
+            id2label=self._id2label,
+            label2id=self._label2id).to(device)
 
         data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer)
 
         if not split:
-            dataframe = Dataset.from_pandas(dataframe)
-            dataframe = dataframe.map(self._processor.prepare_pretokenized_inputs, batched=True)
+            train_data = Dataset.from_pandas(dataframe)
 
             training_args = TrainingArguments(
             eval_strategy="no",
@@ -96,7 +100,7 @@ class BertTrainer:
             trainer = Trainer(
                 model=model,
                 args=training_args,
-                train_dataset=dataframe,
+                train_dataset=train_data,
                 data_collator=data_collator # needed to pad the sentences
             )
         
@@ -104,11 +108,11 @@ class BertTrainer:
             print("\nSplitting training data into train (0.7) and eval (0.3)")
             train_df, eval_df = train_test_split(dataframe, test_size=0.3, random_state=self._seed)
 
-            train_df = Dataset.from_pandas(train_df)
-            eval_df = Dataset.from_pandas(eval_df)
+            train_data = Dataset.from_pandas(train_df)
+            eval_data = Dataset.from_pandas(eval_df)
 
-            train_data = train_df.map(self._processor.prepare_pretokenized_inputs, batched=True)
-            eval_data = eval_df.map(self._processor.prepare_pretokenized_inputs, batched=True)
+            # train_data = train_df.map(self._processor.preprocess_train, batched=True)
+            # eval_data = eval_df.map(self._processor.preprocess_eval, batched=True)
 
             training_args = TrainingArguments(
             eval_strategy="epoch",
@@ -120,6 +124,7 @@ class BertTrainer:
             data_seed=self._seed
             )
 
+            self._eval_data = eval_data
             trainer = Trainer(
                 model=model,
                 args=training_args,
@@ -136,42 +141,69 @@ class BertTrainer:
 
         trainer.save_model(f'{save_as}')
         print(f"Model saved as '{save_as}'")
+        
+    def _prepare_train_data(self, sample, label2id, split=False):
+        from tqdm import tqdm
+        import random
+        import pandas as pd
+        random.seed(self._seed)
+        print("\nBertTrainer initialized")
 
-    def _compute_metrics(self, p, eval_data, id2label):
-        import numpy as np
-        prediction_logits, label_ids = p # label_ids are true padded label IDs from eval_data
-        predictions = np.argmax(prediction_logits, axis=2)
+        segments = self._sqlite.get_segments()
 
-        all_pred_terms = []
-        all_true_terms = []
+        if isinstance(sample, int):
+            print(f"Sampling {sample} random sentences")
+            segments = random.sample(segments, sample)
 
-        for i in range(len(eval_data)):
-            original_tokens = eval_data[i]['abstract_tokens']
+        tokens_FD, dataframe = self._processor.preprocess_train(segments=segments)
 
-            pred_ids = predictions[i]
-            true_ids = label_ids[i]
+        self._sqlite.insert_tokens(data=tokens_FD)
 
-            reconstructed_predicted_terms = self._processor.pred_labels_to_tokens(original_tokens, pred_ids, id2label)
-            all_pred_terms.extend(reconstructed_predicted_terms)
+        tokenized_terms = self._processor.tokenize_and_tag_terms(external_terms=self._sqlite.get_external_terms())
 
-            reconstructed_true_terms = self._processor.pred_labels_to_tokens(original_tokens, true_ids, id2label)
-            all_true_terms.extend(reconstructed_true_terms)
+        dataframe = self.annotate_and_filter_segments(dataframe, tokenized_terms)
+        self._sqlite.insert_segment_labels(data=dataframe["labels"])
+        
+        # need to transform annotated labels into integers for the model training
+        labels_int = []
+        for sequence in dataframe["labels"]:
+            label_ids = []
 
-        precision, recall, f1 = self.score(all_pred_terms, all_true_terms)
+            for label in sequence:
+                label_ids.append(label2id[label])
 
-        return {"precision": precision, "recall": recall, "f1": f1}
+            labels_int.append(label_ids)
 
-    def score(self, pred_terms, true_terms): # my score func
-        pred_terms = set(pred_terms)
-        true_terms = set(true_terms)
+        dataframe["labels"] = labels_int
 
-        tp = len(pred_terms & true_terms) # common terms in both sets
+        print(f"Remaining segments: {len(dataframe)}")
 
-        precision = tp / len(pred_terms)
-        recall = tp / len(true_terms)
-        f1 = 2 * precision * recall / (precision + recall)
+        self._sqlite.insert_segments(data=dataframe["tokens"].tolist(), tagged=False, tokenized=True)
 
-        return precision, recall, f1
+        print("Annotation finished")
+        return dataframe
+    
+    def annotate_and_filter_segments(self, dataframe, tokenized_terms):
+        from tqdm import tqdm
+        print(f"\nStarting segment annotation", flush=True)
+        segment_labels = []
+        for segment in tqdm(
+            dataframe["tokens"], 
+            desc=f"Annotating segments with {self._labels.upper()} labels", 
+            total=len(dataframe)):
+            labels = self._processor.annotate(
+                segment,
+                tokenized_terms=tokenized_terms,
+            )
+            segment_labels.append(labels)
+        dataframe["labels"] = segment_labels
+
+        print(f"\nFiltering out segments that only contain '{labels[0]}' labels", flush=True)
+        # only keeping rows that contain B or I labels
+        filter = dataframe["labels"].apply(lambda seg_labels: any(label in ["B", "I"] for label in seg_labels))
+        dataframe = dataframe[filter]
+        
+        return dataframe
     
     def _fetch_data_from_db(self):
         import pandas as pd
@@ -192,47 +224,42 @@ class BertTrainer:
             return dataframe
         else:
             raise RuntimeError("Tokenized segments and/or segment labels not found in database. Create another project or overwrite the existing one using 'overwrite_project=True'")
-        
-    def _prepare_training_data(self):
-        from tqdm import tqdm
-        import random
-        random.seed(self._seed)
-        print("\nBertTrainer initialized")
 
-        segments = self._sqlite.get_segments()
+    def _compute_metrics(self, p):
+        import numpy as np
+        prediction_logits, label_ids = p # label_ids are true padded label IDs from eval_data
+        predictions = np.argmax(prediction_logits, axis=2)
 
-        # sampling 50k random sentences TEMPORARY CODE, could be an arg?
-        segments_50k = random.sample(segments, 50000)
+        all_pred_terms = []
+        all_true_terms = []
 
-        tokens_output, dataframe = self._processor.preprocess(segments=segments_50k)
+        for i in range(len(self._eval_data)):
+            text = self._eval_data[i]["text"]
+            offsets = self._eval_data[i]["offset_mapping"]
+            pred_ids = predictions[i]
+            print(pred_ids)
+            true_ids = label_ids[i]
+            print(true_ids)
+            reconstructed_predicted_terms = self._processor.pred_labels_to_text(text, offsets, pred_ids, self._id2label)
+            all_pred_terms.extend(reconstructed_predicted_terms)
 
-        self._sqlite.insert_tokens(data=tokens_output)
+            reconstructed_true_terms = self._processor.pred_labels_to_text(text, offsets, true_ids, self._id2label)
+            all_true_terms.extend(reconstructed_true_terms)
 
-        external_terms = self._sqlite.get_external_terms()
-        tokenized_terms = self._processor.tokenize_terms(external_terms=external_terms)
+        print(all_pred_terms)
+        print(all_true_terms)
+        precision, recall, f1 = self.score(all_pred_terms, all_true_terms)
 
-        print(f"\nStarting segment annotation", flush=True)
-        segment_labels = []
-        for segment in tqdm(
-            dataframe["tokenized_segments"], 
-            desc=f"Annotating segments with {self.labels.upper()} labels", 
-            total=len(dataframe)
-            ):
-            labels = self._processor.bio_tag(
-                segment,
-                tokenized_terms=tokenized_terms,
-            )
-            segment_labels.append(labels)
-        dataframe["segment_labels"] = segment_labels
+        return {"precision": precision, "recall": recall, "f1": f1}
 
-        print(f"\nFiltering out segments that only contain '{labels[0]}' labels", flush=True)
-        # only keeping rows that contain B or I labels
-        filter = dataframe["segment_labels"].apply(lambda seg_labels: any(label in ["B", "I"] for label in seg_labels))
-        dataframe = dataframe[filter]
-        print(f"Remaining segments: {len(dataframe)}")
+    def score(self, pred_terms, true_terms): # my score func
+        pred_terms = set(pred_terms)
+        true_terms = set(true_terms)
 
-        self._sqlite.insert_segments(data=dataframe["tokenized_segments"].tolist(), tagged=False, tokenized=True)
-        self._sqlite.insert_segment_labels(data=dataframe["segment_labels"])
+        tp = len(pred_terms & true_terms) # common terms in both sets
 
-        print("Annotation finished")
-        return dataframe
+        precision = tp / len(pred_terms)
+        recall = tp / len(true_terms)
+        f1 = 2 * precision * recall / (precision + recall)
+
+        return precision, recall, f1
