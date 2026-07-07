@@ -96,7 +96,7 @@ class Results:
 
         filtered_terms = self._methodology.processor.nest_normalization(candidate_terms=candidate_terms, percent=percent, verbose=verbose)
 
-        self._extractor._sqlite.delete_candidate_terms()
+        self._extractor._sqlite.delete("candidate_terms")
         self._extractor._sqlite.insert_candidate_terms(filtered_terms)
         self._terms = filtered_terms
 
@@ -106,7 +106,7 @@ class Results:
 
         filtered_terms = self._methodology.processor.lemmatize(candidate_terms=candidate_terms, verbose=verbose)
         
-        self._extractor._sqlite.delete_candidate_terms()
+        self._extractor._sqlite.delete("candidate_terms")
         self._extractor._sqlite.insert_candidate_terms(filtered_terms)
         self._terms = filtered_terms
 
@@ -137,7 +137,7 @@ class Results:
         filtered_terms = self._methodology.processor.apply_tsr_filter(tsr_terms=tsr_terms, candidate_terms=candidate_terms, type=type, max_iterations= max_iterations, verbose=verbose)
         
         self._terms = filtered_terms
-        self._extractor._sqlite.delete_candidate_terms() 
+        self._extractor._sqlite.delete("candidate_terms") 
         self._extractor._sqlite.insert_candidate_terms(self._terms)
         print(f"TSR filter completed. {len(self._terms)} candidates saved.")
             
@@ -147,25 +147,24 @@ class Results:
         '''
         print("Applying regex exclusion")
         
+        self._extractor._sqlite.load_exclusion_regexes(exclusion_regexes=regexes)
         regexes = self._extractor._sqlite.get_exclusion_regexes()
 
         if not regexes:
             print("Exclusion regexes not found. Not applying regex exclusion.")
             return
-
+        
+        candidate_terms = self._terms
+        candidates_to_exclude = self._methodology.processor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms, verbose=verbose)
+        
+        if candidates_to_exclude:
+            self._extractor._sqlite.delete_specific_candidate_term(candidates=candidates_to_exclude)
+            print(f"Excluded {len(candidates_to_exclude)} terms")
         else:
-            candidate_terms = self._sqlite.get_candidate_terms()
+            print("No candidate terms excluded")
 
-            candidates_to_exclude = self._methodology.processor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms, verbose=verbose)
-
-            if candidates_to_exclude:
-                self._sqlite.delete_specific_candidate_term(candidates=candidates_to_exclude)
-                print(f"Excluded {len(candidates_to_exclude)} terms")
-            else:
-                print("No candidate terms excluded")
-
-            filtered_terms = self._extractor._sqlite.get_candidate_terms()
-            self._terms = filtered_terms[0]
+        filtered_terms = self._extractor._sqlite.get_candidate_terms()
+        self._terms = filtered_terms
 
     def save_candidates(self, path):
         '''

@@ -69,8 +69,8 @@ class Extractor:
 
         if self._methodology.name == "LinguisticMethodology":
 
-            self._methodology.evaluation_terms = self._sqlite.get_evaluation_terms()
-            self._methodology.linguistic_patterns = self._sqlite.get_linguistic_patterns()
+            self._methodology.evaluation_terms = self._sqlite.get("evaluation_terms")
+            self._methodology.linguistic_patterns = self._sqlite.get("linguistic_patterns")
             tagged_segments = self._sqlite.get_segments(tagged=True)
 
             results, returned_segments = self._methodology.extract(segments=segments, tagged_segments=tagged_segments, verbose=verbose)

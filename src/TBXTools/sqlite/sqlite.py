@@ -336,7 +336,6 @@ class SQLite:
             with self.conn:
                 self.cur.executemany("INSERT INTO segment_labels (labels) VALUES (?)", data)
 
-
     # GET METHODS
     def get_segments(self, tagged=False, tokenized=False):
         '''Gets the segmented corpus as a list of segments from the database.'''
@@ -406,6 +405,17 @@ class SQLite:
                 candidate_terms.append(candidates_row)
 
         return candidate_terms
+    
+    #funziona per evaluation terms e linguistic patterns
+    def get(self, table):
+        column_name = table.rstrip('s') #hay que encontrar una logica mejor, que podría ser darle el mismo nombre a tabla y columna
+        items = []
+        with self.conn:
+            self.cur.execute(f"SELECT {column_name} FROM {table}")
+            for item in self.cur.fetchall():
+                items.append(item[0])
+
+        return items
         
     def get_exclusion_regexes(self):
         '''Gets the list of exclusion regexes from the database'''
@@ -418,7 +428,9 @@ class SQLite:
         
         return regexes
     
-    def get_linguistic_patterns(self):
+    #las proximas 2 no las usamos porque 
+
+    #def get_linguistic_patterns(self):
         linguistic_patterns= []
         with self.conn:
             self.cur.execute("SELECT linguistic_pattern FROM linguistic_patterns")
@@ -428,13 +440,13 @@ class SQLite:
         
         return linguistic_patterns
     
-    def get_evaluation_terms(self):
+    #def get_evaluation_terms(self):
         evaluation_terms= []
         with self.conn:
             self.cur.execute("SELECT evaluation_term FROM evaluation_terms")
 
             for evaluation_term_row in self.cur.fetchall():
-                evaluation_terms.append(evaluation_term_row[0])
+                evaluation_terms.append(evaluation_term_row)
 
         return evaluation_terms
     
@@ -469,47 +481,10 @@ class SQLite:
         return labels
     
     def delete(self, table):
-        tables = ["corpus", "ngrams", "tokens", "linguistic_patterns", "tsr_terms", "candidate_terms"] #questo si può togliere
-        
-        if table in tables: #in quel caso togli anche questa linea ovviamente
             with self.conn:
-                query_1 = f"DELETE FROM {table}"
-                self.cur.execute(query_1)
-
-                query_2 = f"DELETE FROM sqlite_sequence WHERE name='{table}'"
-                self.cur.execute(query_2)
+                self.cur.execute(f"DELETE FROM {table}")
+                self.cur.execute(f"DELETE FROM sqlite_sequence WHERE name='{table}'")
   
-    # DELETE METHODS
-    def delete_corpus(self):
-        with self.conn:
-            self.cur.execute('DELETE FROM corpus')
-            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='corpus'")
-
-    def delete_ngrams(self):
-        with self.conn:
-            self.cur.execute('DELETE FROM ngrams')
-            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='ngrams'")
-
-    def delete_tokens(self):
-        with self.conn:
-            self.cur.execute('DELETE FROM tokens')
-            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='tokens'")
-
-    def delete_linguistic_patterns(self):
-        with self.conn:
-            self.cur.execute('DELETE FROM linguistic_patterns')
-            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='linguistic_patterns'")
-
-    def delete_tsr_terms(self):
-        with self.conn:
-            self.cur.execute('DELETE FROM tsr_terms')
-            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='tsr_terms'")
-
-    def delete_candidate_terms(self):
-        with self.conn:
-            self.cur.execute("DELETE FROM candidate_terms")
-            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='candidate_terms'")
-
     def delete_specific_candidate_term(self, candidates):
         with self.conn:
             for candidate in candidates:
