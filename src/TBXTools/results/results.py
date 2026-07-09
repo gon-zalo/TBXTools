@@ -127,7 +127,7 @@ class Results:
         print("Applying TSR filter")
 
         self._extractor._sqlite.load_tsr_terms(tsr_terms=tsr_terms)
-        tsr_terms = self._extractor._sqlite.get_tsr_terms()
+        tsr_terms = self._extractor._sqlite.get("tsr_terms")
     
         if not tsr_terms:
             print("TSR terms not found. Not applying TSR filter")
@@ -148,11 +148,13 @@ class Results:
         print("Applying regex exclusion")
         
         self._extractor._sqlite.load_exclusion_regexes(exclusion_regexes=regexes)
-        regexes = self._extractor._sqlite.get_exclusion_regexes()
+        raw_regexes = self._extractor._sqlite.get("exclusion_regexes")
 
-        if not regexes:
+        if not raw_regexes:
             print("Exclusion regexes not found. Not applying regex exclusion.")
             return
+        
+        regexes = [(r,) for r in raw_regexes]
         
         candidate_terms = self._terms
         candidates_to_exclude = self._methodology.processor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms, verbose=verbose)

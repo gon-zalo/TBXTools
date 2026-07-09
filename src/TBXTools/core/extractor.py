@@ -114,8 +114,8 @@ class Extractor:
         '''
         if isinstance(stopwords_list, list):
             self._sqlite.add_stopwords(stopwords_list=stopwords_list)
-            self._methodology.processor.stopwords = self._sqlite.get_stopwords() # updating the attribute of the class
-            self.stopwords = self._sqlite.get_stopwords()
+            self._methodology.processor.stopwords = self._sqlite.get("stopwords") # updating the attribute of the class
+            self.stopwords = self._sqlite.get("stopwords")
 
     def add_inner_stopwords(self, inner_stopwords_list):
         '''
@@ -126,8 +126,8 @@ class Extractor:
         '''
         if isinstance(inner_stopwords_list, list):
             self._sqlite.add_inner_stopwords(inner_stopwords_list=inner_stopwords_list)
-            self._methodology.processor.inner_stopwords = self._sqlite.get_inner_stopwords()
-            self.inner_stopwords = self._sqlite.get_inner_stopwords()
+            self._methodology.processor.inner_stopwords = self._sqlite.get("inner_stopwords")
+            self.inner_stopwords = self._sqlite.get("inner_stopwords")
 
     def train_bert(self, trainer: BertTrainer) -> None:
         # from ..methodology.bert.bert_trainer import BertTrainer

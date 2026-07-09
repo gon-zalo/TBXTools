@@ -358,28 +358,6 @@ class SQLite:
                 segments.append(segment)
         
         return segments
-
-    def get_stopwords(self):
-        '''Gets the list of stopwords from the database'''
-        stopwords = []
-        with self.conn:
-            self.cur.execute("SELECT stopword FROM stopwords")
-
-            for stopword in self.cur.fetchall():
-                stopwords.append(stopword[0])
-
-        return stopwords
-    
-    def get_inner_stopwords(self):
-        '''Gets the list of inner stopwords from the database'''
-        inner_stopwords = []
-        with self.conn:
-            self.cur.execute("SELECT inner_stopword FROM inner_stopwords")
-
-            for inner_stopword in self.cur.fetchall():
-                inner_stopwords.append(inner_stopword[0])
-
-        return inner_stopwords
     
     def get_ngrams(self, tagged=False):
         '''Gets the list of Ngrams of tagged ngrams from the database'''
@@ -406,9 +384,14 @@ class SQLite:
 
         return candidate_terms
     
-    #funziona per evaluation terms e linguistic patterns
     def get(self, table):
-        column_name = table.rstrip('s') #hay que encontrar una logica mejor, que podría ser darle el mismo nombre a tabla y columna
+
+        exception = {"exclusion_regexes" : "exclusion_regex"} #hay que encontrar una logica mejor, que podría ser darle el mismo nombre a tabla y columna
+        if table in exception:
+            column_name = exception[table]
+        else:
+            column_name = table.rstrip('s') 
+
         items = []
         with self.conn:
             self.cur.execute(f"SELECT {column_name} FROM {table}")
@@ -416,51 +399,9 @@ class SQLite:
                 items.append(item[0])
 
         return items
-        
-    def get_exclusion_regexes(self):
-        '''Gets the list of exclusion regexes from the database'''
-        regexes = []
-        with self.conn:
-            self.cur.execute("SELECT exclusion_regex FROM exclusion_regexes")
-
-            for regexes_row in self.cur.fetchall():
-                regexes.append(regexes_row)
-        
-        return regexes
+       
     
-    #las proximas 2 no las usamos porque 
-
-    #def get_linguistic_patterns(self):
-        linguistic_patterns= []
-        with self.conn:
-            self.cur.execute("SELECT linguistic_pattern FROM linguistic_patterns")
-
-            for lingpattern_row in self.cur.fetchall():
-                linguistic_patterns.append(lingpattern_row)
-        
-        return linguistic_patterns
-    
-    #def get_evaluation_terms(self):
-        evaluation_terms= []
-        with self.conn:
-            self.cur.execute("SELECT evaluation_term FROM evaluation_terms")
-
-            for evaluation_term_row in self.cur.fetchall():
-                evaluation_terms.append(evaluation_term_row)
-
-        return evaluation_terms
-    
-    def get_tsr_terms(self):
-        tsr_terms= []
-        with self.conn:
-            self.cur.execute("SELECT tsr_term FROM tsr_terms")
-
-            for tsr_term_row in self.cur.fetchall():
-                tsr_terms.append(tsr_term_row[0])
-
-        return tsr_terms
-    
-    def get_external_terms(self):
+    def get_external_terms(self): 
         external_terms= []
         with self.conn:
             self.cur.execute("SELECT external_term FROM external_terms")
