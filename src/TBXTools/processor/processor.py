@@ -24,7 +24,7 @@ class Processor:
         self.nlp = None
 
     
-    def case_normalization(self, candidate_terms, verbose=True): 
+    def case_normalization(self, candidate_terms, verbose=False): 
         '''
         Performs case normalization. If a capitalized term exists as non-capitalized, the capitalized one will be deleted and the frequency of the non-capitalized one will be increased by the frequency of the capitalized.
 
