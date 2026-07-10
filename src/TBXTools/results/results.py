@@ -188,3 +188,5 @@ class Results:
 
         else:
             raise ValueError(f"Unsupported format '{extension}'. Supported formats: .txt, .csv, .xlsx")
+        
+        print(f"Candidate terms saved to disk", flush=True)
