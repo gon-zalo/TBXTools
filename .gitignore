@@ -11,3 +11,8 @@ tmp_trainer/
 tests/*.csv
 tests/bert-model-test
 .vscode
+tests/trainer_output
+tests/*-test
+tests/wmt*
+tests/clean_iate.py
+tests/hp_tuning.sh

@@ -2,7 +2,7 @@ from ..sqlite import SQLite
 from ..results import Results
 from ..resources import Resources
 from ..utils.utils import get_lang
-from ..methodology.bert.bert_trainer import BertTrainer
+from ..methodology.bert.trainer.trainer import BertTrainer
 
 class Extractor:
     """

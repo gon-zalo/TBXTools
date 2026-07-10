@@ -170,6 +170,8 @@ Once the terms have been extracted, we can perform other methods like the follow
 ```python
 results.nest_normalization(verbose=False)
 
+results.lemmatization(verbose=False)
+
 results.regex_exclusion(exclusion_regexes="regexes.txt", verbose=False)
 # The 'exclusion_regexes' arg accepts a text file or a Python list, e.g. regexes = [".+ health", ".+ diseases"]
 

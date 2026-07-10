@@ -20,7 +20,7 @@ results = extractor.extract(verbose=False)
 
 results.regex_exclusion(regexes=regexes, verbose=False)
 results.nest_normalization(verbose=False)
-results.lemmatize(verbose=False)
+results.lemmatization(verbose=False)
 #results.save_candidates("statistical-candidates.txt")
 
 # Results can be inspected with the following methods:
@@ -54,7 +54,7 @@ extractor = Extractor(
 results = extractor.extract(verbose=False)
 
 results.nest_normalization(verbose=False)
-results.lemmatize(verbose=False)
+results.lemmatization(verbose=False)
 #results.tsr(tsr_terms=tsr_terms, type="strict", max_iterations=10, verbose=False)
 all_terms = results.terms(limit=None)
 print(f"\nNumber of terms: {len(all_terms)}. Expected number: 114") 
