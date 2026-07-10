@@ -247,12 +247,12 @@ class SQLite:
         
         if isinstance(tsr_terms, list):
             data = [(tsr_term,) for tsr_term in tsr_terms]
-            # print("TSR terms loaded")
+            print("TSR terms loaded")
 
         else: 
             with open(tsr_terms, "r", encoding=encoding) as f:
                 data = [(line.rstrip(),) for line in f]        
-            # print("TSR terms loaded")
+            print("TSR terms loaded from file")
 
         with self.conn:
             self.cur.executemany('INSERT INTO tsr_terms (tsr_term) VALUES (?)',data)
@@ -304,18 +304,17 @@ class SQLite:
                 self.cur.executemany("INSERT INTO tokenized_corpus (tokenized_segment) VALUES (?)", data)
             else:
                 self.cur.executemany("INSERT INTO corpus (segment) VALUES (?)", data)
+    
+    def insert_ngrams(self, data, tagged=False):
+        '''Inserts Ngrams and Tagged Ngrams into the database.'''
+        
+        table = "tagged_ngrams" if tagged else "ngrams"
+        column = "tagged_ngram" if tagged else "ngram"
 
-    def insert_ngrams(self, data):
-        '''Inserts Ngrams into the database.'''
-        if not self.table_is_populated("ngrams"):
+        if not self.table_is_populated(table):
+            query = f"INSERT INTO {table} ({column}, n, frequency) VALUES (?,?,?)"
             with self.conn:
-                self.cur.executemany("INSERT INTO ngrams (ngram, n, frequency) VALUES (?,?,?)", data)
-
-    def insert_tagged_ngrams(self, data):
-        '''Inserts Tagged Ngrams into the database.'''
-        if not self.table_is_populated("tagged_ngrams"):
-            with self.conn:
-                self.cur.executemany("INSERT INTO tagged_ngrams (tagged_ngram, n, frequency) VALUES (?,?,?)", data)
+                self.cur.executemany(query, data)
     
     def insert_tokens(self, data):
         '''Inserts tokens into the database'''
@@ -411,57 +410,20 @@ class SQLite:
                 segments.append(segment)
         
         return segments
-
-    def get_stopwords(self):
-        '''Gets the list of stopwords from the database'''
-        stopwords = []
-        with self.conn:
-            self.cur.execute("SELECT stopword FROM stopwords")
-
-            for stopword in self.cur.fetchall():
-                stopwords.append(stopword[0])
-
-        return stopwords
     
-    def get_inner_stopwords(self):
-        '''Gets the list of inner stopwords from the database'''
-        inner_stopwords = []
+    def get_ngrams(self, tagged=False):
+        '''Gets the list of Ngrams of tagged ngrams from the database'''
+        data = []
         with self.conn:
-            self.cur.execute("SELECT inner_stopword FROM inner_stopwords")
-
-            for inner_stopword in self.cur.fetchall():
-                inner_stopwords.append(inner_stopword[0])
-
-        return inner_stopwords
-    
-    def get_ngrams(self):
-        '''Gets the list of Ngrams from the database'''
-        ngrams = []
-        with self.conn:
-            self.cur.execute("SELECT ngram, n, frequency FROM ngrams ORDER BY frequency DESC")
-
-            for ngram_row in self.cur.fetchall():
-                ngrams.append(ngram_row)
-
-        return ngrams
-       
-    def get_tagged_ngrams(self, ngram_filter= None): 
-        '''
-        Retrieve the list of tagged n-grams from the database.
-        If a filter is provided, it returns only the matching n-grams.
-        Otherwise, it returns all n-grams ordered by frequency in descending order.
-        '''
-        tagged_ngrams = []
-        with self.conn:
-            if ngram_filter:
-                self.cur.execute("SELECT tagged_ngram, n, frequency FROM tagged_ngrams WHERE ngram= ?", (ngram_filter,))
-            else:
+            if tagged:
                 self.cur.execute("SELECT tagged_ngram, n, frequency FROM tagged_ngrams ORDER BY frequency DESC")
+            else:
+                self.cur.execute("SELECT ngram, n, frequency FROM ngrams ORDER BY frequency DESC")
 
-            for tagged_ngram_row in self.cur.fetchall():
-                tagged_ngrams.append(tagged_ngram_row)
+            for row in self.cur.fetchall():
+                data.append(row)
 
-        return tagged_ngrams
+        return data
 
     def get_candidate_terms(self):
         '''Gets the list of candidate terms from the database'''
@@ -473,49 +435,25 @@ class SQLite:
                 candidate_terms.append(candidates_row)
 
         return candidate_terms
-        
-    def get_exclusion_regexes(self):
-        '''Gets the list of exclusion regexes from the database'''
-        regexes = []
-        with self.conn:
-            self.cur.execute("SELECT exclusion_regex FROM exclusion_regexes")
-
-            for regexes_row in self.cur.fetchall():
-                regexes.append(regexes_row)
-        
-        return regexes
     
-    def get_linguistic_patterns(self):
-        linguistic_patterns= []
+    def get(self, table):
+
+        exception = {"exclusion_regexes" : "exclusion_regex"} #hay que encontrar una logica mejor, que podría ser darle el mismo nombre a tabla y columna
+        if table in exception:
+            column_name = exception[table]
+        else:
+            column_name = table.rstrip('s') 
+
+        items = []
         with self.conn:
-            self.cur.execute("SELECT linguistic_pattern FROM linguistic_patterns")
+            self.cur.execute(f"SELECT {column_name} FROM {table}")
+            for item in self.cur.fetchall():
+                items.append(item[0])
 
-            for lingpattern_row in self.cur.fetchall():
-                linguistic_patterns.append(lingpattern_row)
-        
-        return linguistic_patterns
+        return items
+       
     
-    def get_evaluation_terms(self):
-        evaluation_terms= []
-        with self.conn:
-            self.cur.execute("SELECT evaluation_term FROM evaluation_terms")
-
-            for evaluation_term_row in self.cur.fetchall():
-                evaluation_terms.append(evaluation_term_row[0])
-
-        return evaluation_terms
-    
-    def get_tsr_terms(self):
-        tsr_terms= []
-        with self.conn:
-            self.cur.execute("SELECT tsr_term FROM tsr_terms")
-
-            for tsr_term_row in self.cur.fetchall():
-                tsr_terms.append(tsr_term_row[0])
-
-        return tsr_terms
-    
-    def get_external_terms(self):
+    def get_external_terms(self): 
         external_terms= []
         with self.conn:
             self.cur.execute("SELECT external_term FROM external_terms")
@@ -537,49 +475,11 @@ class SQLite:
 
         return labels
     
-    def get_lemmatized_corpus(self):
-        '''Gets the lemmatized corpus as a list of segments from the database.'''
-        segments = []
-        with self.conn:
-            self.cur.execute("SELECT lemmatized_segment from lemmatized_corpus")
-                
-            for row in self.cur.fetchall():
-                segment = row[0].split()
-                segments.append(segment)
-        
-        return segments
-
-    # DELETE METHODS
-    def delete_corpus(self):
-        with self.conn:
-            self.cur.execute('DELETE FROM corpus')
-            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='corpus'")
-
-    def delete_ngrams(self):
-        with self.conn:
-            self.cur.execute('DELETE FROM ngrams')
-            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='ngrams'")
-
-    def delete_tokens(self):
-        with self.conn:
-            self.cur.execute('DELETE FROM tokens')
-            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='tokens'")
-
-    def delete_linguistic_patterns(self):
-        with self.conn:
-            self.cur.execute('DELETE FROM linguistic_patterns')
-            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='linguistic_patterns'")
-
-    def delete_tsr_terms(self):
-        with self.conn:
-            self.cur.execute('DELETE FROM tsr_terms')
-            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='tsr_terms'")
-
-    def delete_candidate_terms(self):
-        with self.conn:
-            self.cur.execute("DELETE FROM candidate_terms")
-            self.cur.execute("DELETE FROM sqlite_sequence WHERE name='candidate_terms'")
-
+    def delete(self, table):
+            with self.conn:
+                self.cur.execute(f"DELETE FROM {table}")
+                self.cur.execute(f"DELETE FROM sqlite_sequence WHERE name='{table}'")
+  
     def delete_specific_candidate_term(self, candidates):
         with self.conn:
             for candidate in candidates:

@@ -69,14 +69,14 @@ class Extractor:
 
         if self._methodology.name == "LinguisticMethodology":
 
-            self._methodology.evaluation_terms = self._sqlite.get_evaluation_terms()
-            self._methodology.linguistic_patterns = self._sqlite.get_linguistic_patterns()
-            tagged_segments = self._sqlite.get_segments(is_corpus_tagged=True)
+            self._methodology.evaluation_terms = self._sqlite.get("evaluation_terms")
+            self._methodology.linguistic_patterns = self._sqlite.get("linguistic_patterns")
+            tagged_segments = self._sqlite.get_segments(tagged=True)
 
             results, returned_segments = self._methodology.extract(segments=segments, tagged_segments=tagged_segments, verbose=verbose)
 
             self._sqlite.insert_segments(returned_segments, tagged=True)
-            self._sqlite.insert_tagged_ngrams(results._tagged_ngrams)
+            self._sqlite.insert_ngrams(results._tagged_ngrams, tagged=True)
             self._sqlite.insert_ngrams(results._ngrams)
             self._sqlite.insert_linguistic_patterns(self._methodology.linguistic_patterns)
 
@@ -97,7 +97,7 @@ class Extractor:
         results._extractor = self  
         results._methodology = self._methodology
 
-        self._sqlite.delete_candidate_terms() # keep an eye on this
+        self._sqlite.delete("candidate_terms") # keep an eye on this
         self._sqlite.insert_candidate_terms(results._terms)   
 
         if not results._methodology.name:
@@ -114,8 +114,8 @@ class Extractor:
         '''
         if isinstance(stopwords_list, list):
             self._sqlite.add_stopwords(stopwords_list=stopwords_list)
-            self._methodology.processor.stopwords = self._sqlite.get_stopwords() # updating the attribute of the class
-            self.stopwords = self._sqlite.get_stopwords()
+            self._methodology.processor.stopwords = self._sqlite.get("stopwords") # updating the attribute of the class
+            self.stopwords = self._sqlite.get("stopwords")
 
     def add_inner_stopwords(self, inner_stopwords_list):
         '''
@@ -126,8 +126,8 @@ class Extractor:
         '''
         if isinstance(inner_stopwords_list, list):
             self._sqlite.add_inner_stopwords(inner_stopwords_list=inner_stopwords_list)
-            self._methodology.processor.inner_stopwords = self._sqlite.get_inner_stopwords()
-            self.inner_stopwords = self._sqlite.get_inner_stopwords()
+            self._methodology.processor.inner_stopwords = self._sqlite.get("inner_stopwords")
+            self.inner_stopwords = self._sqlite.get("inner_stopwords")
 
     def train_bert(self, trainer: BertTrainer) -> None:
         # from ..methodology.bert.bert_trainer import BertTrainer
