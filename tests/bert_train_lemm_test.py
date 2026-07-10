@@ -1,6 +1,5 @@
 from TBXTools import BertTrainer
 
-# polish models
 biobert = 'dmis-lab/biobert-base-cased-v1.2'
 herbert = "allegro/herbert-base-cased"
 herbert_large = "allegro/herbert-large-cased"
@@ -9,10 +8,8 @@ polish_roberta = "sdadas/polish-roberta-base-v2"
 distilbert = "distilbert/distilbert-base-multilingual-cased"
 pl_distilbert = "Geotrend/distilbert-base-pl-cased"
 
-# english models
 bert = "google-bert/bert-base-cased"
 
-# data
 engineering_en = "wmt26/corpora/corpus-engineering-and-technology-en.txt"
 terms_engineering_en = "wmt26/terms/terms-engineering-and-technology-en.txt"
 
@@ -20,10 +17,10 @@ medicine_en = "wmt26/corpora/corpus-medicine-en.txt"
 terms_medicine_en = "wmt26/terms/terms-medicine-en.txt"
 
 trainer = BertTrainer(
-    project_name="bert-train-engitech-en",
+    project_name="bert-train-test-lemmatize",
     corpus=medicine_en,
     overwrite_project=False,
-    model="distilbert/distilbert-base-multilingual-cased",
+    model=bert,
     external_terms=terms_medicine_en, 
     labels="bio",
     lr=5e-05,
@@ -31,4 +28,4 @@ trainer = BertTrainer(
     epochs=6,
     weight_decay=0.03)
 
-trainer.train(sample=5000, save_as='wmt-engitech-lemmfalse-en', split=True, lemmatize=False)
+trainer.train(sample=100, save_as=None, split=True, lemmatize=True)
