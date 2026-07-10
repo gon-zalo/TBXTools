@@ -100,11 +100,11 @@ class Results:
         self._extractor._sqlite.insert_candidate_terms(filtered_terms)
         self._terms = filtered_terms
 
-    def lemmatize(self, verbose=False):
+    def lemmatization(self, verbose=False):
 
         candidate_terms = self._terms
 
-        filtered_terms = self._methodology.processor.lemmatize(candidate_terms=candidate_terms, verbose=verbose)
+        filtered_terms = self._methodology.processor.lemmatization(candidate_terms=candidate_terms, verbose=verbose)
         
         self._extractor._sqlite.delete("candidate_terms")
         self._extractor._sqlite.insert_candidate_terms(filtered_terms)
