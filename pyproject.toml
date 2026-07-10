@@ -16,7 +16,8 @@ dependencies = [
     "openpyxl",
     "spacy",
     "scikit-learn",
-    "datasets"
+    "datasets",
+    "optuna"
 ]
 
 [tool.setuptools.packages.find]

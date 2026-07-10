@@ -58,7 +58,7 @@ class Processor:
 
         return normalized_terms
     
-    def lemmatize(self, candidate_terms, verbose=False):
+    def lemmatization(self, candidate_terms, verbose=False):
         '''
         Performs lemmatization. Applies lemmatization to all candidate terms and merges duplicates by summing their frequencies.
 
