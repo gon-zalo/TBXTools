@@ -14,3 +14,5 @@ tests/bert-model-test
 tests/trainer_output
 tests/*-test
 tests/wmt*
+tests/clean_iate.py
+tests/hp_tuning.sh
