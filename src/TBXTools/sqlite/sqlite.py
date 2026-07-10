@@ -85,14 +85,23 @@ class SQLite:
             self.cur.execute("CREATE TABLE tagged_ngrams (id INTEGER PRIMARY KEY AUTOINCREMENT, tagged_ngram TEXT, n INTEGER, frequency INTEGER)")
             self.cur.execute("CREATE TABLE tagged_corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, tagged_segment TEXT)")
             self.cur.execute("CREATE TABLE evaluation_terms(id INTEGER PRIMARY KEY AUTOINCREMENT, evaluation_term TEXT)")
-            self.cur.execute("CREATE TABLE segment_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, labels TEXT)") 
+            self.cur.execute("CREATE TABLE segment_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, labels TEXT)")
+            self.cur.execute("CREATE TABLE lemmatized_corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, lemmatized_segment TEXT)")
+
+
+            # self.cur.execute("CREATE TABLE BERT( \
+            # id INTEGER PRIMARY KEY AUTOINCREMENT,  \
+            # labels TEXT, \
+            # input_ids BLOB NOT NULL, \
+            # attention_mask BLOB NOT NULL, \
+            # offset_mapping BLOB, \
+            # lemmatized BOOLEAN NOT NULL CHECK (lemmatized IN (0, 1)))") 
 
     def open_project(self,project_name):
         '''Opens an existing project. If the project doesn't exist it raises an exception.'''
 
         project_name = self.add_extension(project_name)
         print(f"Opening project: {project_name}", flush=True)
-        print(f"Accesing data", flush=True)
 
         if not os.path.isfile(project_name):
                 raise Exception("Project not found")
@@ -281,9 +290,9 @@ class SQLite:
                 self.cur.executemany('INSERT INTO external_terms (external_term) VALUES (?)', data)
 
     # INSERT METHODS
-    def insert_segments(self, data, tagged=False, tokenized=False):
+    def insert_segments(self, data, tagged=False, tokenized=False, in_list_of_lists=False):
         '''Inserts the segmented corpus into the database.'''
-        if tokenized:
+        if in_list_of_lists:
             data = [" ".join(segment) for segment in data]
         
         data = [(segment,) for segment in data]
@@ -332,14 +341,56 @@ class SQLite:
 
     def insert_segment_labels(self, data):
         '''Insert segment labels to train BERT models into the database.'''
-        data = [(" ".join(labels),) for labels in data]
+        data= data.apply(lambda lst: [str(x) for x in lst])
+        data = [(" ".join(labels),) for labels in data] # use when strings
         if not self.table_is_populated("segment_labels"):
             with self.conn:
                 self.cur.executemany("INSERT INTO segment_labels (labels) VALUES (?)", data)
 
+    def insert_lemmatized_corpus(self, data):
+        '''Inserts lemmas into the database'''
+        data = [" ".join(segment) for segment in data]
+
+        data = [(segment,) for segment in data]
+        if not self.table_is_populated("lemmatized_corpus"):
+            with self.conn:
+                self.cur.executemany("INSERT INTO lemmatized_corpus (lemmatized_segment) VALUES (?)", data)
+
+    def insert_bert_data(self, df, lemmatize):
+        '''Insert dataframe data obtained after processing with BERT models'''
+        import numpy as np
+        rows = []
+        for _, row in df.iterrows():
+            rows.append((
+                np.asarray(row["input_ids"], dtype=np.int32).tobytes(),
+                np.asarray(row["attention_mask"], dtype=np.uint8).tobytes(),
+                np.asarray(row["offset_mapping"], dtype=np.int32).tobytes() if  "offset_mapping" in df.columns else None,
+                np.asarray(row["labels"], dtype=np.uint8).tobytes(),
+                int(lemmatize)
+            ))
+
+        with self.conn:
+            self.cur.executemany(
+                "INSERT INTO BERT (input_ids, attention_mask, offset_mapping, labels,lemmatized) VALUES (?, ?, ?, ?, ?)",rows)
+            
+    def get_bert_data(self):
+        self.cur.execute("SELECT id, input_ids, attention_mask, offset_mapping, labels, lemmatized FROM BERT")
+        import numpy as np
+        import pandas as pd
+        rows = self.cur.fetchall()
+
+        data = []
+        for row in rows:
+            data.append({
+                "attention_mask": np.frombuffer(row[2], dtype=np.uint8).tolist(),
+                "offset_mapping": np.frombuffer(row[3], dtype=np.int32).reshape(-1, 2).tolist() if row[3] is not None else None,
+                "labels": np.frombuffer(row[4], dtype=np.uint8).tolist(),
+                "lemmatize": bool(row[5])})
+
+        return pd.DataFrame(data)
 
     # GET METHODS
-    def get_segments(self, tagged=False, tokenized=False):
+    def get_segments(self, tagged=False, tokenized=False, to_list=False):
         '''Gets the segmented corpus as a list of segments from the database.'''
         segments = []
         with self.conn:
@@ -353,7 +404,7 @@ class SQLite:
                 self.cur.execute("SELECT segment from corpus")
                 
             for row in self.cur.fetchall():
-                if tokenized:
+                if to_list:
                     segment = row[0].split()
                 else:
                     segment = row[0]
@@ -480,9 +531,23 @@ class SQLite:
             self.cur.execute("SELECT labels FROM segment_labels")
 
             for labels_row in self.cur.fetchall():
-                labels.append(labels_row[0].split())
+                # labels.append(labels_row[0].split())
+                int_list = [int(label) for label in labels_row[0].split()] # turning str back into ints
+                labels.append(int_list)
 
         return labels
+    
+    def get_lemmatized_corpus(self):
+        '''Gets the lemmatized corpus as a list of segments from the database.'''
+        segments = []
+        with self.conn:
+            self.cur.execute("SELECT lemmatized_segment from lemmatized_corpus")
+                
+            for row in self.cur.fetchall():
+                segment = row[0].split()
+                segments.append(segment)
+        
+        return segments
 
     # DELETE METHODS
     def delete_corpus(self):
