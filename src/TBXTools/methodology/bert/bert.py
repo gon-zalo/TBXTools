@@ -3,6 +3,7 @@ from ...results import Results
 from ...processor.bert import BertProcessor
 from transformers import logging
 from collections import Counter
+from tqdm import tqdm
 
 logging.set_verbosity_error()
 
@@ -19,11 +20,11 @@ class BertMethodology(BaseMethodology):
         self.name = "BertMethodology"
         self.model_name = model
 
-        self._processor = BertProcessor(model_name=self.model_name)
+        self.processor = BertProcessor(model_name=self.model_name)
         self.labels = labels.lower() if labels else None
 
         
-    def extract(self, segments, verbose):
+    def extract(self, segments, verbose, lemmatize=False):
         '''
         Extracts candidate terms using BERT. This methodology uses a previously fine-tuned model on automatically annotated data to predict labels for each token of the evaluation data.
 
@@ -37,59 +38,64 @@ class BertMethodology(BaseMethodology):
         from datasets import Dataset
         import numpy as np
 
-        self._processor.load_transformers()
-        tokens_output, tokenized_corpus_for_sqlite, dataframe = self._processor.preprocess(segments=segments, verbose=verbose)
-        labels = self._processor.choose_labels(self.labels)
+        print(f'\nInitializing model:  {self.model_name}', flush=True)
+        self.processor.load_transformers()
+
+        dataframe = self.processor.preprocess_eval(segments=segments, lemmatize=lemmatize)
+        
+        labels = self.processor.choose_labels(self.labels)
         label2id = {l: i for i, l in enumerate(labels)}
         id2label = {i: l for l, i in label2id.items()}
 
-        # need to check this nonsense
-        dataframe = Dataset.from_pandas(dataframe)
-        eval_data = dataframe.map(self._processor.prepare_unlabeled_inputs, batched=True)
-
-        # df = eval_data.to_pandas()
-        # print(df.head())
-        # df.to_csv("ins.csv", index=False)
+        eval_data = Dataset.from_pandas(dataframe)
 
         print("\nPredicting terms")
-        trainer = self._processor.trainer
-        prediction_logits, _, _ = trainer.predict(eval_data)
+        trainer = self.processor.trainer
+        prediction_logits, _ , _ = trainer.predict(eval_data)
         predictions = np.argmax(prediction_logits, axis=2)
-        predicted_tokens = []
-        for i in range(len(eval_data)):
-            tokens = eval_data[i]['tokenized_segment']
-            offsets = eval_data[i]["offset_mapping"]
-            text = eval_data[i]["text"]
-            predicted_ids = predictions[i]
-            # reconstructed = self._processor.pred_labels_to_tokens(tokens, predicted_ids, id2label)
-            reconstructed = self._processor.pred_labels_to_text(
-                text,
-                offsets,
-                predicted_ids,
-                id2label
-            )
-            predicted_tokens.append(reconstructed)
+        predicted_terms = []
 
-        print("Predictions finalized")
+        if not lemmatize:
+            for i in range(len(eval_data)):
+                text = eval_data[i]["text"]
+                offsets = eval_data[i]["offset_mapping"]
+                predicted_ids = predictions[i]
 
-        dataframe['predicted_tokens'] = predicted_tokens
-        dataframe['predicted_terms'] = dataframe['predicted_tokens']
-        # dataframe['predicted_terms'] = dataframe['predicted_tokens'].apply(self._processor.merge_tokens)
+                reconstructed = self.processor._pred_labels_to_text(
+                    text=text,
+                    offsets=offsets,
+                    predicted_ids=predicted_ids,
+                    id2label=id2label)
+                
+                predicted_terms.append(reconstructed)
+                
+        if lemmatize:
+            for i in range(len(eval_data)):
+                tokens = eval_data[i]['tokens']
+                predicted_ids = predictions[i]
+                reconstructed = self.processor._bio_to_terms(
+                    tokens=tokens,
+                    labels=predicted_ids)
 
+                predicted_terms.append(reconstructed)
+
+        clean_terms = self.processor.process_predictions(predicted_terms)
+
+        dataframe['predicted_terms'] = clean_terms
         #check
-        dataframe.to_csv('./evaluation_dataframe.csv', index=False)
+        # dataframe.to_csv('./evaluation_dataframe.csv', index=False)
 
-        predicted_terms = dataframe['predicted_terms'].tolist()
-        predicted_terms = self._processor.flatten_list(predicted_terms)
+        #i dont remember why im doing this, but keep for now, otherwise it wont work
+        clean_terms = dataframe['predicted_terms'].tolist() # this line i can remove i think
+        clean_terms = self.processor._flatten_list(clean_terms)
 
+        # output for tbxtools, calculating count of each term
         candidate_terms = []
-        term_counts = Counter(predicted_terms)
+        term_counts = Counter(clean_terms)
         term_counts = dict(sorted(term_counts.items(), key=lambda item: item[1], reverse=True))
-
         for term, count in term_counts.items():
             n = len(term.split(" "))
             candidate_terms.append((term, n, "count", count))
-
-        return Results(tokens=tokens_output, 
-                       terms=candidate_terms), tokenized_corpus_for_sqlite   
-    
+        tokenized_segments = []
+        # print(candidate_terms)
+        return Results(terms=candidate_terms), tokenized_segments  
