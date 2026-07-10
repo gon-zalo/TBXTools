@@ -11,7 +11,9 @@
 
 4. Now you can use the package.
 
-## Statistical methodology example
+# Term extraction methodologies
+
+## Statistical methodology
 The `StatisticalMethodology` module allows you to extract terms from a corpus using statistical methods. Below you can find an example script.
 ```python
 from TBXTools import Extractor, StatisticalMethodology
@@ -28,7 +30,7 @@ extractor = Extractor(
 results = extractor.extract(verbose=False)
 ```
 
-## Linguistic methodology example
+## Linguistic methodology
 
 The `LinguisticMethodology` module allows you to extract terms based on different availability of pre-existing data. Below are the four main execution scenarios.
 
@@ -126,7 +128,7 @@ extractor = Extractor(
 results = extractor.extract(verbose=False)
 ```
 
-## Bert methodology example (WORK IN PROGRESS)
+## Bert methodology (WORK IN PROGRESS)
 The `BertMethodology` allows you to extract terms using a BERT model. To use this methodology, you need a fine-tuned model on terminology extraction using BIO labels.
 You may fine-tune such a model using the `BertTrainer` class. For this, you need a list of external terms and a corpus. The tool will automatically annotate the corpus based on the external terms list
 and it will fine-tune your model of choice on that corpus. Below you can find an example of the whole process:
@@ -161,7 +163,7 @@ extractor = Extractor(
 results = extractor.extract(verbose=False)
 ```
 
-## Results postprocessing
+# Results postprocessing
 
 Once the terms have been extracted, we can perform other methods like the following:
 
