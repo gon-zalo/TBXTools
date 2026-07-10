@@ -13,3 +13,4 @@ tests/bert-model-test
 .vscode
 tests/trainer_output
 tests/*-test
+tests/wmt*
