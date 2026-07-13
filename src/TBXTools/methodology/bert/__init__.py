@@ -1,1 +1,0 @@
-from .trainer.trainer import BertTrainer
