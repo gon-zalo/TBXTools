@@ -124,8 +124,6 @@ class Results:
             verbose (bool, optional): Defaults to False.
         '''
 
-        print("Applying TSR filter")
-
         self._extractor._sqlite.load_tsr_terms(tsr_terms=tsr_terms)
         tsr_terms = self._extractor._sqlite.get("tsr_terms")
     
@@ -145,7 +143,6 @@ class Results:
         '''
         Deletes term candidates matching a set of regular expresions loaded in the Extractor() class.
         '''
-        print("Applying regex exclusion")
         
         self._extractor._sqlite.load_exclusion_regexes(exclusion_regexes=regexes)
         raw_regexes = self._extractor._sqlite.get("exclusion_regexes")
