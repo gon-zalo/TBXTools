@@ -391,7 +391,6 @@ class SQLite:
     # GET METHODS
     def get_segments(self, tagged=False, tokenized=False, to_list=False):
         '''Gets the segmented corpus as a list of segments from the database.'''
-        segments = []
         with self.conn:
             if tagged:
                 self.cur.execute("SELECT tagged_segment from tagged_corpus")
@@ -402,15 +401,12 @@ class SQLite:
             else:
                 self.cur.execute("SELECT segment from corpus")
                 
-            for row in self.cur.fetchall():
+            for row in self.cur:
                 if to_list:
-                    segment = row[0].split()
+                    yield row[0].split()
                 else:
-                    segment = row[0]
-                segments.append(segment)
+                    yield row[0]
         
-        return segments
-    
     def get_ngrams(self, tagged=False):
         '''Gets the list of Ngrams of tagged ngrams from the database'''
         data = []
