@@ -448,7 +448,6 @@ class SQLite:
 
         return items
        
-    
     def get_external_terms(self): 
         external_terms= []
         with self.conn:
@@ -458,6 +457,16 @@ class SQLite:
                 external_terms.append(external_term[0])
 
         return external_terms
+    
+    def get_lemmatized_corpus(self):
+        lemmatized_corpus= []
+        with self.conn:
+            self.cur.execute("SELECT lemmatized_segment FROM lemmatized_corpus")
+
+            for row in self.cur.fetchall():
+                lemmatized_corpus.append(row[0])
+
+        return lemmatized_corpus
     
     def get_segment_labels(self):
         labels = []
