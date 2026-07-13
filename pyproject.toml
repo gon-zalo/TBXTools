@@ -8,10 +8,10 @@ version = "0.5.0"
 requires-python = "==3.11.*"
 dependencies = [
     "nltk",
-    "spacy"
+    "spacy",
     "pandas",
     "pycountry",
-    "openpyxl",
+    "openpyxl"
 ]
 
 [project.optional-dependencies]
