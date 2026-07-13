@@ -76,6 +76,11 @@ class Metrics:
             # print("true terms in segment:", reconstructed_true_terms)
         
         precision, recall, f1 = self.score(all_pred_terms, all_true_terms)
+        # print coincidences between preds and true terms to check what is being annotated as true terms, or check true terms, true terms are problematic since they are also automatically annotated not some golden labels... need to check asap
 
-        print(all_pred_terms)
+        # check label alignment, what is being appended to sqlite is bert tokens im pretty sure, check engitech
+
+
+
+        # print(all_pred_terms)
         return {"precision": precision, "recall": recall, "f1": f1}

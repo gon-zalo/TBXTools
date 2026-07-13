@@ -1,7 +1,7 @@
 import nltk
 from ..base.base import BaseMethodology
-from ...results import Results
-from ...processor import Processor
+from ..._results.results import Results
+from ..._processor.processor import Processor
 
 class StatisticalMethodology(BaseMethodology):
     '''

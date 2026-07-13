@@ -1,9 +1,8 @@
 from ..base import BaseMethodology
-from ...results import Results
-from ...processor.bert import BertProcessor
+from ..._results.results import Results
+from ..._processor.bert import BertProcessor
 from transformers import logging
 from collections import Counter
-from tqdm import tqdm
 
 logging.set_verbosity_error()
 

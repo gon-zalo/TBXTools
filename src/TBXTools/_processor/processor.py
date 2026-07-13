@@ -1,4 +1,4 @@
-from ..utils.utils import get_model_from_code
+from .._utils.utils import get_model_from_code
 
 class Processor:
 

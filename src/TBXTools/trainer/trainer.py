@@ -1,5 +1,5 @@
-from ....processor.bert import BertProcessor
-from ....sqlite import SQLite
+from ...._processor.bert import BertProcessor
+from ...._sqlite import SQLite
 from .metrics import Metrics
 
 class BertTrainer:
@@ -165,7 +165,7 @@ class BertTrainer:
         #no se esta insertando nada, ni se esta eliminando el corpus, con lematizacion si
         self._sqlite.insert_tokens(data=tokens_FD)
         self._sqlite.insert_segment_labels(data=df["labels"])
-        self._sqlite.delete_corpus()
+        self._sqlite.delete("corpus")
         self._sqlite.insert_segments(data=df["text"].tolist(), tagged=False, tokenized=False, in_list_of_lists=False)
         self._sqlite.insert_segments(data=df["tokens"].tolist(), tagged=False, tokenized=True, in_list_of_lists=True) # inserting segments used in training
         

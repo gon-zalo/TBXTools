@@ -1,4 +1,4 @@
-from TBXTools import BertTrainer
+from TBXTools.trainer import BertTrainer
 
 # polish models
 biobert = 'dmis-lab/biobert-base-cased-v1.2'
@@ -20,10 +20,10 @@ medicine_en = "wmt26/corpora/corpus-medicine-en.txt"
 terms_medicine_en = "wmt26/terms/terms-medicine-en.txt"
 
 trainer = BertTrainer(
-    project_name="bert-train-engitech-en",
+    project_name="bert-train-engitech-lemm-en",
     corpus=medicine_en,
     overwrite_project=False,
-    model="distilbert/distilbert-base-multilingual-cased",
+    model=bert,
     external_terms=terms_medicine_en, 
     labels="bio",
     lr=5e-05,
@@ -31,4 +31,4 @@ trainer = BertTrainer(
     epochs=6,
     weight_decay=0.03)
 
-trainer.train(sample=5000, save_as='wmt-engitech-lemmfalse-en', split=True, lemmatize=False)
+trainer.train(sample=5000, split=True, lemmatize=True)

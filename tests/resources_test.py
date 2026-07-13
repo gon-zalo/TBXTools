@@ -1,4 +1,4 @@
-from TBXTools.resources import Resources
+from TBXTools._resources.resources import Resources
 
 LANG_CODES = ["en", "es", "fr", "ca"]
 
