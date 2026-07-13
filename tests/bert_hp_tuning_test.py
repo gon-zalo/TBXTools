@@ -1,4 +1,4 @@
-from TBXTools import BertTrainer
+from TBXTools.methodology.bert import BertTrainer
 
 trainer = BertTrainer(
     project_name="bert-train-engitech-en",
@@ -13,4 +13,4 @@ biobert = 'dmis-lab/biobert-base-cased-v1.2'
 
 models = [distilbert, bert, biobert]
 
-trainer.hp_tuning(models=models, n_trials=30, lemmatize=False)
+trainer.hp_tuning(models=models, n_trials=10, lemmatize=False)
