@@ -1,4 +1,5 @@
 from .._utils.utils import get_model_from_code
+from tqdm import tqdm
 
 class Processor:
 
@@ -77,10 +78,10 @@ class Processor:
             self.nlp = spacy.load(model_name, config=config)
     
 
-        print("Applying lemmatization")
+        # print("Applying lemmatization")
         freq_dict = {}
 
-        for terms_row in candidate_terms:
+        for terms_row in tqdm(candidate_terms, desc="Applying lemmatization to extracted terms", total=len(candidate_terms)):
             term = terms_row[0].strip()
             freq = terms_row[3]
 
@@ -117,7 +118,7 @@ class Processor:
 
 
         """
-        print("Applying nested frequency normalization")
+        # print("Applying nested frequency normalization")
 
         updated_terms = []
         terms_by_n = {}
@@ -131,7 +132,7 @@ class Processor:
 
             terms_by_n[candidate_term_n].append((candidate_term, candidate_term_freq))
    
-        for row in candidate_terms:
+        for row in tqdm(candidate_terms, desc="Applying nested frequency normalization to extracted terms", total=len(candidate_terms)):
             candidate_term = row[0]
             candidate_term_n = row[1]
             candidate_term_freq = row[3]
@@ -197,7 +198,7 @@ class Processor:
         import re
          
         candidates_to_exclude = []
-        for candidate_row in candidate_terms:
+        for candidate_row in tqdm(candidate_terms, desc="Applying regex exclusion to extracted terms", total=len(candidate_terms)):
             candidate = candidate_row[0]
             candidate_n = candidate_row[1]
             candidate_n = int(candidate_n)
