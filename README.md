@@ -180,13 +180,13 @@ results.nest_normalization(verbose=False)
 
 results.lemmatization(verbose=False)
 
-results.regex_exclusion(exclusion_regexes="regexes.txt", verbose=False)
+results.regex_exclusion(regexes="regexes.txt", verbose=False)
 # You may pass a text file or a Python list, e.g. regexes = [".+ health", ".+ diseases"]
 
-results.tsr(tsr_terms="tsr.txt", type="strict", max_iteration=10, verbose=False)
+results.tsr(tsr_terms="tsr.txt", type="strict", max_iterations=10, verbose=False)
 # You may pass a text file or a Python list, e.g. tsr_terms = ["bipolar disorder", "mental health"]
 # In 'type' you may choose between: strict, flexible, and combined
-# In 'max_iteration' you may introduce any integer
+# In 'max_iterations' you may introduce any integer
 
 results.save_candidates("candidates.txt")
 # Candidates can be saved in .txt, .csv, and .xlsx changing the file extension
