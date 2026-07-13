@@ -1,4 +1,4 @@
-from TBXTools import BertTrainer
+from TBXTools.methodology.bert import BertTrainer
 
 biobert = 'dmis-lab/biobert-base-cased-v1.2'
 herbert = "allegro/herbert-base-cased"
