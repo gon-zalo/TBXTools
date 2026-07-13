@@ -1,11 +1,8 @@
 from ..base import BaseMethodology
 from ..._results.results import Results
 from ..._processor.bert import BertProcessor
-from transformers import logging
 from collections import Counter
-
-logging.set_verbosity_error()
-
+#
 class BertMethodology(BaseMethodology):
     '''
     Manages terminology extraction with a BERT model.
@@ -16,6 +13,8 @@ class BertMethodology(BaseMethodology):
     '''
 
     def __init__(self, model, labels=None):
+        from transformers import logging
+        logging.set_verbosity_error()
         self.name = "BertMethodology"
         self.model_name = model
 

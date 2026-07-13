@@ -1,5 +1,5 @@
-from ...._processor.bert import BertProcessor
-from ...._sqlite import SQLite
+from .._processor.bert import BertProcessor
+from .._sqlite.sqlite import SQLite
 from .metrics import Metrics
 
 class BertTrainer:
