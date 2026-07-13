@@ -1,4 +1,4 @@
-from TBXTools import BertTrainer
+from TBXTools.trainer import BertTrainer
 
 # polish models
 biobert = 'dmis-lab/biobert-base-cased-v1.2'
