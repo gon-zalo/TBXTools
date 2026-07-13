@@ -134,8 +134,11 @@ results = extractor.extract(verbose=False)
 ```
 
 ## Bert methodology (WORK IN PROGRESS)
-The `BertMethodology` class from the `methodology` module allows you to extract terms using a BERT model. To use this methodology, you need a fine-tuned model on terminology extraction using BIO labels.
-You may fine-tune such a model using the `BertTrainer` class from the `trainer` module. For this, you only need two things: a list of external terms and a corpus. The tool will automatically annotate the corpus based on the external terms list and will fine-tune your model of choice on that corpus. Below you can find an example of the whole process.
+The `BertMethodology` class from the `methodology` module allows you to extract terms using a BERT model. To make use of everything related to BERT models you first need to install the necessary dependencies using:
+
+`pip install ".[bert]"`
+
+To use this methodology, you need a fine-tuned model on terminology extraction using BIO labels. You may fine-tune such a model using the `BertTrainer` class from the `trainer` module. For this, you only need two things: a list of external terms and a corpus. The tool will automatically annotate the corpus based on the external terms list and will fine-tune your model of choice on that corpus. Below you can find an example of the whole process.
 
 ```python
 from TBXTools import Extractor
@@ -155,7 +158,7 @@ trainer = BertTrainer(
     weight_decay=0.03
 )
 
-trainer.train(save_as="bert-model-example", split=False)
+trainer.train(save_as="bert-model-example", split=False, lemmatize=False)
 
 fine_tuned_model = "bert-model-example"
 methodology = BertMethodology(model="bert-model-example")
@@ -170,8 +173,7 @@ results = extractor.extract(verbose=False)
 ```
 
 # Results postprocessing
-
-Once the terms have been extracted, we can perform other methods like the following:
+Once the extraction has been completed, we have a list of terms on which we can perform other methods like the following:
 
 ```python
 results.nest_normalization(verbose=False)
