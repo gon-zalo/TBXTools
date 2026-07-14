@@ -7,10 +7,10 @@ trainer = BertTrainer(
     external_terms="nan", 
     labels="bio")
 
-distilbert = "distilbert/distilbert-base-multilingual-cased"
+# distilbert = "distilbert/distilbert-base-multilingual-cased" # bad performance
 bert = "google-bert/bert-base-cased"
 biobert = 'dmis-lab/biobert-base-cased-v1.2'
 
-models = [distilbert, bert, biobert]
+models = [bert, biobert]
 
 trainer.hp_tuning(models=models, n_trials=10, lemmatize=False)
