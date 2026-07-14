@@ -13,7 +13,6 @@ class Processor:
         lang_code: The ISO code for the language.
         nlp: The NLP pipeline or model used for text processing.
         
-        
     '''
 
     def __init__(self):
@@ -132,7 +131,7 @@ class Processor:
 
             terms_by_n[candidate_term_n].append((candidate_term, candidate_term_freq))
    
-        for row in tqdm(candidate_terms, desc="Applying nested frequency normalization to extracted terms", total=len(candidate_terms)):
+        for row in tqdm(candidate_terms, desc="Applying nested frequency normalization", total=len(candidate_terms)):
             candidate_term = row[0]
             candidate_term_n = row[1]
             candidate_term_freq = row[3]
@@ -198,7 +197,7 @@ class Processor:
         import re
          
         candidates_to_exclude = []
-        for candidate_row in tqdm(candidate_terms, desc="Applying regex exclusion to extracted terms", total=len(candidate_terms)):
+        for candidate_row in tqdm(candidate_terms, desc="Applying regex exclusion", total=len(candidate_terms)):
             candidate = candidate_row[0]
             candidate_n = candidate_row[1]
             candidate_n = int(candidate_n)
@@ -234,8 +233,7 @@ class Processor:
     
     def filter_by_stopwords(self, term):
         """
-        Filters a candidate term by checking for invalid stopwords. A term is rejected (returns None) if it
-        contains a standard stopword at its boundaries (start/end) or an inner stopword in its middle tokens.
+        Filters a candidate term by checking for invalid stopwords. A term is rejected (returns None) if it contains a standard stopword at its boundaries (start/end) or an inner stopword in its middle tokens.
 
         Args: 
           term(str): The candidate term string to validate.
@@ -259,8 +257,7 @@ class Processor:
     
     def filter_by_stopwords_linguistic(self, term):
         """
-        Filters a candidate term (in this case a tagged ngram) by checking for invalid stopwords. A term is rejected (returns None) if it
-        contains a standard stopword at its boundaries (start/end).
+        Filters a candidate term (in this case a tagged ngram) by checking for invalid stopwords. A term is rejected (returns None) if it contains a standard stopword at its boundaries (start/end).
 
         Args: 
           term(str): The candidate term string to validate.
