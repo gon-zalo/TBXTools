@@ -20,15 +20,16 @@ medicine_en = "wmt26/corpora/corpus-medicine-en.txt"
 terms_medicine_en = "wmt26/terms/terms-medicine-en.txt"
 
 trainer = BertTrainer(
-    project_name="bert-train-engitech-lemm-en",
+    project_name="bert-train-medicine-50k-bilou-en",
     corpus=medicine_en,
-    overwrite_project=False,
+    overwrite_project=True,
+    language="en",
     model=bert,
     external_terms=terms_medicine_en, 
     labels="bio",
     lr=5e-05,
     batch_size=16,
-    epochs=6,
+    epochs=3,
     weight_decay=0.03)
 
-trainer.train(sample=5000, split=True, lemmatize=True)
+trainer.train(sample=50000, split=True, lemmatize=False, expand_labels=False)
