@@ -43,7 +43,7 @@ class BertProcessor():
 
         # self.trainer = Trainer(model=self.model, data_collator=self.data_collator)
 
-    def _model_init(self):
+    def _model_init(self): #unify with _load_model
         from transformers import BertForTokenClassification
         import torch
         device = torch.device("cuda")
@@ -87,6 +87,8 @@ class BertProcessor():
                 "attention_mask": encoding["attention_mask"]})
 
             tagged_terms = self._tokenize_and_tag_terms(external_terms=external_terms, expand_labels=expand_labels)
+            
+            df["labels"] = self._annotate(df["tokens"], tokenized_terms=tagged_terms)
     
         if lemmatize:
             import spacy
@@ -101,20 +103,22 @@ class BertProcessor():
                 return_offsets=False,
                 is_split_into_words=True)
             
+            tokenized_segments = self._tokenize_segments(encoding) # with bert
+            
             df = pd.DataFrame({
                 "text": segments,
-                "tokens": seg_tokens,
+                "tokens": tokenized_segments,
                 "lemmas": seg_lemmas,
                 "input_ids": encoding["input_ids"],
                 "attention_mask": encoding["attention_mask"]})
             
             tagged_terms = self._lemmatize_and_tag_terms(nlp, external_terms=external_terms)
 
+            df["labels"] = self._annotate(df["lemmas"], tokenized_terms=tagged_terms)
+
         tokens_FD = self._calculate_tokens_FD(df["tokens"])
 
-        df["labels"] = self._annotate(df["tokens"], tokenized_terms=tagged_terms)
-    
-        df["labels"] = self._align_labels(encoding, df["labels"].tolist())
+        df["labels"] = self._align_labels(encoding, df["labels"].tolist(), is_split_into_words=lemmatize, expand_labels=expand_labels) # False if not lemmatize, True if lemmatize
         
         df = self._filter_out_segments(df)
 
@@ -123,6 +127,19 @@ class BertProcessor():
         return tokens_FD, df
     
     def preprocess_eval(self, segments, lemmatize=False):
+        if not lemmatize:
+            encoding = self._encode(segments, return_offsets=True, is_split_into_words=False)
+
+            tokenized_segments = self._tokenize_segments(encoding)
+
+            df = pd.DataFrame({
+                "text": segments,
+                "tokens": tokenized_segments,
+                "input_ids": encoding["input_ids"],
+                "attention_mask": encoding["attention_mask"],
+                "offset_mapping": encoding["offset_mapping"]
+                })
+
         if lemmatize:
             import spacy
             # implement lang choice
@@ -136,17 +153,6 @@ class BertProcessor():
                 "tokens": seg_tokens,
                 "input_ids": encoding["input_ids"],
                 "attention_mask": encoding["attention_mask"]
-                })
-
-        if not lemmatize:
-            encoding = self._encode(segments, return_offsets=True, is_split_into_words=False)
-
-            df = pd.DataFrame({
-                "text": segments,
-                "input_ids": encoding["input_ids"],
-                "attention_mask": encoding["attention_mask"],
-                # "tokenized_segments": encoding["tokenized_segments"],
-                "offset_mapping": encoding["offset_mapping"]
                 })
 
         return df
@@ -221,23 +227,19 @@ class BertProcessor():
         for tokenized_segment in tqdm(tokenized_segments, 
                             desc=f"Annotating segments with {self.labels} labels", total=len(tokenized_segments)):
 
-            # removing PAD from length
-            try:
-                n_tokens_in_segment = tokenized_segment.index("[PAD]")
-            except ValueError:
-                n_tokens_in_segment = len(tokenized_segment)
+            # unaligned labels fix
+            segment = [token for token in tokenized_segment if token not in ["[CLS]", "[SEP]", "[PAD]"]]
 
-            segment = tokenized_segment[:n_tokens_in_segment]
-            segment_labels = ["O"] * n_tokens_in_segment
+            segment_labels = ["O"] * len(segment)
 
             for length, terms in terms_by_len.items():
             # for length, terms in terms_by_len:
 
                 # if terms length is longer than n tokens in segment skip
-                if length > n_tokens_in_segment:
+                if length > len(segment):
                     continue
 
-                max_start = n_tokens_in_segment - length + 1
+                max_start = len(segment) - length + 1
 
                 for start_idx in range(max_start):
 
@@ -254,7 +256,7 @@ class BertProcessor():
                         # better than slicing like previously
                         match = True
                         for num in range(length):
-                            if segment[start_idx + num] != term_tokens[num]:
+                            if segment[start_idx + num] != term_tokens[num].lower():
                                 match = False
                                 break
 
@@ -289,23 +291,38 @@ class BertProcessor():
     def _tokenize_and_tag_terms(self, external_terms, expand_labels=False):
         tokenized_terms = []
 
-        for term in tqdm(external_terms, desc="Annotating terms", total=len(external_terms)):
+        for term in tqdm(external_terms, desc=f"Annotating terms with {self.labels} labels", total=len(external_terms)):
             labels = []
 
-            if expand_labels: # expand B tags accordingly, only with BIO
+            if expand_labels: # expand B tags accordingly
                 tokens = []
                 words_in_term = term.split()
+                num_words = len(words_in_term)
 
                 for i, word in enumerate(words_in_term):
 
                     encoding = self.tokenizer(word, add_special_tokens=False)
                     pieces = self.tokenizer.convert_ids_to_tokens(encoding["input_ids"])
                     tokens.extend(pieces)
-    
-                    if i == 0:
-                        labels.extend(["B"] * len(pieces))
-                    else:
-                        labels.extend(["I"] * len(pieces))
+
+                    if self.labels == "BIO":
+                        if i == 0:
+                            labels.extend(["B"] * len(pieces))
+                        else:
+                            labels.extend(["I"] * len(pieces))
+
+                    elif self.labels == "BILOU":
+                        if num_words == 1:
+                            labels.extend(["B"] * len(pieces))
+
+                        if i == 0:
+                            labels.extend(["U"] * len(pieces))
+
+                        elif i == num_words - 1: # last
+                            labels.extend(["L"] * len(pieces))
+
+                        else:
+                            labels.extend(["I"] * len(pieces))
 
             if not expand_labels: # only tag with B the first subword, i.e. the start of the term
 
@@ -316,18 +333,18 @@ class BertProcessor():
 
                     if self.labels == "BIO":
                         if i == 0:
-                            labels.append("B")
+                            labels = ["B"]
                         else:
-                            labels.append("I")
+                            labels = ["I"]
                 
-                    if self.labels == "BILOU":
+                    elif self.labels == "BILOU":
                         num_of_tokens = len(tokens)
                         
                         if num_of_tokens == 1:
-                            labels.append("U")
+                            labels = ["U"]
 
                         else:
-                            labels.extend(["B"] + ["I"] * (num_of_tokens - 2) + ["L"])
+                            labels = ["B"] + ["I"] * (num_of_tokens - 2) + ["L"]
 
             tokenized_terms.append({
                 "tokens": tokens,
@@ -343,19 +360,16 @@ class BertProcessor():
             label_ids = []
 
             for label in sequence:
-
-                #need to ignore -100 when lemmatizing data
                 if label == -100:
-                    continue
-
-                label_ids.append(self._label2id[label])
+                    label_ids.append(-100)
+                else:
+                    label_ids.append(self._label2id[label])
 
             labels_ints.append(label_ids)
 
         return labels_ints
 
     def _lemmatize_and_tag_terms(self, nlp, external_terms):
-        # add expand_labels=, rn its False
         term_lemmas = {}
 
         for term in tqdm(external_terms, desc="Lemmatizing external terms", total=len(external_terms)):
@@ -363,12 +377,31 @@ class BertProcessor():
             doc = nlp(term)
 
             lemmas = [t.lemma_.lower() for t in doc]
+
+            # fix in order to stop tagging things like IS
+            if len(lemmas) == 1 and lemmas[0] in self.stopwords:
+                continue
+
             term_lemmas[term] = lemmas
 
-        annotated_terms = [] # IMPLEMENT BILOU
-        for term, lemmas in tqdm(term_lemmas.items(), desc="Annotating terms", total=len(term_lemmas)):
-            annotated_terms.append({"tokens": lemmas,
-                "labels": ["B"] + ["I"] * (len(lemmas) - 1)})
+        annotated_terms = []
+        for term, lemmas in tqdm(term_lemmas.items(), desc=f"Annotating terms with {self.labels} labels", total=len(term_lemmas)):
+            
+            num_of_lemmas = len(lemmas) #same logic as in tokenize and tag terms func
+
+            if self.labels == "BILOU":
+                if num_of_lemmas == 1:
+                    labels = ["U"]
+                else:
+                    labels = ["B"] + ["I"] * (num_of_lemmas - 2) + ["L"]
+                    
+            elif self.labels == "BIO":
+                labels = ["B"] + ["I"] * (num_of_lemmas - 1)
+
+            annotated_terms.append({
+                "tokens": lemmas,
+                "labels": labels
+            })
             
         annotated_terms.sort(key=lambda x: len(x["tokens"]), reverse=True) # sorting by length in descending order
 
@@ -409,26 +442,57 @@ class BertProcessor():
 
         return tokens_output
 
-    def _align_labels(self, encoding, unaligned_labels):
+    def _align_labels(self, encoding, unaligned_labels, is_split_into_words=False, expand_labels=False):
         aligned_labels = []
 
-        for i, labels in enumerate(unaligned_labels):
-            word_ids = encoding.word_ids(batch_index=i)
+        if is_split_into_words: # if input is pre-tokenized
 
-            previous_word = None
-            label_ids = []
+            for i, labels in enumerate(unaligned_labels):
+                word_ids = encoding.word_ids(batch_index=i)
+                aligned_segment = []
+                previous_word_id = None
+                
+                for word_id in word_ids:
+                    if word_id is None:
+                        aligned_segment.append(-100)
 
-            for word_id in word_ids:
-                if word_id is None:
-                    label_ids.append(-100)
-                elif word_id != previous_word:
-                    label_ids.append(labels[word_id])
-                else:
-                    label_ids.append(labels[word_id])
-                previous_word = word_id
+                    elif word_id != previous_word_id:
+                        aligned_segment.append(labels[word_id])
+                    else:
 
-            aligned_labels.append(label_ids)
+                        label = labels[word_id]
+                        
+                        if not expand_labels and label.startswith(("B", "L", "U")):
+                            # aligned_segment.append(label.replace("B", "I", 1)) #for bio tags
+                            aligned_segment.append("I" + label[1:]) # for bilou
 
+                        else: # expanding labels
+                            aligned_segment.append(label)
+                            
+                    previous_word_id = word_id
+                        
+                aligned_labels.append(aligned_segment)
+
+        else:
+
+            for i, labels in enumerate(unaligned_labels):
+                word_ids = encoding.word_ids(batch_index=i)
+                
+                aligned_segment = []
+                label_idx = 0
+                
+                for word_id in word_ids:
+                    if word_id is None:
+                        aligned_segment.append(-100)
+                    else:
+                        if label_idx < len(labels):
+                            aligned_segment.append(labels[label_idx])
+                            label_idx += 1
+                        else:
+                            aligned_segment.append(-100)
+                            
+                aligned_labels.append(aligned_segment)
+            
         return aligned_labels
 
     def _pred_labels_to_text(self, text, offsets, predicted_ids, id2label):
