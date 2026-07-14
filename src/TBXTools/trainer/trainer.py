@@ -1,6 +1,8 @@
 from .._processor.bert import BertProcessor
 from .._sqlite.sqlite import SQLite
 from .metrics import Metrics
+from .._resources.resources import Resources
+from .._utils.utils import get_lang
 
 class BertTrainer:
     '''
@@ -18,10 +20,17 @@ class BertTrainer:
         weight_decay (int, optional): Defaults to 0.01.
     '''
 
-    def __init__(self, project_name, corpus, external_terms,model=None, overwrite_project=False, labels=None, lr=None, batch_size=None, epochs=None, weight_decay=None):
+    def __init__(self, project_name, corpus, language, external_terms,model=None, overwrite_project=False, labels=None, lr=None, batch_size=None, epochs=None, weight_decay=None):
+        from transformers import logging
+        logging.set_verbosity_error()
+        self.lang, self._lang_code = get_lang(language.lower())
 
         self.model_name = model or "distilbert/distilbert-base-multilingual-cased"
         self.name = "BertTrainer"
+        self._resources = Resources(lang_code=self._lang_code)
+
+        self.stopwords = self._resources.fetch_stopwords()
+        self.inner_stopwords = self._resources.fetch_inner_stopwords()
 
         self._labels = labels.lower() or "bio"
 
@@ -44,7 +53,7 @@ class BertTrainer:
             overwrite_project=overwrite_project, 
             external_terms=external_terms)
 
-    def train(self, sample=None, save_as=None, split=False, lemmatize=False, expand_labels=True):
+    def train(self, sample=None, save_as=None, split=False, lemmatize=False, expand_labels=False):
         '''
         Fine-tunes the chosen model for automatic terminology extraction. It annotates the data with the chosen labels and then fine-tunes the model on said data. The model is saved to disk afterwards.
 
@@ -52,6 +61,8 @@ class BertTrainer:
             sample (int, optional): Number of sentences to randomly sample out of the corpus. Useful for testing purposes.
             save_as (str, optional): Path of the model to save to disk.
             split (bool, optional): If True, it splits the data in train and eval.
+            lemmatize (bool, optional): If True, lemmatizes all the input data. Slower but pretty much mandatory for languages other than English.
+            expand_labels (bool, optional): If True, assigns B labels to all the subwords of the first word and I to the remaining words/subwords, instead of assigning B only to the first subword token of the term.
         '''
         from transformers import Trainer, set_seed
         from datasets import Dataset
@@ -61,6 +72,10 @@ class BertTrainer:
         self._processor = BertProcessor(model_name=self.model_name, labels=self._labels)
         self._processor._load_model()
         self._processor._load_tokenizer_and_data_collator()
+        self._processor.stopwords = self.stopwords
+        self._processor.inner_stopwords = self.inner_stopwords
+        self._processor.lang_code = self._lang_code
+        
         # tokenizer = self._processor.tokenizer
         model = self._processor.model
         data_collator = self._processor.data_collator
@@ -135,8 +150,8 @@ class BertTrainer:
         random.seed(self._seed)
         print("\nBertTrainer initialized")
 
-        segments = self._sqlite.get_segments()
-        external_terms = self._sqlite.get_external_terms()
+        segments = list(self._sqlite.get_segments())
+        external_terms = set(self._sqlite.get_external_terms())
 
         if isinstance(sample, int):
             print(f"Sampling {sample} random sentences")
@@ -178,10 +193,10 @@ class BertTrainer:
         print("\nFetching existing data from database", flush=True)
 
         segment_labels = self._sqlite.get_segment_labels()
-        segments = self._sqlite.get_segments(tagged=False, tokenized=False, to_list=False)
+        segments = list(self._sqlite.get_segments(tagged=False, tokenized=False, to_list=False))
         if lemmatize:
             segment_lemmas = self._sqlite.get_lemmatized_corpus()
-            tokenized_segments = self._sqlite.get_segments(tagged=False, tokenized=True, to_list=True) # not whole corpus but (annotated) segments with word tokens
+            tokenized_segments = list(self._sqlite.get_segments(tagged=False, tokenized=True, to_list=True)) # not whole corpus but (annotated) segments with word tokens
 
         if segment_labels:
             data = {
@@ -204,11 +219,14 @@ class BertTrainer:
             id2label=self._processor._id2label,
             label2id=self._processor._label2id)
 
-    def hp_tuning(self, models, lr_range=(1e-6, 5e-5), epoch_range=(3, 16), batch_sizes=(8, 16, 32), weight_decay_range=(0.0, 0.5), n_trials=30, lemmatize=False):
-        from transformers import Trainer, TrainingArguments
+    def hp_tuning(self, models, output_file=None, lr_range=(1e-6, 5e-5), epoch_range=(3, 16), batch_sizes=(8, 16, 32), weight_decay_range=(0.0, 0.5), n_trials=30, lemmatize=False):
+        from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
         import pandas as pd
         from sklearn.model_selection import train_test_split
         from datasets import Dataset
+        
+        import warnings
+        warnings.filterwarnings("ignore", message="Was asked to gather along dimension 0, but all input tensors were scalars")
 
         results = []
         print("\nRunning hyperparameter tuning", flush=True)
@@ -233,8 +251,16 @@ class BertTrainer:
                     "per_device_train_batch_size": trial.suggest_categorical("per_device_train_batch_size", batch_sizes),
                     "weight_decay": trial.suggest_float("weight_decay", weight_decay_range[0], weight_decay_range[1])}
 
+            model_folder_name = model_name.replace("/", "-")
+            model_output_dir = f"./trainer_output/{model_folder_name}"
+
             training_args = TrainingArguments(
+                output_dir=model_output_dir,
                 eval_strategy="epoch",
+                save_strategy="epoch",
+                load_best_model_at_end=True,
+                metric_for_best_model="f1",
+                save_total_limit=1,
                 learning_rate=self.lr,
                 per_device_train_batch_size=self.batch_size,
                 num_train_epochs=self.epochs,
@@ -251,7 +277,8 @@ class BertTrainer:
                 train_dataset=train_data,
                 eval_dataset=eval_data,
                 compute_metrics=self._metrics.compute_metrics_lemm if lemmatize else self._metrics.compute_metrics,
-                data_collator=self._processor.data_collator)
+                data_collator=self._processor.data_collator,
+                callbacks=[EarlyStoppingCallback(early_stopping_patience=3)])
 
             print(f"\nFine-tuning {self._processor.model_name}")
             best_run = trainer.hyperparameter_search(
@@ -260,11 +287,22 @@ class BertTrainer:
                 hp_space=hp_space,
                 n_trials=n_trials)
 
+            best_metrics = getattr(best_run, "run_summary", {})
+            if best_metrics is None:
+                best_metrics = {}
+            
             results.append({
                 "model": model_name,
                 "best_score": best_run.objective,
-                "hyperparameters": best_run.hyperparameters})
+                "learning_rate": best_run.hyperparameters["learning_rate"],
+                "epochs": best_run.hyperparameters["num_train_epochs"],
+                "batch_size": best_run.hyperparameters["per_device_train_batch_size"],
+                "weight_decay": best_run.hyperparameters["weight_decay"],
+                **best_metrics
+            })
             
         results = pd.DataFrame(results)
+        if not output_file:
+            output_file = "hp-tuning-results"
 
-        results.to_csv("hp-tuning-results.csv",index=False)
+        results.to_csv(f"{output_file}.csv", index=False)
