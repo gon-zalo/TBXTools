@@ -11,12 +11,13 @@
 
 4. Now you can use the package.
 
-# Term extraction methodologies
 
+# Term extraction methodologies
 ## Statistical methodology
-The `StatisticalMethodology` module allows you to extract terms from a corpus using statistical methods. Below you can find an example script.
+The `StatisticalMethodology` class from the the `methodology` module allows you to extract terms from a corpus using statistical methods. Below you can find an example script.
 ```python
-from TBXTools import Extractor, StatisticalMethodology
+from TBXTools import Extractor
+from TBXTools.methodology import StatisticalMethodology
 
 methodology = StatisticalMethodology(nmin=2, nmax=3, case_normalization=True)
 extractor = Extractor(
@@ -32,13 +33,14 @@ results = extractor.extract(verbose=False)
 
 ## Linguistic methodology
 
-The `LinguisticMethodology` module allows you to extract terms based on different availability of pre-existing data. Below are the four main execution scenarios.
+The `LinguisticMethodology` class from the `methodology` module allows you to extract terms based on different availability of pre-existing data. Below are the four main execution scenarios.
 
 ### Scenario A: Using Pre-existing Tagged Corpus and Linguistic Patterns
-Use this scenario if you already have both a POS Tagged corpus and a set of predefined linguistic patterns.
+Use this scenario if you already have both a POS tagged corpus and a set of predefined linguistic patterns.
 
 ```python
-from TBXTools import Extractor, LinguisticMethodology
+from TBXTools import Extractor
+from TBXTools.methodology import LinguisticMethodology
 
 methodology = LinguisticMethodology(
     nmin=2, 
@@ -58,10 +60,11 @@ results = extractor.extract(verbose=False)
 ```
 
 ### Scenario B: Using Pre-existing Tagged Corpus and Generating Linguistic Patterns from Scratch
-Use this scenario if your corpus is already pos tagged, but you need the program to automatically extract new linguistic patterns using a list of evaluation terms.
+Use this scenario if your corpus is already POS tagged, but you need the program to automatically extract new linguistic patterns using a list of evaluation terms.
 
 ```python
-from TBXTools import Extractor, LinguisticMethodology
+from TBXTools import Extractor
+from TBXTools.methodology import LinguisticMethodology
 
 methodology = LinguisticMethodology(
     nmin=2, 
@@ -84,7 +87,8 @@ results = extractor.extract(verbose=False)
 Use this scenario if you already have a fixed set of linguistic patterns, but you need to process a raw, untagged corpus to generate its tagged version.
 
 ```python
-from TBXTools import Extractor, LinguisticMethodology
+from TBXTools import Extractor
+from TBXTools.methodology import LinguisticMethodology
 
 methodology = LinguisticMethodology(
     nmin=2, 
@@ -109,7 +113,8 @@ Use this scenario when starting completely from raw inputs. Both assets are gene
 * **Linguistic Patterns:** Generated using a list of evaluation terms.
 
 ```python
-from TBXTools import Extractor, LinguisticMethodology
+from TBXTools import Extractor
+from TBXTools.methodology import LinguisticMethodology
 
 methodology = LinguisticMethodology(
     nmin=2, 
@@ -129,12 +134,16 @@ results = extractor.extract(verbose=False)
 ```
 
 ## Bert methodology (WORK IN PROGRESS)
-The `BertMethodology` allows you to extract terms using a BERT model. To use this methodology, you need a fine-tuned model on terminology extraction using BIO labels.
-You may fine-tune such a model using the `BertTrainer` class. For this, you need a list of external terms and a corpus. The tool will automatically annotate the corpus based on the external terms list
-and it will fine-tune your model of choice on that corpus. Below you can find an example of the whole process:
+The `BertMethodology` class from the `methodology` module allows you to extract terms using a BERT model. To make use of everything related to BERT models you first need to install the necessary dependencies using:
+
+`pip install ".[bert]"`
+
+To use this methodology, you need a fine-tuned model on terminology extraction using BIO labels. You may fine-tune such a model using the `BertTrainer` class from the `trainer` module. For this, you only need two things: a list of external terms and a corpus. The tool will automatically annotate the corpus based on the external terms list and will fine-tune your model of choice on that corpus. Below you can find an example of the whole process.
 
 ```python
-from TBXTools import BertTrainer, BertMethodology, Extractor
+from TBXTools import Extractor
+from TBXTools.methodology import BertMethodology
+from TBXTools.trainer import BertTrainer
 
 distilbert = "distilbert/distilbert-base-multilingual-cased"
 
@@ -149,7 +158,7 @@ trainer = BertTrainer(
     weight_decay=0.03
 )
 
-trainer.train(save_as="bert-model-example", split=False)
+trainer.train(save_as="bert-model-example", split=False, lemmatize=False)
 
 fine_tuned_model = "bert-model-example"
 methodology = BertMethodology(model="bert-model-example")
@@ -164,21 +173,20 @@ results = extractor.extract(verbose=False)
 ```
 
 # Results postprocessing
-
-Once the terms have been extracted, we can perform other methods like the following:
+Once the extraction has been completed, we have a list of terms on which we can perform other methods like the following:
 
 ```python
 results.nest_normalization(verbose=False)
 
 results.lemmatization(verbose=False)
 
-results.regex_exclusion(exclusion_regexes="regexes.txt", verbose=False)
-# The 'exclusion_regexes' arg accepts a text file or a Python list, e.g. regexes = [".+ health", ".+ diseases"]
+results.regex_exclusion(regexes="regexes.txt", verbose=False)
+# You may pass a text file or a Python list, e.g. regexes = [".+ health", ".+ diseases"]
 
-results.tsr(tsr_terms="tsr.txt", type="strict", max_iteration=10, verbose=False)
-# The 'tsr_terms' arg accepts a text file or a Python list, e.g. tsr_terms = ["bipolar disorder", "mental health"]
+results.tsr(tsr_terms="tsr.txt", type="strict", max_iterations=10, verbose=False)
+# You may pass a text file or a Python list, e.g. tsr_terms = ["bipolar disorder", "mental health"]
 # In 'type' you may choose between: strict, flexible, and combined
-# In 'max_iteration' you may introduce any integer
+# In 'max_iterations' you may introduce any integer
 
 results.save_candidates("candidates.txt")
 # Candidates can be saved in .txt, .csv, and .xlsx changing the file extension

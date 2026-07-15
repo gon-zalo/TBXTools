@@ -1,5 +1,5 @@
-from TBXTools import Extractor, StatisticalMethodology
-
+from TBXTools import Extractor
+from TBXTools.methodology import StatisticalMethodology
 regexes = [".+ health"]
 
 extractor = Extractor(

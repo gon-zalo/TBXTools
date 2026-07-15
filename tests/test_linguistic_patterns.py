@@ -1,4 +1,5 @@
-from TBXTools import Extractor, LinguisticMethodology
+from TBXTools import Extractor
+from TBXTools.methodology import LinguisticMethodology
 
 evaluation_terms = "evaluation_terms.txt"
 linguistic_patterns="ling_pat-en.txt"

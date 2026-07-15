@@ -1,8 +1,7 @@
-from ..sqlite import SQLite
-from ..results import Results
-from ..resources import Resources
-from ..utils.utils import get_lang
-from ..methodology.bert.trainer.trainer import BertTrainer
+from .._sqlite.sqlite import SQLite
+from .._results.results import Results
+from .._resources.resources import Resources
+from .._utils.utils import get_lang
 
 class Extractor:
     """
@@ -128,16 +127,3 @@ class Extractor:
             self._sqlite.add_inner_stopwords(inner_stopwords_list=inner_stopwords_list)
             self._methodology.processor.inner_stopwords = self._sqlite.get("inner_stopwords")
             self.inner_stopwords = self._sqlite.get("inner_stopwords")
-
-    def train_bert(self, trainer: BertTrainer) -> None:
-        # from ..methodology.bert.bert_trainer import BertTrainer
-        print("Running BERT fine-tuning")
-        trainer = trainer
-        self._sqlite.load_external_terms(trainer.external_terms)
-
-
-        # segments = self._sqlite.get_segments()
-        
-        # corpus, tokenized_corpus, labels = trainer._prepare_fine_tuning()
-
-        # trainer._train(train_data=segments)
