@@ -13,7 +13,7 @@ extractor = Extractor(
     ),
     project_name="statistical-example_lower",
     corpus="Mental_disorder.txt",
-    language="english",
+    language="polish",
     overwrite_project=True,
 )
 
@@ -34,12 +34,14 @@ print(f"\nTokens: {results.tokens()}")
 # ----------
 # Linguistic
 
-from TBXTools import Extractor, LinguisticMethodology
+from TBXTools import Extractor
+from TBXTools.methodology import LinguisticMethodology
+
 
 evaluation_terms = "evaluation_terms.txt"
 linguistic_patterns="ling_pat-en.txt"
 tagged_corpus = "tagged-corpus.txt"
-corpus = "Mental_disorder.txt"
+corpus = "Trastorn_mental.txt"
 tsr_terms = "tsr_terms.txt"
 
 # Scenario A
@@ -48,7 +50,7 @@ extractor = Extractor(
     methodology=LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=True, linguistic_patterns=linguistic_patterns),
     project_name="linguistic-example",
     corpus=tagged_corpus,
-    language="english",
+    language="polish",
     overwrite_project=True
 )
 

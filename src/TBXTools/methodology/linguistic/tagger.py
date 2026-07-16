@@ -1,6 +1,3 @@
-import sys
-import subprocess
-import spacy  
 
 class LinguisticTagger:
     '''
@@ -10,39 +7,8 @@ class LinguisticTagger:
         model_name (str): The name of the spaCy model to load (e.g.,'en_core_web_sm').
         nlp (spacy.Language or None): The loaded spaCy pipeline instance used for tagging.
     '''
-    def __init__(self, model_name):
-        self.model_name = model_name
-        self.nlp = None
-        self._load_model()
-
-    def _load_model(self): 
-        """
-        Checks for the spaCy model, downloading it via subprocess if missing, then loads it into self.nlp.
-
-        Attributes:
-            self.model_name (str): The name of the spaCy model to be loaded (e.g.,'en_core_web_sm').
-        
-        Raises:
-            SystemExit: If the model download fails, the program terminates with an
-            exit code of 1.
-        """
-
-        if not spacy.util.is_package(self.model_name):
-            print(f"Downloading and installing spaCy model: {self.model_name}...")
-            try:
-                subprocess.check_call([sys.executable, "-m", "spacy", "download", self.model_name])
-                print(f"\nModel {self.model_name} downloaded successfully.")
-                
-                print(f"Initializing Tagger with the newly downloaded model: {self.model_name}")
-
-                self.nlp = spacy.load(self.model_name)
-
-            except Exception as e:
-                print(f"Error downloading model '{self.model_name}': {e}")
-                sys.exit(1)
-        else:
-            print(f"Corpus is not tagged. Initializing POS tagger with model: {self.model_name}")
-            self.nlp = spacy.load(self.model_name)
+    def __init__(self, nlp):
+        self.nlp = nlp
     
     def tag_segment(self, segment: str) -> str:
         """
