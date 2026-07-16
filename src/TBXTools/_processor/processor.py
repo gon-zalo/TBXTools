@@ -1,4 +1,4 @@
-from .._utils.utils import get_model_from_code
+from .._utils.utils import get_spacy_model_from_code
 
 class Processor:
 
@@ -21,6 +21,7 @@ class Processor:
         self.nmin = None
         self.nmax = None
         self.lang_code = None
+        self.model_name = None
         self.nlp = None
 
     
@@ -69,14 +70,23 @@ class Processor:
         Returns:
           normalized_terms: A new list of tuple after applying lemmatization.
         '''
-        import spacy 
-        if self.nlp is None:
-            model_name = get_model_from_code(self.lang_code)
+        
+        from spacy.tokens import Doc 
 
-            config = {"components": {"lemmatizer": {"mode": "rule"}}}
-            self.nlp = spacy.load(model_name, config=config)
-    
+        from .._utils.utils import load_spacy_model
+        
+        if self.lang_code is not None and self.model_name is None:
+            self.model_name = get_spacy_model_from_code(self.lang_code)
 
+
+        if self.nlp is None: 
+            if self.model_name is None:
+                raise ValueError( #maybe we can eliminate this error- we will always set a lang code in the extraction
+                    "Unable to start lemmatization: the language (lang_code) has not been set"
+                )
+            
+            self.nlp = load_spacy_model(self.model_name)
+            
         print("Applying lemmatization")
         freq_dict = {}
 
@@ -84,7 +94,12 @@ class Processor:
             term = terms_row[0].strip()
             freq = terms_row[3]
 
-            doc = self.nlp(term)
+            words = term.split()
+
+            doc = Doc(self.nlp.vocab, words=words)
+
+            for name, proc in self.nlp.pipeline:
+                doc = proc(doc)
 
             lemmatized_term = " ".join([token.lemma_.strip() for token in doc])
 
@@ -226,7 +241,8 @@ class Processor:
           list[str]: A list of tokens extracted from the segment.
         """
         from nltk.tokenize import RegexpTokenizer
-        tokenizer = RegexpTokenizer(r"\b\w(?:[\w'‘’.,-]*\w)?\b")
+        #tokenizer = RegexpTokenizer(r"\b\w(?:[\w'‘’.,-]*\w)?\b")
+        tokenizer = RegexpTokenizer(r"\(?\b\w(?:[\w'‘’.,-·]*\w)?\b\)?")
         token = tokenizer.tokenize(segment)
         
         return token
@@ -329,9 +345,21 @@ class Processor:
         Returns:
           tagged_segments (list of str): A list of POS tagged segments.
         """
+        from .._utils.utils import load_spacy_model
+
+        if self.lang_code is not None and self.model_name is None:
+            self.model_name = get_spacy_model_from_code(self.lang_code)
+
+        if self.nlp is None:
+            if self.model_name is None:
+                raise ValueError(
+                    "Impossibile avviare il tagging: la lingua (lang_code) non è stata impostata."
+                )
+            self.nlp = load_spacy_model(self.model_name)
+
         from ..methodology.linguistic.tagger import LinguisticTagger
 
-        tagger = LinguisticTagger(get_model_from_code(self.lang_code))
+        tagger = LinguisticTagger(self.nlp)
 
         tagged_segments = []
         for segment in segments:
