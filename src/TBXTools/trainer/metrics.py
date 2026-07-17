@@ -4,7 +4,7 @@ class Metrics:
         self.eval_data = None
         self.processor = None
 
-    def score(self, pred_terms, true_terms): # my score func
+    def _old_score(self, pred_terms, true_terms): # my score func
         pred_terms = set(pred_terms)
         true_terms = set(true_terms)
 
@@ -72,7 +72,7 @@ class Metrics:
 
         return {"precision": precision, "recall": recall, "f1": f1}
 
-    def compute_metrics_lemm(self, p):
+    def _old_compute_metrics_lemm(self, p):
         import numpy as np
         import pandas as pd
         prediction_logits, label_ids = p # label_ids are true padded label IDs from eval_data
@@ -120,3 +120,57 @@ class Metrics:
         # print(all_pred_terms)   
 
         return {"precision": precision, "recall": recall, "f1": f1}
+    
+    def compute_metrics_lemm(self, p):
+        import numpy as np
+        
+        prediction_logits, label_ids = p
+        predictions = np.argmax(prediction_logits, axis=2)
+        
+        pred_dict = {}
+        true_dict = {}
+
+        for segment_idx in range(len(self.eval_data)):
+            tokens = self.eval_data[segment_idx]["tokens"]
+            predicted_ids = predictions[segment_idx]
+            true_ids = label_ids[segment_idx]
+
+            pred_terms = self.processor._bio_to_terms(tokens, predicted_ids)
+            true_terms = self.processor._bio_to_terms(tokens, true_ids)
+            
+            pred_dict[segment_idx] = pred_terms
+            true_dict[segment_idx] = true_terms
+
+        precision, recall, f1 = self.score(pred_dict, true_dict)
+
+        return {"precision": precision, "recall": recall, "f1": f1}
+
+
+    def score(self, pred_dict, true_dict):
+        tp = 0
+        total_preds = 0
+        total_trues = 0
+        
+        for i in true_dict.keys():
+            preds = pred_dict.get(i, [])
+            trues = true_dict.get(i, [])
+            
+            total_preds += len(preds)
+            total_trues += len(trues)
+            
+            true_pool = list(trues)
+            
+            for pred in preds:
+                if pred in true_pool:
+                    tp += 1
+                    true_pool.remove(pred) # Remove match to avoid double-counting
+
+        precision = tp / total_preds if total_preds > 0 else 0.0
+        recall = tp / total_trues if total_trues > 0 else 0.0
+
+        if precision + recall == 0:
+            f1 = 0.0
+        else: 
+            f1 = 2 * precision * recall / (precision + recall)
+            
+        return precision, recall, f1
