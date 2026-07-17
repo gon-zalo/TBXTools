@@ -20,7 +20,7 @@ medicine_en = "wmt26/corpora/corpus-medicine-en.txt"
 terms_medicine_en = "wmt26/terms/terms-medicine-en.txt"
 
 trainer = BertTrainer(
-    project_name="bert-train-medicine-50k-bilou-en",
+    project_name="bert-train-medicine-50k-bio-en",
     corpus=medicine_en,
     overwrite_project=True,
     language="en",
