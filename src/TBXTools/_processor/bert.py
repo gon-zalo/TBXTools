@@ -1,5 +1,6 @@
 import pandas as pd
 from tqdm import tqdm
+from .._utils.utils import get_model_from_code
 
 class BertProcessor():
 
@@ -70,62 +71,46 @@ class BertProcessor():
         self._label2id = {l: i for i, l in enumerate(self._labeling_scheme)}
         self._id2label = {i: l for l, i in self._label2id.items()}
             
-    def preprocess_train(self, segments, external_terms, expand_labels=False, nlp=None, lemmatize=False):
-        if not lemmatize:
-            encoding = self._encode(
-                segments, 
-                return_offsets=True, 
-                is_split_into_words=False)
+    def preprocess_train(self, df, expand_labels=False, balanced_dataset_size=None, dataset_negative_ratio=None):
+        encoding = self._encode(
+            df["word_tokens"].tolist(),
+            return_offsets=False,
+            is_split_into_words=True)
+        
+        tokenized_segments = self._tokenize_segments(encoding) # with bert
 
-            tokenized_segments = self._tokenize_segments(encoding) # with bert
-            
-            df = pd.DataFrame({
-                "text": segments,
-                "tokens": tokenized_segments,
-                "offset_mapping": encoding["offset_mapping"],
-                "input_ids": encoding["input_ids"],
-                "attention_mask": encoding["attention_mask"]})
-
-            tagged_terms = self._tokenize_and_tag_terms(external_terms=external_terms, expand_labels=expand_labels)
-            
-            df["labels"] = self._annotate(df["tokens"], tokenized_terms=tagged_terms)
-    
-        if lemmatize:
-            import spacy
-            # implement lang choice
-            # nlp = spacy.load("pl_core_news_sm")
-            nlp = spacy.load("en_core_web_sm")
-
-            seg_tokens, seg_lemmas = self._lemmatize_segments(nlp, segments) # with spacy
-
-            encoding = self._encode(
-                seg_tokens,
-                return_offsets=False,
-                is_split_into_words=True)
-            
-            tokenized_segments = self._tokenize_segments(encoding) # with bert
-            
-            df = pd.DataFrame({
-                "text": segments,
-                "tokens": tokenized_segments,
-                "lemmas": seg_lemmas,
-                "input_ids": encoding["input_ids"],
-                "attention_mask": encoding["attention_mask"]})
-            
-            tagged_terms = self._lemmatize_and_tag_terms(nlp, external_terms=external_terms)
-
-            df["labels"] = self._annotate(df["lemmas"], tokenized_terms=tagged_terms)
+        df["tokens"] = tokenized_segments
+        df["input_ids"] = encoding["input_ids"]
+        df["attention_mask"] = encoding["attention_mask"]
 
         tokens_FD = self._calculate_tokens_FD(df["tokens"])
 
-        df["labels"] = self._align_labels(encoding, df["labels"].tolist(), is_split_into_words=lemmatize, expand_labels=expand_labels) # False if not lemmatize, True if lemmatize
-        
-        df = self._filter_out_segments(df)
+        df["labels"] = self._align_labels(encoding, df["labels"].tolist(), is_split_into_words=True, expand_labels=expand_labels)
+
+        df = self._build_balanced_dataset(dataframe=df,target_size=balanced_dataset_size, negative_ratio=dataset_negative_ratio)
 
         df["labels"] = self._transform_labels_into_ints(df["labels"])
 
         return tokens_FD, df
     
+    def annotate_data(self, segments, external_terms):
+        import spacy
+        spacy_model = get_model_from_code(self.lang_code)
+        nlp = spacy.load(spacy_model)
+
+        word_tokens, lemmas = self._lemmatize_segments(nlp, segments) # with spacy
+
+        tagged_terms = self._lemmatize_and_tag_terms(nlp, external_terms=external_terms)
+
+        df = pd.DataFrame({
+            "text": segments,
+            "word_tokens": word_tokens, 
+            "lemmas": lemmas})
+
+        df["labels"] = self._annotate(df["lemmas"], tokenized_terms=tagged_terms)
+
+        return df
+
     def preprocess_eval(self, segments, lemmatize=False):
         if not lemmatize:
             encoding = self._encode(segments, return_offsets=True, is_split_into_words=False)
@@ -142,9 +127,10 @@ class BertProcessor():
 
         if lemmatize:
             import spacy
-            # implement lang choice
-            # nlp = spacy.load("pl_core_news_sm")
-            nlp = spacy.load("en_core_web_sm")
+            spacy_model = get_model_from_code(self.lang_code)
+            nlp = spacy.load(spacy_model)
+
+            # nlp = spacy.load("en_core_web_sm")
 
             seg_tokens = self._tokenize_segments(nlp, segments)
 
@@ -157,29 +143,26 @@ class BertProcessor():
 
         return df
     
-    def preprocess_annotated(self, df, lemmatize=False):
-        if lemmatize:
-            encoding = self._encode(
-            df["tokens"].tolist(),
+    # unify with preprocess_train
+    def preprocess_annotated(self, df, expand_labels=False):
+        encoding = self._encode(
+            df["word_tokens"].tolist(),
             return_offsets=False,
             is_split_into_words=True)
 
-        if not lemmatize:
-            encoding = self._encode(
-            df["text"].tolist(), #tolist?
-            return_offsets=True,
-            is_split_into_words=False)
+        tokenized_segments = self._tokenize_segments(encoding) # with bert
+        
+        df["tokens"] = tokenized_segments
+        df["input_ids"] = encoding["input_ids"]
+        df["attention_mask"] = encoding["attention_mask"]
 
-        output_df = pd.DataFrame({
-            "text": df["text"] if not lemmatize else None,
-            "tokens": df["tokens"] if lemmatize else None,
-            "lemmas": df["lemmas"] if lemmatize else None,
-            "input_ids": encoding["input_ids"],
-            "attention_mask": encoding["attention_mask"],
-            "offset_mapping": encoding["offset_mapping"] if not lemmatize else None,
-            "labels": df["labels"]})
+        df["labels"] = self._align_labels(encoding, df["labels"].tolist(), is_split_into_words=True, expand_labels=expand_labels)
 
-        return output_df
+        df = self._build_balanced_dataset(dataframe=df,target_size=30000, negative_ratio=0.15)
+
+        df["labels"] = self._transform_labels_into_ints(df["labels"])
+
+        return df
             
     def _encode(self, segments, return_offsets=False, is_split_into_words=False):
         encoding = self.tokenizer(
@@ -267,16 +250,49 @@ class BertProcessor():
 
         return labels
 
-    def _filter_out_segments(self, dataframe):
-        print(f"\nFiltering out segments that only contain '{self._labeling_scheme[0]}' labels", flush=True)
-        # only keeping rows that contain B or I labels
-        filter = dataframe["labels"].apply(lambda seg_labels: any(label in ["B", "I"] for label in seg_labels))
-
-        dataframe = dataframe[filter]
+    def _build_balanced_dataset(self, dataframe, target_size=30000, negative_ratio=0.15):
+            
+        print(f"\nBuilding a dataset of {target_size} segments with {negative_ratio * 100}% negative examples from a dataframe of {len(dataframe)} segments", flush=True)
         
-        print(f"Remaining segments: {len(dataframe)}")
+        # filter
+        with_terms = dataframe["labels"].apply(lambda seg_labels: any(label in ["B", "I"] for label in seg_labels))
+        
+        # 2 dfs, one with terms and another without
+        df_with_terms = dataframe[with_terms]
+        df_without_terms = dataframe[~with_terms]
+        print(f"Total segments with terms: {len(df_with_terms)}")
 
-        return dataframe
+        if target_size > len(df_with_terms):
+            print("\nWARNING: Specified target size is bigger than identified segments with terms.")
+
+            n_segments_with_terms = len(df_with_terms)
+            n_negative_examples = int(len(df_with_terms) * negative_ratio)
+            n_negative_examples = min(n_negative_examples, len(df_without_terms))
+
+            print(f"Building a dataset of all identified positive examples ({n_segments_with_terms}) and {negative_ratio * 100}% negative examples ({n_negative_examples})")
+
+            df_with_terms = df_with_terms.sample(n=n_segments_with_terms, random_state=123)
+            df_without_terms = df_without_terms.sample(n=n_negative_examples, random_state=123)
+
+        else: 
+            n_negative_examples = int(target_size * negative_ratio)
+            n_segments_with_terms = target_size - n_negative_examples
+            
+            n_segments_with_terms = min(n_segments_with_terms, len(df_with_terms))
+            n_negative_examples = min(n_negative_examples, len(df_without_terms))
+            
+            df_with_terms = df_with_terms.sample(n=n_segments_with_terms, random_state=123)
+            df_without_terms = df_without_terms.sample(n=n_negative_examples, random_state=123)
+        
+        # concat and merge
+        full = pd.concat([df_with_terms, df_without_terms])
+        full = full.sample(frac=1, random_state=123).reset_index(drop=True)
+        
+        print(f"\nRemaining segments with terms:{len(df_with_terms)}")
+        print(f"Remaining segments without terms:  {len(df_without_terms)}")
+        print(f"Remaining total segments: {len(full)}")
+        
+        return full
 
     def _order_terms_by_len(self, tokenized_terms):
         from collections import defaultdict
@@ -463,8 +479,8 @@ class BertProcessor():
                         label = labels[word_id]
                         
                         if not expand_labels and label.startswith(("B", "L", "U")):
-                            # aligned_segment.append(label.replace("B", "I", 1)) #for bio tags
-                            aligned_segment.append("I" + label[1:]) # for bilou
+                            aligned_segment.append(label.replace("B", "I", 1)) #for bio tags
+                            # aligned_segment.append("I" + label[1:]) # for bilou
 
                         else: # expanding labels
                             aligned_segment.append(label)
