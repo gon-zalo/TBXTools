@@ -87,6 +87,7 @@ class SQLite:
             self.cur.execute("CREATE TABLE evaluation_terms(id INTEGER PRIMARY KEY AUTOINCREMENT, evaluation_term TEXT)")
             self.cur.execute("CREATE TABLE segment_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, labels TEXT)")
             self.cur.execute("CREATE TABLE lemmatized_corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, lemmatized_segment TEXT)")
+            self.cur.execute("CREATE TABLE word_tokens(id INTEGER PRIMARY KEY AUTOINCREMENT, word_tokens TEXT)")
 
 
             # self.cur.execute("CREATE TABLE BERT( \
@@ -355,6 +356,15 @@ class SQLite:
             with self.conn:
                 self.cur.executemany("INSERT INTO lemmatized_corpus (lemmatized_segment) VALUES (?)", data)
 
+    def insert_word_tokens(self, data):
+        '''Inserts spacy word tokens into the database'''
+        data = [" ".join(segment) for segment in data]
+
+        data = [(segment,) for segment in data]
+        if not self.table_is_populated("word_tokens"):
+            with self.conn:
+                self.cur.executemany("INSERT INTO word_tokens (word_tokens) VALUES (?)", data)
+
     def insert_bert_data(self, df, lemmatize):
         '''Insert dataframe data obtained after processing with BERT models'''
         import numpy as np
@@ -468,7 +478,17 @@ class SQLite:
 
         return lemmatized_corpus
     
-    def get_segment_labels(self):
+    def get_word_tokens(self):
+        word_tokens= []
+        with self.conn:
+            self.cur.execute("SELECT word_tokens FROM word_tokens")
+
+            for word_tokens_row in self.cur.fetchall():
+                word_tokens.append(word_tokens_row[0].split()) # as list for bert
+
+        return word_tokens
+    
+    def _old_get_segment_labels(self):
         labels = []
         with self.conn:
             self.cur.execute("SELECT labels FROM segment_labels")
@@ -477,6 +497,19 @@ class SQLite:
                 # labels.append(labels_row[0].split())
                 int_list = [int(label) for label in labels_row[0].split()] # turning str back into ints
                 labels.append(int_list)
+
+        return labels
+    
+    def get_segment_labels(self):
+        labels = []
+        with self.conn:
+            self.cur.execute("SELECT labels FROM segment_labels")
+
+            for labels_row in self.cur.fetchall():
+                labels.append(labels_row[0].split())
+                
+                # int_list = [int(label) for label in labels_row[0].split()] # turning str back into ints
+                # labels.append(int_list)
 
         return labels
     
