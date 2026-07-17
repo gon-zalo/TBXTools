@@ -16,3 +16,6 @@ tests/*-test
 tests/wmt*
 tests/clean_iate.py
 tests/hp_tuning.sh
+logs/
+tests/*.sh
+tests/bert_pat/*.txt
