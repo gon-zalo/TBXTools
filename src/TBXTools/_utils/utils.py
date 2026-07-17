@@ -36,7 +36,8 @@ def get_model_from_code(lang_code):
         "en": "en_core_web_sm",
         "ca": "ca_core_news_sm",
         "fr": "fr_core_news_sm",
-        "es": "es_core_news_sm"
+        "es": "es_core_news_sm",
+        "pl": "pl_core_news_sm"
         }
     
         return spacy_models.get(lang_code, None)
