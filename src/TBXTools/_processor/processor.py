@@ -195,6 +195,7 @@ class Processor:
 
         '''
         import re
+        # import regex
          
         candidates_to_exclude = []
         for candidate_row in tqdm(candidate_terms, desc="Applying regex exclusion", total=len(candidate_terms)):
@@ -202,16 +203,16 @@ class Processor:
             candidate_n = candidate_row[1]
             candidate_n = int(candidate_n)
 
-            for regex in regexes:
-                regex = regex[0]
-                regex_n = len(regex.split())
-                match = re.fullmatch(regex, candidate)
+            for regex_expression in regexes:
+                regex_expression = regex_expression[0]
+                regex_n = len(regex_expression.split())
+                match = re.fullmatch(regex_expression, candidate)
 
                 if match and regex_n == candidate_n:
                     candidates_to_exclude.append(candidate)
 
                     if verbose:
-                        print(f"'{candidate}' removed by: {regex}")
+                        print(f"'{candidate}' removed by: {regex_expression}")
 
         return candidates_to_exclude
              
@@ -226,7 +227,8 @@ class Processor:
           list[str]: A list of tokens extracted from the segment.
         """
         from nltk.tokenize import RegexpTokenizer
-        tokenizer = RegexpTokenizer(r"\b\w(?:[\w'‘’.,-]*\w)?\b")
+        # tokenizer = RegexpTokenizer(r"\b\w(?:[\w'‘’.,-]*\w)?\b")
+        tokenizer = RegexpTokenizer(r"\(?\b\w(?:[\w'‘’.,-·]*\w)?\b\)?")
         token = tokenizer.tokenize(segment)
         
         return token
