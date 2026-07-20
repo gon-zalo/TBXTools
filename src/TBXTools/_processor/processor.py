@@ -2,14 +2,16 @@ from .._utils.utils import get_spacy_model_from_code
 
 class Processor:
 
-    '''Manages the text preprocessing pipeline for terminology extraction. This class provides methods for tokenizing text segments, applying lemmatization, case and nest normalizations, and filtering candidate terms using stopwords and regular expressions.
+    '''Manages the text preprocessing pipeline for terminology extraction. This class
+    provides methods for tokenizing text segments, applying lemmatization, case and nest normalizations, and filtering candidate terms using stopwords and regular expressions.
 
     Attributes:
         stopwords (list/set): A collection of standard words to filter out.
         inner_stopwords (list/set): A collection of words to filter out when found inside a term.
         nmin (int): The minimum number of words a candidate term can contain.
-        nmax (int): The maximum number a candidate term can contain.
-        lang_code: The ISO code for the language.
+        nmax (int): The maximum number of words a candidate term can contain.
+        lang_code (str): The ISO code for the language.
+        model_name (str): The name of the spacy model used (e.g., "en_core_web_sm" or "ca_core_news_sm").
         nlp: The NLP pipeline or model used for text processing.
         
         
@@ -30,7 +32,7 @@ class Processor:
         Performs case normalization. If a capitalized term exists as non-capitalized, the capitalized one will be deleted and the frequency of the non-capitalized one will be increased by the frequency of the capitalized.
 
         Args:
-          candidate_terms: a list of tuple containing the candidate terms 
+          candidate_terms: a list of tuple containing the candidate terms. 
           verbose: If True, enables detailed logging. Defaults to False.
         
         Returns:
@@ -64,7 +66,7 @@ class Processor:
         Performs lemmatization. Applies lemmatization to all candidate terms and merges duplicates by summing their frequencies.
 
         Args:
-          candidate_terms: a list of tuple containing the candidate terms 
+          candidate_terms: a list of tuple containing the candidate terms. 
           verbose: If True, enables detailed logging. Defaults to False.
         
         Returns:
@@ -123,7 +125,7 @@ class Processor:
         Normalizes candidate term frequencies by accounting for nested subterms. Reduces the frequency of terms that appear inside longer candidate terms. A frequency compatibility interval (±percent%) is defined around each candidate term's frequency. The frequency of a nested term is only subtracted from the base term if it falls within this interval. Terms whose normalized frequency drops to 0 are removed from the final list.
 
         Args:
-          candidate_terms: a list of tuple containing the candidate terms 
+          candidate_terms: a list of tuple containing the candidate terms.
           percent (int or float, optional): The percentage threshold defining the compatibility interval around each frequency. Defaults to 10.
           verbose: If True, enables detailed logging. Defaults to False.
         
@@ -206,7 +208,7 @@ class Processor:
           verbose: If True, enables detailed logging. Defaults to False.
         
         Returns:
-          candidates_to_exclude: a list of candidate terms to exclude
+          candidates_to_exclude: a list of candidate terms to exclude.
 
         '''
         import re
@@ -232,7 +234,11 @@ class Processor:
              
     def tokenize(self, segment):
         """
-        Tokenizes a text segment into word tokens, removing punctuation outside words while preserving internal characters such as apostrophes and hyphens.
+        Tokenizes a text segment into word tokens using a custom regular expression.
+
+        This tokenizer strips away general boundary punctuation, but keeps optional surrounding parentheses attached to the tokens. It also preserves internal 
+        word characters such as apostrophes, hyphens, periods, commas, and the 
+        Catalan middle dot (·).
 
         Args: 
           segment (str): A text segment to be tokenized.
@@ -249,8 +255,7 @@ class Processor:
     
     def filter_by_stopwords(self, term):
         """
-        Filters a candidate term by checking for invalid stopwords. A term is rejected (returns None) if it
-        contains a standard stopword at its boundaries (start/end) or an inner stopword in its middle tokens.
+        Filters a candidate term by checking for invalid stopwords. A term is rejected(returns None) if it contains a standard stopword at its boundaries (start/end) or an inner stopword in its middle tokens.
 
         Args: 
           term(str): The candidate term string to validate.
@@ -274,8 +279,8 @@ class Processor:
     
     def filter_by_stopwords_linguistic(self, term):
         """
-        Filters a candidate term (in this case a tagged ngram) by checking for invalid stopwords. A term is rejected (returns None) if it
-        contains a standard stopword at its boundaries (start/end).
+        Filters a candidate term (in this case a tagged ngram) by checking for invalid stopwords. A term is rejected (returns None) if it contains a standard
+        stopword at its boundaries (start/end).
 
         Args: 
           term(str): The candidate term string to validate.
@@ -353,7 +358,7 @@ class Processor:
         if self.nlp is None:
             if self.model_name is None:
                 raise ValueError(
-                    "Impossibile avviare il tagging: la lingua (lang_code) non è stata impostata."
+                    "Unable to start POS tagging: the language (lang_code) has not been set"
                 )
             self.nlp = load_spacy_model(self.model_name)
 
@@ -383,8 +388,8 @@ class Processor:
           min_freq(int) : The minimum frequency threshold. Only ngrams appearing at least "minfreq" times will be included in the output.
 
         Returns:
-          -ngrams_output (list of tuple) : A list of tuples containing the ngram strings with their lenght and frequency.
-          -tagged_ngrams_output (list of tuple) : A list of tuples containing the original tagged n-grams with their length and frequency. This list remains empty if `is_corpus_tagged` is False.       
+          ngrams_output (list of tuple) : A list of tuples containing the ngram strings with their lenght and frequency.
+          tagged_ngrams_output (list of tuple) : A list of tuples containing the original tagged n-grams with their length and frequency. This list remains empty if `is_corpus_tagged` is False.       
         '''
         import nltk
         from nltk.util import ngrams as compute_ngrams
