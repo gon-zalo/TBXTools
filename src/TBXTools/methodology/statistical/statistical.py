@@ -8,9 +8,8 @@ class StatisticalMethodology(BaseMethodology):
     Manages statistical terminology extraction.
     
     Attributes:
-        nmin (int): The minimum number of words a candidate term can contain.
-        nmax (int): The maximum number of words a candidate term can contain.
-        _processor (Processor): An internal instance of the Processor class used to handle text preprocessing tasks.
+        name (str): The name of the methodology ("StatisticalMethodology")        _processor (Processor): An internal instance of the Processor class configured with 'nmin' and 'nmax' used to handle text preprocessing tasks.
+        case_normalization = If True applies case_normalization to the candidate terms. Default to False.
     '''
     
     def __init__(self, nmin, nmax, case_normalization=False):
@@ -25,14 +24,14 @@ class StatisticalMethodology(BaseMethodology):
 # MAIN FUNCTION
     def extract(self, segments, verbose=False):
         '''
-    Extracts candidate terms from text segments using a statistical methodology. This methodology is based on calculating n-grams and filtering candidates using stopwords and inner stopwords. Specifically, it removes any terms that start or end with a word in the stopword list, as well as terms that contain an inner stopword. The actual extraction logic is delegated to the '_statistical_extraction' method.
+        Extracts candidate terms from text segments using a statistical methodology. This methodology is based on calculating n-grams and filtering candidates using stopwords and inner stopwords. Specifically, it removes any terms that start or end with a word in the stopword list, as well as terms that contain an inner stopword. The actual extraction logic is delegated to the '_statistical_extraction' method.
 
-    Args:
-        segments: A list of text segments to process.
-        verbose (bool, optional): If True, enables detailed logging. Defaults to False.
+        Args:
+            segments: A list of text segments to process.
+            verbose (bool, optional): If True, enables detailed logging. Defaults to False.
 
-    Returns:
-        Results: An object containing the candidate terms, n-grams, tokens, and extractor information. 
+        Returns:
+            Results: An object containing the candidate terms, n-grams, tokens, and extractor information. 
         '''
         
         ngrams, tokens, candidate_terms = self._statistical_extraction(segments=segments)
@@ -50,7 +49,7 @@ class StatisticalMethodology(BaseMethodology):
         Handles the core computation of the statistical extraction pipeline. It processes the text segments to generate tokens and n-grams, calculates their frequency distributions, and applies stopword filtering (both boundary and inner) alongside a minimum frequency threshold to isolate the final candidate terms. 
 
         Args:
-            segments: A list of text segments to process.
+            segments (list of str): A list of text segments to process.
             minfreq (int, optional): The minimum frequency required for an n-gram to be considered a candidate term. Defaults to 2.
 
         Returns:
