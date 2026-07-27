@@ -46,7 +46,12 @@ class Processor:
             term = terms_row[0]
             freq = terms_row[3]
 
-            key = term.lower().strip()
+            
+            if term.isupper():
+                key = term.strip()
+            else:
+                key = term.lower().strip()
+
             freq_dict[key] = freq_dict.get(key, 0) + freq
 
         normalized_terms = []
@@ -276,8 +281,32 @@ class Processor:
                 return None
 
         return term
-    
+
     def filter_by_stopwords_linguistic(self, term):
+
+        if not term or not term.strip():
+            return None
+
+        split_term = term.lower().split()
+    
+        if not split_term:
+            return None
+
+        first_parts = split_term[0].split("|")
+        first_word = first_parts[1] if len(first_parts) > 1 else (first_parts[0] if len(first_parts) > 0 else "")
+    
+        if first_word and first_word in self.stopwords:
+            return None
+    
+        last_parts = split_term[-1].split("|")
+        last_word = last_parts[1] if len(last_parts) > 1 else (last_parts[0] if len(last_parts) > 0 else "")
+    
+        if last_word and last_word in self.stopwords:
+            return None
+    
+        return term
+    
+    def filter_by_stopwords_linguistic_or(self, term):
         """
         Filters a candidate term (in this case a tagged ngram) by checking for invalid stopwords. A term is rejected (returns None) if it contains a standard
         stopword at its boundaries (start/end).
