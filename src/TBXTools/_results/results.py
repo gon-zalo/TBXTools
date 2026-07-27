@@ -181,7 +181,7 @@ class Results:
         filtered_terms = self._extractor._sqlite.get_candidate_terms()
         self._terms = filtered_terms
 
-    def save_candidates(self, path):
+    def save_candidates(self, path, only_candidates=False):
         '''
         Save the candidate terms to disk. The file is saved in the specified format. If no format is provided, it defaults to .txt.
 
@@ -196,7 +196,12 @@ class Results:
         path = Path(path)
         extension = path.suffix.lower()
         candidate_terms = self._extractor._sqlite.get_candidate_terms()
-        output = pd.DataFrame(candidate_terms, columns=['candidate', 'n', 'measure', 'value'], index=None)
+
+        if only_candidates == False:
+            output = pd.DataFrame(candidate_terms, columns=['candidate', 'n', 'measure', 'value'])
+
+        else:
+            output = pd.DataFrame(candidate_terms, columns=['candidate', 'n', 'measure', 'value'])[['candidate']]
 
         if not extension:
             extension = ".txt"
