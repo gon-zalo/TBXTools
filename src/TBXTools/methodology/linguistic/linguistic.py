@@ -19,12 +19,13 @@ class LinguisticMethodology(BaseMethodology):
         processor (Processor): An internal instance of the Processor class configured with 'nmin' and 'nmax' used to handle text preprocessing tasks.
     '''
 
-    def __init__(self, nmin, nmax, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None, tsr_terms=None):
+    def __init__(self, nmin, nmax, is_corpus_tagged=False, case_normalization=False, linguistic_patterns=None, evaluation_terms=None, tsr_terms=None):
         
         self.name = "LinguisticMethodology"
         self.is_corpus_tagged = is_corpus_tagged
         self.linguistic_patterns = linguistic_patterns
         self.evaluation_terms = evaluation_terms
+        self.case_normalization = case_normalization
         self.tsr_terms = tsr_terms        
         self.processor = Processor()
         self.processor.nmin = nmin 
@@ -88,6 +89,11 @@ class LinguisticMethodology(BaseMethodology):
      
         translated_linguistic_patterns = self.processor.translate_pattern(self.linguistic_patterns)
         candidate_terms = self._linguistic_extraction(ngrams_output=tagged_ngrams, linguistic_patterns=translated_linguistic_patterns, minfreq=minfreq)
+
+        if self.case_normalization:
+                     candidate_terms = self.processor.case_normalization(
+                        candidate_terms=candidate_terms, 
+                        verbose=verbose) 
 
         return Results(tagged_ngrams=tagged_ngrams,
                        ngrams=clean_ngrams, 
