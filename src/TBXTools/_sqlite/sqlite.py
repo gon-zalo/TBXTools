@@ -526,7 +526,7 @@ class SQLite:
 # ADD FUNCTIONS
     def add_stopwords(self, stopwords_list):
         '''Add stopwords to the database that do not exist already.'''
-        current_stopwords = self.get_stopwords()
+        current_stopwords = self.get("stopwords")
         data = []
         for stopword in stopwords_list:
             if stopword in set(current_stopwords):
