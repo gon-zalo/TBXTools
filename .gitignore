@@ -19,3 +19,8 @@ tests/hp_tuning.sh
 logs/
 tests/*.sh
 tests/bert_pat/*.txt
+old*/
+iate*/
+segments/
+corpus*/
+*.json
