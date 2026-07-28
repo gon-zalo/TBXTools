@@ -165,7 +165,7 @@ class AlignWithTransformers:
 if __name__ == "__main__":
     aligner = AlignWithTransformers("sentence-transformers/LaBSE")
 
-    aligner.align_words("english_list.txt", "polish_list.txt", group_by_en=False)
+    aligner.align_words("list_engin_en.txt", "list_engin_pl.txt", group_by_en=False, threshold=0.75, output_json="align-75-no_punct_False.json")
 
 
 
