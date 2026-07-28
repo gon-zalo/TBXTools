@@ -6,6 +6,7 @@ terms = "./bert_pat/terms-dret.txt"
 bert = "BSC-LT/MrBERT-ca"
 longformer = "projecte-aina/longformer-base-4096-ca-v2"
 roberta = "projecte-aina/roberta-base-ca-v2"
+roberta_large = "projecte-aina/roberta-large-ca-v2"
 
 trainer = BertTrainer(
     project_name="bert-train-dret-ca",
