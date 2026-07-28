@@ -24,7 +24,10 @@ iate*/
 segments/
 corpus*/
 *.json
-bert_hpt*
-bert_ann.py
-bert_dret.py
-align_terms.py
+tests/bert_hpt*
+tests/bert_ann.py
+tests/bert_dret.py
+tests/align_terms.py
+tests/join_data.py
+tests/lem_test.py
+tests/bert_dret.py
