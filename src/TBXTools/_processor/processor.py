@@ -283,6 +283,16 @@ class Processor:
         return term
 
     def filter_by_stopwords_linguistic(self, term):
+        """
+        Filters a candidate term (in this case a tagged ngram) by checking for invalid stopwords. A term is rejected (returns None) if it
+        contains a standard stopword at its boundaries (start/end).
+
+        Args: 
+          term(str): The candidate term string to validate.
+        
+        Returns:
+          str or None: The original term string if it passes all stopword filters, otherwise None.
+        """
 
         if not term or not term.strip():
             return None
@@ -304,29 +314,6 @@ class Processor:
         if last_word and last_word in self.stopwords:
             return None
     
-        return term
-    
-    def filter_by_stopwords_linguistic_or(self, term):
-        """
-        Filters a candidate term (in this case a tagged ngram) by checking for invalid stopwords. A term is rejected (returns None) if it contains a standard
-        stopword at its boundaries (start/end).
-
-        Args: 
-          term(str): The candidate term string to validate.
-        
-        Returns:
-          str or None: The original term string if it passes all stopword filters, otherwise None.
-        """
-        split_term = term.lower().split()
-        
-        first_word = split_term[0].split("|")[1]
-        if first_word in self.stopwords:
-            return None
-        
-        last_word = split_term[-1].split("|")[1]
-        if last_word in self.stopwords:
-            return None
-        
         return term
     
     # linguistic processing
