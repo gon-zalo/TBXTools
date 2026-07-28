@@ -1,6 +1,7 @@
 import pandas as pd
 from tqdm import tqdm
 from .._utils.utils import get_model_from_code
+import string
 
 class BertProcessor():
 
@@ -9,6 +10,7 @@ class BertProcessor():
         self.stopwords = None
         self.inner_stopwords = None
         self._lang_code = None
+        self.punctuation = string.punctuation
 
         self.model = None
         self.tokenizer = None
@@ -19,37 +21,36 @@ class BertProcessor():
         self._label2id = None
         self._id2label = None
 
-        self.trie_root = None
         self.tokenized_terms = None
 
         self.choose_labels()
 
     def _load_model(self):
-        from transformers import BertForTokenClassification
+        from transformers import AutoModelForTokenClassification
         import torch
         device = torch.device("cuda")
 
-        self.model = BertForTokenClassification.from_pretrained(
+        self.model = AutoModelForTokenClassification.from_pretrained(
             self.model_name,
             num_labels=len(self._labeling_scheme),
             id2label=self._id2label,
             label2id=self._label2id).to(device)
         
     def _load_tokenizer_and_data_collator(self):
-        from transformers import AutoTokenizer, DataCollatorForTokenClassification
+        from transformers import AutoTokenizer, DataCollatorForTokenClassification, Trainer
 
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, max_length=512, force_download=False, do_lower_case=False, use_fast=True)
 
         self.data_collator = DataCollatorForTokenClassification(tokenizer=self.tokenizer)
 
-        # self.trainer = Trainer(model=self.model, data_collator=self.data_collator)
+        self.trainer = Trainer(model=self.model, data_collator=self.data_collator)
 
     def _model_init(self): #unify with _load_model
-        from transformers import BertForTokenClassification
+        from transformers import AutoModelForTokenClassification
         import torch
         device = torch.device("cuda")
         print(f"Loading model {self.model_name}", flush=True)
-        return BertForTokenClassification.from_pretrained(self.model_name, num_labels=len(self._labeling_scheme), id2label=self._id2label, label2id=self._label2id).to(device)
+        return AutoModelForTokenClassification.from_pretrained(self.model_name, num_labels=len(self._labeling_scheme), id2label=self._id2label, label2id=self._label2id)
     
     def choose_labels(self):
 
@@ -71,7 +72,7 @@ class BertProcessor():
         self._label2id = {l: i for i, l in enumerate(self._labeling_scheme)}
         self._id2label = {i: l for l, i in self._label2id.items()}
             
-    def preprocess_train(self, df, expand_labels=False, balanced_dataset_size=None, dataset_negative_ratio=None):
+    def preprocess_train(self, df, expand_labels=False, build_balanced_dataset=False):
         encoding = self._encode(
             df["word_tokens"].tolist(),
             return_offsets=False,
@@ -87,7 +88,8 @@ class BertProcessor():
 
         df["labels"] = self._align_labels(encoding, df["labels"].tolist(), is_split_into_words=True, expand_labels=expand_labels)
 
-        df = self._build_balanced_dataset(dataframe=df,target_size=balanced_dataset_size, negative_ratio=dataset_negative_ratio)
+        if build_balanced_dataset:
+            df = self._build_balanced_dataset(dataframe=df,target_size=15000, negative_ratio=0.15)
 
         df["labels"] = self._transform_labels_into_ints(df["labels"])
 
@@ -127,16 +129,20 @@ class BertProcessor():
 
         if lemmatize:
             import spacy
-            spacy_model = get_model_from_code(self.lang_code)
-            nlp = spacy.load(spacy_model)
+            nlp = spacy.load(get_model_from_code(self.lang_code))
+            tokens_list = []
 
-            # nlp = spacy.load("en_core_web_sm")
+            # use a proper function
+            for segment in tqdm(segments, desc="Tokenizing segments", total=len(segments)):
 
-            seg_tokens = self._tokenize_segments(nlp, segments)
+                doc = nlp(segment)
+                tokens = [t.text for t in doc]
+                tokens_list.append(tokens)
 
-            encoding = self._encode(seg_tokens, return_offsets=False, is_split_into_words=True)
+            encoding = self._encode(tokens_list, return_offsets=False, is_split_into_words=True)
+
             df = pd.DataFrame({
-                "tokens": seg_tokens,
+                "tokens": tokens_list,
                 "input_ids": encoding["input_ids"],
                 "attention_mask": encoding["attention_mask"]
                 })
@@ -144,7 +150,7 @@ class BertProcessor():
         return df
     
     # unify with preprocess_train
-    def preprocess_annotated(self, df, expand_labels=False):
+    def preprocess_annotated(self, df, expand_labels=False, build_balanced_dataset=False):
         encoding = self._encode(
             df["word_tokens"].tolist(),
             return_offsets=False,
@@ -158,7 +164,8 @@ class BertProcessor():
 
         df["labels"] = self._align_labels(encoding, df["labels"].tolist(), is_split_into_words=True, expand_labels=expand_labels)
 
-        df = self._build_balanced_dataset(dataframe=df,target_size=30000, negative_ratio=0.15)
+        if build_balanced_dataset:
+            df = self._build_balanced_dataset(dataframe=df,target_size=15000, negative_ratio=0.15)
 
         df["labels"] = self._transform_labels_into_ints(df["labels"])
 
@@ -174,26 +181,59 @@ class BertProcessor():
             return_offsets_mapping=return_offsets)
 
         return encoding
+
+    def clean_punctuation(self, word):
+        return word.strip(self.punctuation).lower()
     
+    def strip_stopwords(self, term):
+        term = term.strip(string.punctuation + " ")
+        words = term.split()
+
+        while words and self.clean_punctuation(words[0]) in self.stopwords:
+            words.pop(0)
+
+        while words and self.clean_punctuation(words[-1]) in self.stopwords:
+            words.pop()
+
+        return " ".join(words).strip(string.punctuation + " ")
+
     def process_predictions(self, predicted_candidates):
         '''Light postprocessing that removes terms that contain stopwords at the beginning or end. Terms that are solely quotation marks ("") are also removed.
         
         The function takes a list of lists of terms.'''
+        import re
         clean_terms = []
+        ignore = [",", ".", "-"]
 
         for list_of_terms in predicted_candidates:
+            # print(list_of_terms)
             cleaned = []
             for term in list_of_terms:
-
-                if all(char == '"' for char in term):
+            
+                if all(char in ignore for char in term):
                     continue
 
-                split_term = term.lower().split()
-
-                if split_term[0] in self.stopwords or split_term[-1] in self.stopwords:
-                    continue
-                
+                if term in self.stopwords or term == "—":
+                    continue 
+            
                 else:
+                    term = self.strip_stopwords(term)
+
+                    term = re.sub(r"\s*-\s*", "-", term)
+                    term = re.sub(r"\(\s+", "(", term)
+                    term = re.sub(r"\s+\)", ")", term)
+                    term = re.sub(r"\[\s+", "[", term)
+                    term = re.sub(r"\s+\]", "]", term)
+                                
+                    # split_term = term.lower().split()
+
+                    # if not split_term:
+                    #     continue
+
+                    # if split_term[0] in self.stopwords or split_term[-1] in self.stopwords:
+                    #     continue
+                    
+                    # else:
                     cleaned.append(term)
 
             clean_terms.append(cleaned)
@@ -250,8 +290,8 @@ class BertProcessor():
 
         return labels
 
-    def _build_balanced_dataset(self, dataframe, target_size=30000, negative_ratio=0.15):
-            
+    def _build_balanced_dataset(self, dataframe, target_size=15000, negative_ratio=0.15):
+        # change this func so it takes all examples if target_size=None
         print(f"\nBuilding a dataset of {target_size} segments with {negative_ratio * 100}% negative examples from a dataframe of {len(dataframe)} segments", flush=True)
         
         # filter
@@ -261,21 +301,24 @@ class BertProcessor():
         df_with_terms = dataframe[with_terms]
         df_without_terms = dataframe[~with_terms]
         print(f"Total segments with terms: {len(df_with_terms)}")
+        print(f"Total segments without terms: {len(df_without_terms)}")
 
         if target_size > len(df_with_terms):
             print("\nWARNING: Specified target size is bigger than identified segments with terms.")
 
             n_segments_with_terms = len(df_with_terms)
-            n_negative_examples = int(len(df_with_terms) * negative_ratio)
+            # n_negative_examples = int(len(df_with_terms) * negative_ratio)
+            n_negative_examples = n_segments_with_terms * (negative_ratio / (1 - negative_ratio))
             n_negative_examples = min(n_negative_examples, len(df_without_terms))
 
-            print(f"Building a dataset of all identified positive examples ({n_segments_with_terms}) and {negative_ratio * 100}% negative examples ({n_negative_examples})")
+            print(f"Building a dataset {negative_ratio * 100}% negative examples and {(1 - negative_ratio) * 100} positive examples")
 
             df_with_terms = df_with_terms.sample(n=n_segments_with_terms, random_state=123)
             df_without_terms = df_without_terms.sample(n=n_negative_examples, random_state=123)
 
         else: 
-            n_negative_examples = int(target_size * negative_ratio)
+            # n_negative_examples = int(len(df_with_terms) * negative_ratio)
+            n_negative_examples = n_segments_with_terms * (negative_ratio / (1 - negative_ratio))
             n_segments_with_terms = target_size - n_negative_examples
             
             n_segments_with_terms = min(n_segments_with_terms, len(df_with_terms))
@@ -385,6 +428,27 @@ class BertProcessor():
 
         return labels_ints
 
+    def lemmatize_term(self, term):
+        import spacy
+        import re
+
+        nlp = spacy.load(get_model_from_code(self.lang_code))
+        doc = nlp(term)
+        result = []
+
+        for i, token in enumerate(doc):
+            if token.pos_ == "NOUN" and i > 0 and doc[i-1].pos_ == "NOUN":
+                result.append(token.text.lower())
+
+            else:
+                result.append(token.lemma_.lower())
+
+        result = " ".join(result)
+        # temporary postprocessing
+        result = re.sub(r"\s*-\s*", "-", result)
+
+        return result
+        
     def _lemmatize_and_tag_terms(self, nlp, external_terms):
         term_lemmas = {}
 
@@ -595,7 +659,7 @@ class BertProcessor():
     # to use with herbert (it uses BPE tokenizer not WordPiece)
     def annotate_trie(self, tokenized_segment):
         # move this to BertTrainer inside an if trie=True, create trie once not every loop
-        self.trie_root = TrieNode.build_trie(self.tokenized_terms)
+        # self.trie_root = TrieNode.build_trie(self.tokenized_terms)
         trie_root = self.trie_root
         # -------------------------
         # remove padding
@@ -636,23 +700,3 @@ class BertProcessor():
                 j += 1
 
         return labels
-
-class TrieNode:
-    def __init__(self):
-        self.children = {}
-        self.term_id = None  # store index if this is end of a term
-
-    def build_trie(tokenized_terms):
-        root = TrieNode()
-
-        for idx, term in enumerate(tokenized_terms):
-            node = root
-
-            for tok in term["tokens"]:
-                if tok not in node.children:
-                    node.children[tok] = TrieNode()
-                node = node.children[tok]
-
-            node.term_id = idx
-
-        return root
