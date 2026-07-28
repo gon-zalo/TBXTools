@@ -55,7 +55,7 @@ class BertTrainer:
             overwrite_project=overwrite_project, 
             external_terms=external_terms)
 
-    def train(self, sample=None, save_as=None, split=False, lemmatize=False, expand_labels=False, only_annotate=False):
+    def train(self, sample=None, save_as=None, split=False, lemmatize=False, expand_labels=False, only_annotate=False, build_balanced_dataset=False):
         '''
         Fine-tunes the chosen model for automatic terminology extraction. It annotates the data with the chosen labels and then fine-tunes the model on said data. The model is saved to disk afterwards.
 
@@ -68,7 +68,7 @@ class BertTrainer:
         '''
         from transformers import Trainer, set_seed
         from datasets import Dataset
-        from transformers import TrainingArguments
+        from transformers import TrainingArguments, EarlyStoppingCallback
         set_seed(self._seed)
         print(f'\nInitializing model:  {self.model_name}', flush=True)
         self._processor = BertProcessor(model_name=self.model_name, labels=self._labels)
@@ -84,10 +84,21 @@ class BertTrainer:
         
         if self._sqlite.overwrite_project == False:
             dataframe = self._fetch_data_from_db(lemmatize=lemmatize)
-            dataframe = self._processor.preprocess_annotated(df=dataframe, expand_labels=expand_labels)
+            dataframe = self._processor.preprocess_annotated(
+                df=dataframe, 
+                expand_labels=expand_labels,
+                build_balanced_dataset=build_balanced_dataset
+                )
             
         else:
-            dataframe = self._prepare_train_data(sample=sample, label2id=self._processor._label2id, lemmatize=lemmatize, expand_labels=expand_labels, only_annotate=only_annotate)
+            dataframe = self._prepare_train_data(
+                sample=sample, 
+                label2id=self._processor._label2id, 
+                lemmatize=lemmatize, 
+                expand_labels=expand_labels, 
+                only_annotate=only_annotate, 
+                build_balanced_dataset=build_balanced_dataset
+                )
             if only_annotate ==True:
                 print(f"{len(dataframe)} segments annotated. Finishing script.")
                 import sys
@@ -105,7 +116,8 @@ class BertTrainer:
             weight_decay=self.weight_decay,
             seed=self._seed,
             data_seed=self._seed,
-            gradient_accumulation_steps=self.gradient_accumulation_steps
+            gradient_accumulation_steps=self.gradient_accumulation_steps,
+            warmup_ratio=self.warmup_ratio
             )
 
             trainer = Trainer(
@@ -118,8 +130,6 @@ class BertTrainer:
         elif split:
             from sklearn.model_selection import train_test_split
             print("\nSplitting training data into train (0.8) and eval (0.2)")
-            # print(len(dataframe))
-            print(dataframe["tokens"][0])
             train_df, eval_df = train_test_split(dataframe, test_size=0.2, random_state=self._seed)
 
             # train_df.to_csv(f"train_df_{self._sqlite.project_name}.csv")
@@ -128,20 +138,27 @@ class BertTrainer:
             train_data = Dataset.from_pandas(train_df)
             eval_data = Dataset.from_pandas(eval_df)
 
+            model_folder_name = self.model_name.replace("/", "-")
+            model_output_dir = f"./trainer_output/{model_folder_name}"
+
             training_args = TrainingArguments(
-            eval_strategy="epoch",
-            save_strategy="epoch",
-            load_best_model_at_end=True,
-            metric_for_best_model="f1",
-            greater_is_better=True,
-            learning_rate=self.lr,
-            per_device_train_batch_size=self.batch_size,
-            num_train_epochs=self.epochs,
-            weight_decay=self.weight_decay,
-            seed=self._seed,
-            data_seed=self._seed,
-            gradient_accumulation_steps=self.gradient_accumulation_steps,
-            warmup_ratio=self.warmup_ratio)
+                output_dir=model_output_dir,
+                eval_strategy="steps",
+                save_strategy="steps",
+                eval_steps=500,
+                save_steps=500,
+                load_best_model_at_end=True,
+                save_total_limit=3,
+                metric_for_best_model="f1",
+                greater_is_better=True,
+                learning_rate=self.lr,
+                per_device_train_batch_size=self.batch_size,
+                num_train_epochs=self.epochs,
+                weight_decay=self.weight_decay,
+                seed=self._seed,
+                data_seed=self._seed,
+                gradient_accumulation_steps=self.gradient_accumulation_steps,
+                warmup_ratio=self.warmup_ratio)
 
             self._metrics.eval_data= eval_data
             self._metrics.processor = self._processor
@@ -151,16 +168,47 @@ class BertTrainer:
                 train_dataset=train_data,
                 eval_dataset=eval_data,
                 compute_metrics=self._metrics.compute_metrics_lemm if lemmatize else self._metrics.compute_metrics,
-                data_collator=data_collator
-            )
+                data_collator=data_collator,
+                callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
+                )
 
         print('Fine-tuning model', flush=True)
+        print(f"Parameters: lr = {self.lr}, batch size = {self.batch_size}, weight decay = {self.weight_decay}, warmup ratio = {self.warmup_ratio}, epochs = {self.epochs}")
         trainer.train()
         if save_as:
             trainer.save_model(f'{save_as}')
             print(f"Model saved as '{save_as}'")
+
+    def _export_data_from_db(self, json_file_name):
+        import pandas as pd
+        #take all the data
+        dataframe = self._fetch_data_from_db()
+
+        with_terms = dataframe["labels"].apply(lambda seg_labels: any(label in ["B", "I"] for label in seg_labels))
         
-    def _prepare_train_data(self, sample, label2id, lemmatize=True, only_annotate=False, expand_labels=False):
+        # 2 dfs, one with terms and another without
+        df_with_terms = dataframe[with_terms]
+        df_without_terms = dataframe[~with_terms]
+        print(f"Total segments with terms: {len(df_with_terms)}")
+        print(f"Total segments without terms: {len(df_without_terms)}")
+
+        if len(df_with_terms) < 12000:
+            n = len(df_with_terms)
+        else:
+            n = 12000
+        # downsampling english data
+        df_with_terms = df_with_terms.sample(n=n, random_state=123)
+        # df_without_terms = df_without_terms.sample(n=1700, random_state=123)
+
+        # concatenate and shuffle
+        full = pd.concat([df_with_terms, df_without_terms])
+        full = full.sample(frac=1, random_state=123).reset_index(drop=True)
+        print(len(full))
+        # save to json
+        full.to_json(f"{json_file_name}.json", orient="records", lines=True)
+        # join them with join.py
+
+    def _prepare_train_data(self, sample, label2id, lemmatize=True, only_annotate=False, expand_labels=False, build_balanced_dataset=False):
         import random
         random.seed(self._seed)
         print("\nBertTrainer initialized")
@@ -184,7 +232,7 @@ class BertTrainer:
             print("Annotation complete and saved to database.")
             return df
 
-        tokens_FD, df = self._processor.preprocess_train(df=df, expand_labels=expand_labels, balanced_dataset_size=30000, dataset_negative_ratio=0.15)
+        tokens_FD, df = self._processor.preprocess_train(df=df, expand_labels=expand_labels, build_balanced_dataset=build_balanced_dataset)
 
         self._sqlite.insert_segments(data=df["tokens"].tolist(), tagged=False, tokenized=True, in_list_of_lists=True) # inserting tokenized segments used in training
         self._sqlite.insert_tokens(data=tokens_FD) # change to insert tokens FD, maybe should calculate after spacy tokenization not bert
@@ -197,6 +245,8 @@ class BertTrainer:
 
         segment_labels = self._sqlite.get_segment_labels()  
         word_tokens = self._sqlite.get_word_tokens()
+        # segment_lemmas = self._sqlite.get_lemmatized_corpus()
+        # segments = self._sqlite.get_segments()
 
         if segment_labels:
             data = {
@@ -218,27 +268,29 @@ class BertTrainer:
             raise RuntimeError("Necessary data not found in database. Create another project or overwrite the existing one using 'overwrite_project=True'")   
 
     def _model_init(self, model_name):
-        from transformers import BertForTokenClassification
-        return BertForTokenClassification.from_pretrained(
+        from transformers import AutoModelForTokenClassification
+        return AutoModelForTokenClassification.from_pretrained(
             model_name,
             num_labels=len(self._processor._labeling_scheme),
             id2label=self._processor._id2label,
             label2id=self._processor._label2id)
 
-    def hp_tuning(self, models, output_file=None, sample=None, lr_range=(1e-5, 5e-5), epoch_range=(3, 6), batch_sizes=(8, 16, 32), weight_decay_range=(0.0, 0.05), n_trials=30, lemmatize=False):
+    def hp_tuning(self, models, sample=None, lr_range=(1e-5, 5e-5), epoch_range=(3, 6), batch_sizes=(8, 16, 32), weight_decay_range=(0.0, 0.05), warmup_ratio_range=(0.0, 0.2), n_trials=15, lemmatize=False):
         from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
-        import pandas as pd
         from sklearn.model_selection import train_test_split
         from datasets import Dataset
-        
+        import tempfile
+
         import warnings
         warnings.filterwarnings("ignore", message="Was asked to gather along dimension 0, but all input tensors were scalars")
 
-        results = []
-        print("\nRunning hyperparameter tuning", flush=True)
+        print("\nRunning hyperparameter tuning on the following models:", flush=True)
 
         if isinstance(models, str):
             models = [models]
+
+        for model_name in models:
+            print(model_name)
 
         for model_name in models:
             self._processor = BertProcessor(model_name=model_name, labels=self._labels)
@@ -255,62 +307,69 @@ class BertTrainer:
                 num_train_epochs = trial.suggest_int("num_train_epochs", epoch_range[0], epoch_range[1])
                 batch_size = trial.suggest_categorical("per_device_train_batch_size", batch_sizes)
                 weight_decay = trial.suggest_float("weight_decay", weight_decay_range[0], weight_decay_range[1])
+                warmup_ratio = trial.suggest_float("warmup_ratio", warmup_ratio_range[0], warmup_ratio_range[1])
 
-                print(f"    Run parameters: lr = {lr}, epochs = {num_train_epochs}, batch_size = {batch_size}, weight_decay = {weight_decay}")
+                print(f"\n   Trial: {trial.number} \nParameters: lr = {lr}, epochs = {num_train_epochs}, batch_size = {batch_size}, weight_decay = {weight_decay}, warmup_ratio = {warmup_ratio}")
                 return {
                     "learning_rate": lr,
                     "num_train_epochs": num_train_epochs,
                     "per_device_train_batch_size": batch_size,
-                    "weight_decay": weight_decay
+                    "weight_decay": weight_decay,
+                    "warmup_ratio": warmup_ratio
                     }
 
             model_folder_name = model_name.replace("/", "-")
             model_output_dir = f"./trainer_output/{model_folder_name}"
 
-            training_args = TrainingArguments(
-                output_dir=model_output_dir,
-                eval_strategy="epoch",
-                save_strategy="epoch",
-                load_best_model_at_end=True,
-                metric_for_best_model="f1",
-                save_total_limit=1,
-                learning_rate=self.lr,
-                per_device_train_batch_size=self.batch_size,
-                num_train_epochs=self.epochs,
-                weight_decay=self.weight_decay,
-                seed=self._seed,
-                data_seed=self._seed)
-            
-            self._metrics.eval_data= eval_data
-            self._metrics.processor = self._processor
-            
-            trainer = Trainer(
-                model_init=self._processor._model_init,
-                args=training_args,
-                train_dataset=train_data,
-                eval_dataset=eval_data,
-                compute_metrics=self._metrics.compute_metrics_lemm if lemmatize else self._metrics.compute_metrics,
-                data_collator=self._processor.data_collator,
-                callbacks=[EarlyStoppingCallback(early_stopping_patience=2)])
+            # add gradient accumulation steps and warmup ratio
+            with tempfile.TemporaryDirectory() as temp_dir: # to delete the temp dir
+                training_args = TrainingArguments(
+                    output_dir=temp_dir,
+                    eval_strategy="epoch",
+                    save_strategy="epoch",
+                    load_best_model_at_end=True,
+                    metric_for_best_model="f1",
+                    save_total_limit=1,
+                    learning_rate=self.lr,
+                    # bf16=True,
+                    per_device_train_batch_size=self.batch_size,
+                    num_train_epochs=self.epochs,
+                    weight_decay=self.weight_decay,
+                    seed=self._seed,
+                    data_seed=self._seed)
+                
+                self._metrics.eval_data= eval_data
+                self._metrics.processor = self._processor
+                
+                trainer = Trainer(
+                    model_init=self._processor._model_init,
+                    args=training_args,
+                    train_dataset=train_data,
+                    eval_dataset=eval_data,
+                    compute_metrics=self._metrics.compute_metrics_lemm if lemmatize else self._metrics.compute_metrics,
+                    data_collator=self._processor.data_collator,
+                    callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
+                    )
 
-            print(f"\nFine-tuning {self._processor.model_name}")
-            best_run = trainer.hyperparameter_search(
-                direction="maximize",
-                backend="optuna",
-                hp_space=hp_space,
-                n_trials=n_trials)
-            
-            results.append({
-                "model": model_name,
-                "best_score": best_run.objective,
-                "learning_rate": best_run.hyperparameters["learning_rate"],
-                "epochs": best_run.hyperparameters["num_train_epochs"],
-                "batch_size": best_run.hyperparameters["per_device_train_batch_size"],
-                "weight_decay": best_run.hyperparameters["weight_decay"]
-            })
-            
-        results = pd.DataFrame(results)
-        if not output_file:
-            output_file = "hp-tuning-results"
+                print(f"\nFine-tuning {self._processor.model_name}")
+                best_run = trainer.hyperparameter_search(
+                    direction="maximize",
+                    backend="optuna",
+                    hp_space=hp_space,
+                    n_trials=n_trials)
+                
+            #     results.append({
+            #         "model": model_name,
+            #         "best_score": best_run.objective,
+            #         "learning_rate": best_run.hyperparameters["learning_rate"],
+            #         "epochs": best_run.hyperparameters["num_train_epochs"],
+            #         "batch_size": best_run.hyperparameters["per_device_train_batch_size"],
+            #         "weight_decay": best_run.hyperparameters["weight_decay"],
+            #         "warmup_ratio": best_run.hyperparameters["warmup_ratio"]
+            #     })
+                
+            # results = pd.DataFrame(results)
+            # if not output_file:
+            #     output_file = "hp-tuning-results"
 
-        results.to_csv(f"{output_file}.csv", index=False)
+            # results.to_csv(f"{output_file}.csv", index=False)
