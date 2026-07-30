@@ -11,10 +11,10 @@ corpus_en_eng = "sample-mechanical-engineering-en.txt"
 corpus_pl_med = "sample-medicine-pl.txt"
 corpus_en_med = "sample-medicine-en.txt"
 
-corpus_grande_pl_med = "unique-segments-medicine-pl.txt"
-corpus_grande_pl_eng = "unique-segments-engineering-and-technology-pl.txt"
-corpus_grande_en_eng = "unique-segments-engineering-and-technology-en.txt"
-corpus_grande_en_med = "unique-segments-medicine-en.txt"
+corpus_grande_pl_med = "medicine-d2-pl.txt"
+corpus_grande_pl_eng = "engitech-d2-pl.txt"
+corpus_grande_en_eng = "engitech-d2-en.txt"
+corpus_grande_en_med = "medicine-d2-en.txt"
 
 
 
