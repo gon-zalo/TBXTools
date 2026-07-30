@@ -126,7 +126,6 @@ class AlignWithTransformers:
             # initialize a dictionary to store lists of Polish translations for each English key
             grouped_dict= defaultdict(list)
 
-            # 
             for entry in json_data: 
                 if entry["en"] != "None" and entry["pl"] != "None": #filters out None values (the unmatched from above)
                     grouped_dict[entry["en"]].append(entry["pl"])
