@@ -82,15 +82,15 @@ class Processor:
 
         from .._utils.utils import load_spacy_model
         
-        if self.lang_code is not None and self.model_name is None:
+        if self.lang_code and not self.model_name:
             self.model_name = get_spacy_model_from_code(self.lang_code)
 
 
-        if self.nlp is None: 
-            if self.model_name is None:
-                raise ValueError( #maybe we can eliminate this error- we will always set a lang code in the extraction
-                    "Unable to start lemmatization: the language (lang_code) has not been set"
-                )
+        #if self.nlp is None: 
+            #if self.model_name is None:
+                #raise ValueError( #maybe we can eliminate this error- we will always set a lang code in the extraction
+                    #"Unable to start lemmatization: the language (lang_code) has not been set"
+                #)
             
             self.nlp = load_spacy_model(self.model_name)
             
@@ -368,14 +368,9 @@ class Processor:
         """
         from .._utils.utils import load_spacy_model
 
-        if self.lang_code is not None and self.model_name is None:
+        if self.lang_code and not self.model_name:
             self.model_name = get_spacy_model_from_code(self.lang_code)
-
-        if self.nlp is None:
-            if self.model_name is None:
-                raise ValueError(
-                    "Unable to start POS tagging: the language (lang_code) has not been set"
-                )
+        
             self.nlp = load_spacy_model(self.model_name)
 
         from ..methodology.linguistic.tagger import LinguisticTagger

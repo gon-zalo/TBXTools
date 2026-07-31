@@ -13,7 +13,7 @@ extractor = Extractor(
     ),
     project_name="statistical-example_lower",
     corpus="Mental_disorder.txt",
-    language="polish",
+    language="english",
     overwrite_project=True,
 )
 
