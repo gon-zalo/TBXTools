@@ -7,7 +7,7 @@ class PatternsLearning:
     def __init__(self): 
         pass
          
-    def learn_linguistic_patterns(self,outputfile,filtered_tagged_ngrams, showfrequencies=True, encoding="utf-8",verbose=False,representativity=100):
+    def learn_linguistic_patterns(self, outputfile, filtered_tagged_ngrams, showfrequencies=True, encoding="utf-8", verbose=False, representativity=100):
         '''
         Automatically extracts linguistic patterns from a collection of pre-filtered, POS-tagged n-grams. It sorts the patterns from most to least frequent and writes them to an external text file, using a percentage threshold (representativity) to discard rare patterns.
 
@@ -24,50 +24,68 @@ class PatternsLearning:
         
         learntpatterns (dict): A dictionary of learned patterns where keys are the generated rule strings (e.g., "|#|NOUN #||ADJ") and values are their corresponding frequencies.
         '''
-       
-        learntpatterns={} #the key is the pattern and the value is its frequency
-        acufreq=0  #to accumulate the frequencies
+        
+        learntpatterns = {} # the key is the pattern and the value is its frequency
+        acufreq = 0         # to accumulate the frequencies
 
         results = filtered_tagged_ngrams #('health|health|NOUN professionals|professional|NOUN', 2, 7)- this is filtered tagged ngrams
-        if len(results)>0: 
+        if len(results) > 0: 
             for tagged_ngram in results:
-                if tagged_ngram:
+                if not tagged_ngram:
+                    continue                
+                try:
                     tagged_ngram_string = tagged_ngram[0]
                     n = tagged_ngram[1]
                     frequency = tagged_ngram[2]
+                    
+                    tagged_components = tagged_ngram_string.split() ##['mental|mental|ADJ', 'disorders|disorder|NOUN']
 
-                    candidate_words=[]
-                    ngram_components=tagged_ngram_string.split() #['mental|mental|ADJ', 'disorders|disorder|NOUN']
-                    for component in ngram_components:
-                        candidate_words.append(component.split("|")[0]) #lista con mental, disorder, ecc...
-                    candidate_string=" ".join(candidate_words) #mental disorders
+                    if len(tagged_components) != n:
+                        n = len(tagged_components)
 
-                    tagged_components=tagged_ngram_string.split() #['mental|mental|ADJ', 'disorders|disorder|NOUN']
-                    clean_components=candidate_string.split() #['mental', 'disorders']
-                    patternbrut=[]
+                    candidate_words = []
+                    for component in tagged_components:
+                        parts = component.split("|")
+                        word = parts[0] if len(parts) > 0 else component
+                        candidate_words.append(word)
 
-                    for position in range(0,n):
-                        clean_text=tagged_components[position].split("|")[0] #mental
-                        clean_lemma=tagged_components[position].split("|")[1]
-                        clean_tag=tagged_components[position].split("|")[2]
-                        patternpart=""
-                        if clean_components[position]==clean_lemma: #if mental da ['mental', 'disorders'] == mental
-                            patternpart="|#|"+clean_tag
-                        elif clean_components[position]==clean_text:
-                            patternpart="#||"+clean_tag
+                    clean_components = candidate_words #['mental', 'disorders']
+                    patternbrut = []
+
+                    for position in range(0, n):
+                        comp_parts = tagged_components[position].split("|")
+                        
+                        clean_text = comp_parts[0] if len(comp_parts) > 0 else ""
+                        clean_lemma = comp_parts[1] if len(comp_parts) > 1 else clean_text
+                        clean_tag = comp_parts[2] if len(comp_parts) > 2 else "UNK" #fallback tag 
+
+                        patternpart = ""
+                        if position < len(clean_components):
+                            if clean_components[position] == clean_lemma:
+                                patternpart = "|#|" + clean_tag
+                            elif clean_components[position] == clean_text:
+                                patternpart = "#||" + clean_tag
+                            else:
+                                patternpart = "#||" + clean_tag  # Fallback default
+                        
                         patternbrut.append(patternpart)
 
-                    pattern=" ".join(patternbrut)
+                    pattern = " ".join(patternbrut)
 
                     if pattern in learntpatterns:
-                        learntpatterns[pattern]+=frequency
-                        acufreq+=frequency
+                        learntpatterns[pattern] += frequency
                     else:
-                        learntpatterns[pattern]=frequency
-                        acufreq+=frequency
+                        learntpatterns[pattern] = frequency
+                    
+                    acufreq += frequency
 
-        sorted_patterns = sorted(learntpatterns.items(), key=operator.itemgetter(1),reverse=True) #Sorts the dictionary entries into a list of tuples ordered by their score value in descending order (reverse=True), putting the most prominent patterns at the top
-        acufreq2=0
+                except IndexError as ie:
+                    print(f" Skipped invalid n-gram: {tagged_ngram}")
+                    print(f" Error detail: {ie}")
+                    continue
+
+        sorted_patterns = sorted(learntpatterns.items(), key=operator.itemgetter(1), reverse=True)
+        acufreq2 = 0
         
         with open(outputfile, "w", encoding=encoding) as f:
             if showfrequencies:
@@ -76,9 +94,10 @@ class PatternsLearning:
                 f.write("term\n")
 
             for pattern, score in sorted_patterns:
-                percent = 100 * acufreq2 / acufreq
-                if percent > representativity:
-                    break
+                if acufreq > 0:
+                    percent = 100 * acufreq2 / acufreq
+                    if percent > representativity:
+                        break
                 acufreq2 += score  
     
                 if showfrequencies:
@@ -86,10 +105,8 @@ class PatternsLearning:
                 else:
                     output = pattern
         
-                f.write(output+"\n")
+                f.write(output + "\n")
                 if verbose:
                     print(output)
         
-        return learntpatterns 
-    
-       
+        return learntpatterns

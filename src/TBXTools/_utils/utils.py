@@ -22,7 +22,7 @@ def get_lang(language):
 
     return language_name, language_code
 
-def get_model_from_code(lang_code):
+def get_spacy_model_from_code(lang_code):
         """
         Takes a language code and returns the correct spaCy model name.
 
@@ -32,14 +32,45 @@ def get_model_from_code(lang_code):
         Returns:
           The corresponding spaCy model name.
         """
-        spacy_models = {
-        "en": "en_core_web_sm",
-        "ca": "ca_core_news_sm",
-        "fr": "fr_core_news_sm",
-        "es": "es_core_news_sm"
-        }
-    
-        return spacy_models.get(lang_code, None)
+        if not lang_code:
+             return None
+        
+        if lang_code == "en":
+             return "en_core_web_sm"
+        
+        return f"{lang_code}_core_news_sm"
+
+
+def load_spacy_model(model_name): 
+        """
+        Checks for the spaCy model, downloading it via subprocess if missing, then loads it into self.nlp.
+
+        Attributes:
+            self.model_name (str): The name of the spaCy model to be loaded (e.g.,'en_core_web_sm').
+        
+        Raises:
+            SystemExit: If the model download fails, the program terminates with an
+            exit code of 1.
+        """
+        import spacy
+        import subprocess
+        import sys
+
+        if not spacy.util.is_package(model_name):
+            print(f"Downloading and installing spaCy model: {model_name}...")
+            try:
+                subprocess.check_call([sys.executable, "-m", "spacy", "download", model_name])
+                print(f"\nModel {model_name} downloaded successfully.")
+
+                nlp = spacy.load(model_name)
+
+            except Exception as e:
+                print(f"Error downloading model '{model_name}': {e}")
+                sys.exit(1)
+        else:
+            nlp = spacy.load(model_name)
+        
+        return nlp
 
 # maybe for the future
 def check_required_data(required_data, sqlite_tables_loaded, name):
@@ -49,3 +80,6 @@ def check_required_data(required_data, sqlite_tables_loaded, name):
         if table not in sqlite_tables_loaded:
 
             raise RuntimeError(f"Missing '{table}' data in database. You must provide the '{table}' argument to {name}.")
+        
+
+
