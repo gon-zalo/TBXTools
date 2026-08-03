@@ -31,3 +31,4 @@ tests/align_terms.py
 tests/join_data.py
 tests/lem_test.py
 tests/bert_dret.py
+detech26/
