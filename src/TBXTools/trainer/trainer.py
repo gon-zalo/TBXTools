@@ -15,7 +15,7 @@ class BertTrainer:
         labeling_scheme (str, optional): The labeling scheme to annotate the data with. Defaults to BIO.
     '''
 
-    def __init__(self, project_name, corpus, language, external_terms,model=None, overwrite_project=False, labeling_scheme="BIO", seed=123):
+    def __init__(self, project_name, language, corpus=None, external_terms=None,model=None, overwrite_project=False, labeling_scheme="BIO", seed=123):
         from transformers import logging
         logging.set_verbosity_error()
         self.lang, self._lang_code = get_lang(language.lower())
@@ -150,6 +150,10 @@ class BertTrainer:
 
     def annotate(self, sample=None):
         print("Running annotation", flush=True)
+
+        if not self._sqlite.table_is_populated("corpus") or  not self._sqlite.table_is_populated("external_terms"):
+            raise RuntimeError("Corpus or external terms not found. They need to be passed as arguments to BertTrainer.")
+        
         if self._sqlite.table_is_populated("word_tokens") and self._sqlite.table_is_populated("segment_labels") and self._sqlite.overwrite_project==False:
             raise RuntimeError("Annotation cancelle. Word tokens and labels found in database. You may run 'train()' to use the existing data or use 'overwrite_project=True' to overwrite the existing data in the database.")
         
