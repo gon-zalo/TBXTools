@@ -7,8 +7,8 @@ class Results:
         _ngrams: A list of extracted Ngrams.
         _tokens: A list of extracted tokens.
         _tagged_ngrams: A list of tagged extracted Ngrams.
+        _linguistic_patterns: A list of linguistic patterns.
         _methodology: Class to manage the methodology object.
-        _sqlite: Class to manage the SQLite database.
     '''
     def __init__(self, *, terms=None, ngrams=None, tagged_ngrams=None, tokens=None, linguistic_patterns=None):
         self._terms = terms or []
@@ -16,13 +16,13 @@ class Results:
         self._tagged_ngrams= tagged_ngrams or []
         self._linguistic_patterns = linguistic_patterns or []
         self._tokens = tokens or []
-
         self._methodology = None
         self._extractor = None
 
     # [0] is the first element in the tuple (table row)
     def terms(self, limit=20):
-        '''Gets the list of terms
+        '''
+        Gets the list of terms
 
         Args:
             limit: The number of terms accessed. Default is 20.
@@ -38,7 +38,8 @@ class Results:
         return terms[:limit]
 
     def tokens(self, limit=20):
-        '''Gets the list of tokens
+        '''
+        Gets the list of tokens
 
         Args:
             limit: The number of terms accessed. Default is 20.
@@ -55,7 +56,8 @@ class Results:
         return tokens[:limit]
     
     def ngrams(self, limit=20): 
-        '''Gets the list of Ngrams
+        '''
+        Gets the list of Ngrams
 
         Args:
             limit: The number of Ngrams accessed. Default is 20.
@@ -71,7 +73,8 @@ class Results:
         return ngrams[:limit]
     
     def tagged_ngrams(self, limit=20): 
-        '''Gets the list of Tagged Ngrams
+        '''
+        Gets the list of Tagged Ngrams
         
         Args:
             limit: The number of Tagged Ngrams accessed. Default is 20.
@@ -87,11 +90,12 @@ class Results:
         return tagged_ngrams[:limit]
     
     def nest_normalization(self, percent=10, verbose=False):
-        '''Performs nest normalization of the terms.
+        '''
+        Performs nest normalization of the terms.
 
         Args:
             percent: The frequency compatibility interval that is used to calculate if a term is nested inside another.
-            verbose (bool): Print the process in the console. 
+            verbose (bool, optional): Prints the process in the console. Defaults to False.
         '''
         candidate_terms = self._terms
 
@@ -102,7 +106,12 @@ class Results:
         self._terms = filtered_terms
 
     def lemmatization(self, verbose=False):
+        '''
+        Performs lemmatization of the terms.
 
+        Args:
+           verbose (bool, optional) : Prints the process in the console. Defaults to False.
+        '''
         candidate_terms = self._terms
 
         filtered_terms = self._methodology.processor.lemmatization(candidate_terms=candidate_terms, verbose=verbose)
@@ -122,7 +131,7 @@ class Results:
             tsr_terms: The reference standard terms.
             type (str, optional): Filtering mode ("strict", "flexible", "combined"). Defaults to "combined".
             max_iterations (int, optional): Loop ceiling for recursion. Defaults to 10000000000.
-            verbose (bool, optional): Defaults to False.
+            verbose (bool, optional): Prints the process in the console. Defaults to False.
         '''
 
         self._extractor._sqlite.load_tsr_terms(tsr_terms=tsr_terms)
@@ -143,6 +152,10 @@ class Results:
     def regex_exclusion(self, regexes=None, verbose=False):
         '''
         Deletes term candidates matching a set of regular expresions loaded in the Extractor() class.
+
+        Args:
+            regexes: regular expression patterns used to match and filter out unwanted terms.
+            verbose (bool, optional): Prints the process in the console. Default to False.
         '''
         
         self._extractor._sqlite.load_exclusion_regexes(exclusion_regexes=regexes)
@@ -166,7 +179,7 @@ class Results:
         filtered_terms = self._extractor._sqlite.get_candidate_terms()
         self._terms = filtered_terms
 
-    def save_candidates(self, path):
+    def save_candidates(self, path, only_candidates=False):
         '''
         Save the candidate terms to disk. The file is saved in the specified format. If no format is provided, it defaults to .txt.
 
@@ -181,7 +194,12 @@ class Results:
         path = Path(path)
         extension = path.suffix.lower()
         candidate_terms = self._extractor._sqlite.get_candidate_terms()
-        output = pd.DataFrame(candidate_terms, columns=['candidate', 'n', 'measure', 'value'], index=None)
+
+        if only_candidates == False:
+            output = pd.DataFrame(candidate_terms, columns=['candidate', 'n', 'measure', 'value'])
+
+        else:
+            output = pd.DataFrame(candidate_terms, columns=['candidate', 'n', 'measure', 'value'])[['candidate']]
 
         if not extension:
             extension = ".txt"
