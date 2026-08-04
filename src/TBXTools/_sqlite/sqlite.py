@@ -114,17 +114,18 @@ class SQLite:
         '''Read a corpus file.'''
         data = []
         continserts = 0
-        with open(corpus_file, "r", encoding=encoding, errors="ignore") as file:
-            for line in file:
-                data.append(line.rstrip())
-                continserts += 1
+        if corpus_file:
+            with open(corpus_file, "r", encoding=encoding, errors="ignore") as file:
+                for line in file:
+                    data.append(line.rstrip())
+                    continserts += 1
 
-                if continserts == self.MAX_INSERTS:
-                    self.insert_segments(data=data, tagged=is_corpus_tagged)
-                    data = []
-                    continserts = 0
-            
-            self.insert_segments(data=data, tagged=is_corpus_tagged)
+                    if continserts == self.MAX_INSERTS:
+                        self.insert_segments(data=data, tagged=is_corpus_tagged)
+                        data = []
+                        continserts = 0
+                
+                self.insert_segments(data=data, tagged=is_corpus_tagged)
 
     # LOAD METHODS
     def load_corpus(self, corpus, is_corpus_tagged, encoding="utf-8", compoundify=False, comp_symbol="▁"):
