@@ -6,16 +6,15 @@ from .._utils.utils import get_lang
 
 class BertTrainer:
     '''
-    Trains a BERT model for automatic terminology extraction.
+    Class to handle data to fine-tune a BERT-based model for automatic terminology extraction.
 
     Attributes:
         project_name (str): The unique name identifier for the current project, which also determines the filename of the generated SQLite database.
         corpus: The text corpus used as the training data.
         external_terms: File path to the terms that will be used in the data annotation process.
-        labeling_scheme (str, optional): The labeling scheme to annotate the data with. Defaults to BIO.
     '''
 
-    def __init__(self, project_name, language, corpus=None, external_terms=None,model=None, overwrite_project=False, labeling_scheme="BIO", seed=123):
+    def __init__(self, project_name, language, corpus=None, external_terms=None, overwrite_project=False, seed=123):
         from transformers import logging
         logging.set_verbosity_error()
         self.lang, self._lang_code = get_lang(language.lower())
@@ -26,13 +25,9 @@ class BertTrainer:
         self.stopwords = self._resources.fetch_stopwords()
         self.inner_stopwords = self._resources.fetch_inner_stopwords()
 
-        self._labeling_scheme = labeling_scheme.lower()
         self._processor = BertProcessor()
-
         self._metrics = Metrics()
-
         self._seed = seed
-        self.model_name = model
 
         self._sqlite = SQLite(
             project_name=project_name, 
@@ -46,7 +41,7 @@ class BertTrainer:
 
         Args:
             model_name (str, optional): The BERT-based model to be fine-tuned.
-            sample (int, optional): Number of sentences to randomly sample out of the corpus. Useful for testing purposes.
+            sample (int, optional): Number of sentences to randomly sample out of the annotated data.
             save_as (str, optional): Path of the model to save to disk.
             split (bool, optional): If True, it splits the data in train (0.8) and test (0.2).
             expand_labels (bool, optional): If True, assigns B labels to all the subwords of the first word and I to the remaining words/subwords, instead of assigning B only to the first subword token of the term.
@@ -148,7 +143,14 @@ class BertTrainer:
             trainer.save_model(f'{save_as}')
             print(f"Model saved as '{save_as}'")
 
-    def annotate(self, sample=None):
+    def annotate(self, sample=None, labeling_scheme="BIO"):
+        '''
+        Generate training data to fine-tune a model. It automatically annotates a corpus using an external list of terms. The resulting annotated data get saved in the database.
+
+        Attributes:
+            sample (int, optional): Number of sentences to randomly sample out of the corpus. Useful for testing purposes.
+            labeling_scheme (str, optional): The labeling scheme to annotate the data with. Defaults to BIO.
+        '''
         print("Running annotation", flush=True)
 
         if not self._sqlite.table_is_populated("corpus") or  not self._sqlite.table_is_populated("external_terms"):
@@ -157,7 +159,7 @@ class BertTrainer:
         if self._sqlite.table_is_populated("word_tokens") and self._sqlite.table_is_populated("segment_labels") and self._sqlite.overwrite_project==False:
             raise RuntimeError("Annotation cancelle. Word tokens and labels found in database. You may run 'train()' to use the existing data or use 'overwrite_project=True' to overwrite the existing data in the database.")
         
-        self._processor.labeling_scheme = self._labeling_scheme
+        self._processor.labeling_scheme = labeling_scheme.lower()
         self._processor.stopwords = self.stopwords
         self._processor.inner_stopwords = self.inner_stopwords
         self._processor.lang_code = self._lang_code
@@ -260,7 +262,8 @@ class BertTrainer:
             print(model_name)
 
         for model_name in models:
-            self._processor = BertProcessor(model_name=model_name, labeling_scheme=self._labeling_scheme)
+            self._processor = BertProcessor()
+            self._processor.model_name = model_name
             self._processor._load_tokenizer_and_data_collator()
 
             dataframe = self._fetch_data_from_db(sample=sample)
