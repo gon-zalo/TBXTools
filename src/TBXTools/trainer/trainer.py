@@ -11,113 +11,85 @@ class BertTrainer:
     Attributes:
         project_name (str): The unique name identifier for the current project, which also determines the filename of the generated SQLite database.
         corpus: The text corpus used as the training data.
-        model (str, optional): The BERT model to be fine-tuned. Defaults to distilbert-base-multilingual-cased.
         external_terms: File path to the terms that will be used in the data annotation process.
-        labels (str, optional): The labels to annotate the data with. Defaults to BIO.
-        lr (int, optional): Learning rate of the model. Defaults to 5e-05.
-        batch_size (int, optional): Defaults to 16.
-        epochs (int, optional): Defaults to 3.
-        weight_decay (int, optional): Defaults to 0.01.
+        labeling_scheme (str, optional): The labeling scheme to annotate the data with. Defaults to BIO.
     '''
 
-    def __init__(self, project_name, corpus, language, external_terms,model=None, overwrite_project=False, labels=None, lr=None, batch_size=None, epochs=None, weight_decay=None, gradient_accumulation_steps=None, warmup_ratio=None):
+    def __init__(self, project_name, corpus, language, external_terms,model=None, overwrite_project=False, labeling_scheme="BIO", seed=123):
         from transformers import logging
         logging.set_verbosity_error()
         self.lang, self._lang_code = get_lang(language.lower())
 
-        self.model_name = model or "distilbert/distilbert-base-multilingual-cased"
         self.name = "BertTrainer"
         self._resources = Resources(lang_code=self._lang_code)
 
         self.stopwords = self._resources.fetch_stopwords()
         self.inner_stopwords = self._resources.fetch_inner_stopwords()
 
-        self._labels = labels.lower() or "bio"
-
-        self._processor = None
-        # self._labeling_scheme = self._processor.choose_labels(labels=labels.lower() or "bio")
-        self._seed = 123
+        self._labeling_scheme = labeling_scheme.lower()
+        self._processor = BertProcessor()
 
         self._metrics = Metrics()
-        # self.training_args = training_args or self.default_args
-        # self.default_args = {"lr": 5e-05, "batch_size": 16, "epochs": 3, "weight_decay": 0.03}
 
-        self.lr = lr or 5e-05 # learning rate
-        self.batch_size = batch_size or 16
-        self.epochs = epochs or 3
-        self.weight_decay = weight_decay or 0.01
-        self.gradient_accumulation_steps = gradient_accumulation_steps or 1
-        self.warmup_ratio = warmup_ratio or 0.0
+        self._seed = seed
+        self.model_name = model
 
         self._sqlite = SQLite(
             project_name=project_name, 
             corpus=corpus, 
             overwrite_project=overwrite_project, 
             external_terms=external_terms)
-
-    def train(self, sample=None, save_as=None, split=False, lemmatize=False, expand_labels=False, only_annotate=False, build_balanced_dataset=False):
+        
+    def train(self, model_name, save_as=None, split=False, expand_labels=False, build_balanced_dataset=False, lr=5e-05, batch_size=16, epochs=3, weight_decay=0.01, gradient_accumulation_steps=1, warmup_ratio=0.0):
         '''
-        Fine-tunes the chosen model for automatic terminology extraction. It annotates the data with the chosen labels and then fine-tunes the model on said data. The model is saved to disk afterwards.
+        Fine-tunes the chosen model for automatic terminology extraction.
 
         Args:
+            model_name (str, optional): The BERT-based model to be fine-tuned.
             sample (int, optional): Number of sentences to randomly sample out of the corpus. Useful for testing purposes.
             save_as (str, optional): Path of the model to save to disk.
-            split (bool, optional): If True, it splits the data in train and eval.
-            lemmatize (bool, optional): If True, lemmatizes all the input data. Slower but pretty much mandatory for languages other than English.
+            split (bool, optional): If True, it splits the data in train (0.8) and test (0.2).
             expand_labels (bool, optional): If True, assigns B labels to all the subwords of the first word and I to the remaining words/subwords, instead of assigning B only to the first subword token of the term.
+            lr (int, optional): Learning rate of the model. Defaults to 5e-05.
+            batch_size (int, optional): Defaults to 16.
+            epochs (int, optional): Defaults to 3.
+            weight_decay (int, optional): Defaults to 0.01.
         '''
+
         from transformers import Trainer, set_seed
         from datasets import Dataset
         from transformers import TrainingArguments, EarlyStoppingCallback
         set_seed(self._seed)
-        print(f'\nInitializing model:  {self.model_name}', flush=True)
-        self._processor = BertProcessor(model_name=self.model_name, labels=self._labels)
+        print("Running training", flush=True)
+        print(f'\nInitializing model:  {model_name}', flush=True)
+        self._processor.model_name = model_name
         self._processor._load_model()
         self._processor._load_tokenizer_and_data_collator()
-        self._processor.stopwords = self.stopwords
-        self._processor.inner_stopwords = self.inner_stopwords
         self._processor.lang_code = self._lang_code
         
-        # tokenizer = self._processor.tokenizer
         model = self._processor.model
         data_collator = self._processor.data_collator
         
-        if self._sqlite.overwrite_project == False:
-            dataframe = self._fetch_data_from_db(lemmatize=lemmatize)
-            dataframe = self._processor.preprocess_annotated(
-                df=dataframe, 
-                expand_labels=expand_labels,
-                build_balanced_dataset=build_balanced_dataset
-                )
-            
-        else:
-            dataframe = self._prepare_train_data(
-                sample=sample, 
-                label2id=self._processor._label2id, 
-                lemmatize=lemmatize, 
-                expand_labels=expand_labels, 
-                only_annotate=only_annotate, 
-                build_balanced_dataset=build_balanced_dataset
-                )
-            if only_annotate ==True:
-                print(f"{len(dataframe)} segments annotated. Finishing script.")
-                import sys
-                sys.exit()
+        df = self._fetch_data_from_db()
+        df = self._processor.preprocess_train(
+            df=df, 
+            expand_labels=expand_labels,
+            build_balanced_dataset=build_balanced_dataset)
 
         if not split:
-            train_data = Dataset.from_pandas(dataframe)
+            train_data = Dataset.from_pandas(df)
 
             training_args = TrainingArguments(
             eval_strategy="no",
             logging_strategy="no",
-            learning_rate=self.lr,
-            per_device_train_batch_size=self.batch_size,
-            num_train_epochs=self.epochs,
-            weight_decay=self.weight_decay,
+            learning_rate=lr,
+            per_device_train_batch_size=batch_size,
+            num_train_epochs=epochs,
+            weight_decay=weight_decay,
             seed=self._seed,
             data_seed=self._seed,
-            gradient_accumulation_steps=self.gradient_accumulation_steps,
-            warmup_ratio=self.warmup_ratio
+            gradient_accumulation_steps=gradient_accumulation_steps,
+            warmup_ratio=warmup_ratio
             )
 
             trainer = Trainer(
@@ -130,15 +102,12 @@ class BertTrainer:
         elif split:
             from sklearn.model_selection import train_test_split
             print("\nSplitting training data into train (0.8) and eval (0.2)")
-            train_df, eval_df = train_test_split(dataframe, test_size=0.2, random_state=self._seed)
-
-            # train_df.to_csv(f"train_df_{self._sqlite.project_name}.csv")
-            # eval_df.to_csv(f"eval_df_{self._sqlite.project_name}.csv")
+            train_df, eval_df = train_test_split(df, test_size=0.2, random_state=self._seed)
 
             train_data = Dataset.from_pandas(train_df)
             eval_data = Dataset.from_pandas(eval_df)
 
-            model_folder_name = self.model_name.replace("/", "-")
+            model_folder_name = model_name.replace("/", "-")
             model_output_dir = f"./trainer_output/{model_folder_name}"
 
             training_args = TrainingArguments(
@@ -151,14 +120,14 @@ class BertTrainer:
                 save_total_limit=3,
                 metric_for_best_model="f1",
                 greater_is_better=True,
-                learning_rate=self.lr,
-                per_device_train_batch_size=self.batch_size,
-                num_train_epochs=self.epochs,
-                weight_decay=self.weight_decay,
+                learning_rate=lr,
+                per_device_train_batch_size=batch_size,
+                num_train_epochs=epochs,
+                weight_decay=weight_decay,
                 seed=self._seed,
                 data_seed=self._seed,
-                gradient_accumulation_steps=self.gradient_accumulation_steps,
-                warmup_ratio=self.warmup_ratio)
+                gradient_accumulation_steps=gradient_accumulation_steps,
+                warmup_ratio=warmup_ratio)
 
             self._metrics.eval_data= eval_data
             self._metrics.processor = self._processor
@@ -167,18 +136,56 @@ class BertTrainer:
                 args=training_args,
                 train_dataset=train_data,
                 eval_dataset=eval_data,
-                compute_metrics=self._metrics.compute_metrics_lemm if lemmatize else self._metrics.compute_metrics,
+                compute_metrics=self._metrics.compute_metrics_lemm,
                 data_collator=data_collator,
                 callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
                 )
 
         print('Fine-tuning model', flush=True)
-        print(f"Parameters: lr = {self.lr}, batch size = {self.batch_size}, weight decay = {self.weight_decay}, warmup ratio = {self.warmup_ratio}, epochs = {self.epochs}")
+        print(f"Parameters: lr = {lr}, batch size = {batch_size}, weight decay = {weight_decay}, warmup ratio = {warmup_ratio}, epochs = {epochs}")
         trainer.train()
         if save_as:
             trainer.save_model(f'{save_as}')
             print(f"Model saved as '{save_as}'")
 
+    def annotate(self, sample=None):
+        print("Running annotation", flush=True)
+        if self._sqlite.table_is_populated("word_tokens") and self._sqlite.table_is_populated("segment_labels") and self._sqlite.overwrite_project==False:
+            raise RuntimeError("Annotation cancelle. Word tokens and labels found in database. You may run 'train()' to use the existing data or use 'overwrite_project=True' to overwrite the existing data in the database.")
+        
+        self._processor.labeling_scheme = self._labeling_scheme
+        self._processor.stopwords = self.stopwords
+        self._processor.inner_stopwords = self.inner_stopwords
+        self._processor.lang_code = self._lang_code
+
+        segments = list(self._sqlite.get_segments())
+        external_terms = set(self._sqlite.get_external_terms())
+
+        if sample and isinstance(sample, int):
+            import random
+            random.seed(self._seed)
+            print(f"Sampling {sample} random sentences")
+            segments = random.sample(segments, sample)
+
+        df = self._processor.annotate(segments=segments, external_terms=external_terms)
+
+        self._sqlite.delete("corpus")
+        self._sqlite.insert_segments(data=df["text"].tolist(), tagged=False, tokenized=False, in_list_of_lists=False)
+        self._sqlite.insert_word_tokens(data=df["word_tokens"].tolist())
+        self._sqlite.insert_lemmatized_corpus(data=df["lemmas"].tolist())
+        self._sqlite.insert_segment_labels(data=df["labels"]) # unaligned
+
+        tokens_FD = self._processor._calculate_tokens_FD(df["word_tokens"])
+
+        # self._sqlite.insert_segments(data=df["tokens"].tolist(), tagged=False, tokenized=True, in_list_of_lists=True) # inserting tokenized segments used in training. Maybe have another table for BERT tokens
+
+        self._sqlite.insert_tokens(data=tokens_FD)
+        
+        print(f"{len(df)} segments annotated and saved to database.")
+
+    def merge_databases(self, database_list): # wip
+        pass
+    
     def _export_data_from_db(self, json_file_name):
         import pandas as pd
         #take all the data
@@ -207,53 +214,17 @@ class BertTrainer:
         # save to json
         full.to_json(f"{json_file_name}.json", orient="records", lines=True)
         # join them with join.py
-
-    def _prepare_train_data(self, sample, label2id, lemmatize=True, only_annotate=False, expand_labels=False, build_balanced_dataset=False):
-        import random
-        random.seed(self._seed)
-        print("\nBertTrainer initialized")
-
-        segments = list(self._sqlite.get_segments())
-        external_terms = set(self._sqlite.get_external_terms())
-
-        if isinstance(sample, int):
-            print(f"Sampling {sample} random sentences")
-            segments = random.sample(segments, sample)
-
-        df = self._processor.annotate_data(segments=segments, external_terms=external_terms)
-
-        self._sqlite.delete("corpus")
-        self._sqlite.insert_segments(data=df["text"].tolist(), tagged=False, tokenized=False, in_list_of_lists=False)
-        self._sqlite.insert_word_tokens(data=df["word_tokens"].tolist())
-        self._sqlite.insert_lemmatized_corpus(data=df["lemmas"].tolist())
-        self._sqlite.insert_segment_labels(data=df["labels"]) # unaligned
-        
-        if only_annotate:
-            print("Annotation complete and saved to database.")
-            return df
-
-        tokens_FD, df = self._processor.preprocess_train(df=df, expand_labels=expand_labels, build_balanced_dataset=build_balanced_dataset)
-
-        self._sqlite.insert_segments(data=df["tokens"].tolist(), tagged=False, tokenized=True, in_list_of_lists=True) # inserting tokenized segments used in training
-        self._sqlite.insert_tokens(data=tokens_FD) # change to insert tokens FD, maybe should calculate after spacy tokenization not bert
-
-        return df
     
-    def _fetch_data_from_db(self, lemmatize=False, sample=None):
+    def _fetch_data_from_db(self, sample=None):
         import pandas as pd
-        print("\nFetching existing data from database", flush=True)
+        print("\nFetching data from database", flush=True)
 
         segment_labels = self._sqlite.get_segment_labels()  
         word_tokens = self._sqlite.get_word_tokens()
-        # segment_lemmas = self._sqlite.get_lemmatized_corpus()
-        # segments = self._sqlite.get_segments()
 
-        if segment_labels:
+        if segment_labels and word_tokens:
             data = {
-                # "text": pd.Series(segments),
                 "word_tokens": pd.Series(word_tokens),
-                # "tokens": pd.Series(tokenized_segments) if lemmatize else None, 
-                # "lemmas": pd.Series(segment_lemmas) if lemmatize else None, # this is not needed
                 "labels": pd.Series(segment_labels)
                 }
             
@@ -265,17 +236,9 @@ class BertTrainer:
 
             return dataframe
         else:
-            raise RuntimeError("Necessary data not found in database. Create another project or overwrite the existing one using 'overwrite_project=True'")   
+            raise RuntimeError("Annotated data not found in database. Run 'annotate()' before 'train()'.")   
 
-    def _model_init(self, model_name):
-        from transformers import AutoModelForTokenClassification
-        return AutoModelForTokenClassification.from_pretrained(
-            model_name,
-            num_labels=len(self._processor._labeling_scheme),
-            id2label=self._processor._id2label,
-            label2id=self._processor._label2id)
-
-    def hp_tuning(self, models, sample=None, lr_range=(1e-5, 5e-5), epoch_range=(3, 6), batch_sizes=(8, 16, 32), weight_decay_range=(0.0, 0.05), warmup_ratio_range=(0.0, 0.2), n_trials=15, lemmatize=False):
+    def hp_tuning(self, models, sample=None, lr_range=(1e-5, 5e-5), epoch_range=(3, 6), batch_sizes=(8, 16, 32), weight_decay_range=(0.0, 0.05), warmup_ratio_range=(0.0, 0.2), n_trials=15):
         from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
         from sklearn.model_selection import train_test_split
         from datasets import Dataset
@@ -293,11 +256,11 @@ class BertTrainer:
             print(model_name)
 
         for model_name in models:
-            self._processor = BertProcessor(model_name=model_name, labels=self._labels)
+            self._processor = BertProcessor(model_name=model_name, labeling_scheme=self._labeling_scheme)
             self._processor._load_tokenizer_and_data_collator()
 
-            dataframe = self._fetch_data_from_db(lemmatize=lemmatize, sample=sample)
-            dataframe = self._processor.preprocess_annotated(df=dataframe, expand_labels=False)
+            dataframe = self._fetch_data_from_db(sample=sample)
+            dataframe = self._processor.preprocess_train(df=dataframe, expand_labels=False)
             train_df, eval_df = train_test_split(dataframe, test_size=0.2, random_state=self._seed)
             train_data = Dataset.from_pandas(train_df)
             eval_data = Dataset.from_pandas(eval_df)
@@ -318,8 +281,8 @@ class BertTrainer:
                     "warmup_ratio": warmup_ratio
                     }
 
-            model_folder_name = model_name.replace("/", "-")
-            model_output_dir = f"./trainer_output/{model_folder_name}"
+            # model_folder_name = model_name.replace("/", "-")
+            # model_output_dir = f"./trainer_output/{model_folder_name}"
 
             # add gradient accumulation steps and warmup ratio
             with tempfile.TemporaryDirectory() as temp_dir: # to delete the temp dir
@@ -331,10 +294,11 @@ class BertTrainer:
                     metric_for_best_model="f1",
                     save_total_limit=1,
                     learning_rate=self.lr,
-                    # bf16=True,
                     per_device_train_batch_size=self.batch_size,
                     num_train_epochs=self.epochs,
                     weight_decay=self.weight_decay,
+                    gradient_accumulation_steps=self.gradient_accumulation_steps,
+                    warmup_ratio=self.warmup_ratio,
                     seed=self._seed,
                     data_seed=self._seed)
                 
@@ -346,7 +310,7 @@ class BertTrainer:
                     args=training_args,
                     train_dataset=train_data,
                     eval_dataset=eval_data,
-                    compute_metrics=self._metrics.compute_metrics_lemm if lemmatize else self._metrics.compute_metrics,
+                    compute_metrics=self._metrics.compute_metrics_lemm,
                     data_collator=self._processor.data_collator,
                     callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
                     )
