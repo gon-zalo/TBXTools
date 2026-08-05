@@ -1,4 +1,5 @@
 from .._utils.utils import get_spacy_model_from_code
+from tqdm import tqdm
 
 class Processor:
 
@@ -13,7 +14,6 @@ class Processor:
         lang_code (str): The ISO code for the language.
         model_name (str): The name of the spacy model used (e.g., "en_core_web_sm" or "ca_core_news_sm").
         nlp: The NLP pipeline or model used for text processing.
-        
         
     '''
 
@@ -94,10 +94,9 @@ class Processor:
             
             self.nlp = load_spacy_model(self.model_name)
             
-        print("Applying lemmatization")
         freq_dict = {}
 
-        for terms_row in candidate_terms:
+        for terms_row in tqdm(candidate_terms, desc="Applying lemmatization to extracted terms", total=len(candidate_terms)):
             term = terms_row[0].strip()
             freq = terms_row[3]
 
@@ -139,7 +138,7 @@ class Processor:
 
 
         """
-        print("Applying nested frequency normalization")
+        # print("Applying nested frequency normalization")
 
         updated_terms = []
         terms_by_n = {}
@@ -153,7 +152,7 @@ class Processor:
 
             terms_by_n[candidate_term_n].append((candidate_term, candidate_term_freq))
    
-        for row in candidate_terms:
+        for row in tqdm(candidate_terms, desc="Applying nested frequency normalization", total=len(candidate_terms)):
             candidate_term = row[0]
             candidate_term_n = row[1]
             candidate_term_freq = row[3]
@@ -217,23 +216,24 @@ class Processor:
 
         '''
         import re
+        # import regex
          
         candidates_to_exclude = []
-        for candidate_row in candidate_terms:
+        for candidate_row in tqdm(candidate_terms, desc="Applying regex exclusion", total=len(candidate_terms)):
             candidate = candidate_row[0]
             candidate_n = candidate_row[1]
             candidate_n = int(candidate_n)
 
-            for regex in regexes:
-                regex = regex[0]
-                regex_n = len(regex.split())
-                match = re.fullmatch(regex, candidate)
+            for regex_expression in regexes:
+                regex_expression = regex_expression[0]
+                regex_n = len(regex_expression.split())
+                match = re.fullmatch(regex_expression, candidate)
 
                 if match and regex_n == candidate_n:
                     candidates_to_exclude.append(candidate)
 
                     if verbose:
-                        print(f"'{candidate}' removed by: {regex}")
+                        print(f"'{candidate}' removed by: {regex_expression}")
 
         return candidates_to_exclude
              
@@ -284,8 +284,7 @@ class Processor:
 
     def filter_by_stopwords_linguistic(self, term):
         """
-        Filters a candidate term (in this case a tagged ngram) by checking for invalid stopwords. A term is rejected (returns None) if it
-        contains a standard stopword at its boundaries (start/end).
+        Filters a candidate term (in this case a tagged ngram) by checking for invalid stopwords. A term is rejected (returns None) if it contains a standard stopword at its boundaries (start/end).
 
         Args: 
           term(str): The candidate term string to validate.

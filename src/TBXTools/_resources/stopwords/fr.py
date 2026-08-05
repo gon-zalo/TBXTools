@@ -1,3 +1,4 @@
+# source: spaCy stopwords https://github.com/explosion/spaCy/blob/master/spacy/lang/fr/stop_words.py
 STOPWORDS = set('''
 à
 afin

@@ -48,7 +48,8 @@ class Results:
             list: a list of tokens.        
         '''
         tokens = [token[0] for token in self._tokens]
-
+        # tokens = [(row[0], row[1], row[2]) for row in self._tokens]
+        
         if limit == None:
             return tokens
         
@@ -133,8 +134,6 @@ class Results:
             verbose (bool, optional): Prints the process in the console. Defaults to False.
         '''
 
-        print("Applying TSR filter")
-
         self._extractor._sqlite.load_tsr_terms(tsr_terms=tsr_terms)
         tsr_terms = self._extractor._sqlite.get("tsr_terms")
     
@@ -158,7 +157,6 @@ class Results:
             regexes: regular expression patterns used to match and filter out unwanted terms.
             verbose (bool, optional): Prints the process in the console. Default to False.
         '''
-        print("Applying regex exclusion")
         
         self._extractor._sqlite.load_exclusion_regexes(exclusion_regexes=regexes)
         raw_regexes = self._extractor._sqlite.get("exclusion_regexes")
@@ -220,3 +218,38 @@ class Results:
             raise ValueError(f"Unsupported format '{extension}'. Supported formats: .txt, .csv, .xlsx")
         
         print(f"Candidate terms saved to disk", flush=True)
+
+    def normalize_declension(self):
+        from tqdm import tqdm
+        candidate_terms = self._terms
+        normalized_terms = []
+        for row in tqdm(candidate_terms, desc="Normalizing declension of terms", total=len(candidate_terms)):
+            term = row[0]
+
+            split_term = term.split()
+            first_token = split_term[0]
+
+            if len(split_term) == 1:
+                is_upper = term.isupper()
+
+                if not is_upper:
+                    term = self._methodology.processor.lemmatize_term(term)
+    
+                normalized_terms.append((term, row[1], row[2], row[3]))
+
+            elif len(split_term) > 1:
+                # new_term = []
+                # lemmatized_first_token = self._methodology.processor.lemmatize_term(first_token)
+
+                # new_term.append(lemmatized_first_token)
+                # split_term.remove(first_token)
+                # for token in split_term:
+                #     new_term.append(token)
+
+                # joined = " ".join(new_term)
+                term = self._methodology.processor.lemmatize_term(term)
+                normalized_terms.append((term, row[1], row[2], row[3]))
+        
+        self._extractor._sqlite.delete("candidate_terms")
+        self._extractor._sqlite.insert_candidate_terms(normalized_terms)
+        self._terms = normalized_terms

@@ -1,3 +1,4 @@
+# source: spaCy stopwords https://github.com/explosion/spaCy/blob/master/spacy/lang/en/stop_words.py
 STOPWORDS = set('''
 is
 be

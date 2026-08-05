@@ -6,7 +6,6 @@ extractor = Extractor(
     methodology=StatisticalMethodology(
         nmin=2, 
         nmax=3,
-        exclusion_regexes=regexes,
         case_normalization=True
     ),
     project_name="regexes-test",
@@ -16,6 +15,6 @@ extractor = Extractor(
 )
 
 results = extractor.extract(verbose=False)
-results.regex_exclusion(verbose=True)
+results.regex_exclusion(regexes=regexes, verbose=True)
 
 print(results.terms(limit=50))

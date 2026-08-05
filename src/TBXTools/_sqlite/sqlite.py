@@ -87,6 +87,7 @@ class SQLite:
             self.cur.execute("CREATE TABLE evaluation_terms(id INTEGER PRIMARY KEY AUTOINCREMENT, evaluation_term TEXT)")
             self.cur.execute("CREATE TABLE segment_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, labels TEXT)")
             self.cur.execute("CREATE TABLE lemmatized_corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, lemmatized_segment TEXT)")
+            self.cur.execute("CREATE TABLE word_tokens(id INTEGER PRIMARY KEY AUTOINCREMENT, word_tokens TEXT)")
 
 
             # self.cur.execute("CREATE TABLE BERT( \
@@ -113,17 +114,18 @@ class SQLite:
         '''Read a corpus file.'''
         data = []
         continserts = 0
-        with open(corpus_file, "r", encoding=encoding, errors="ignore") as file:
-            for line in file:
-                data.append(line.rstrip())
-                continserts += 1
+        if corpus_file:
+            with open(corpus_file, "r", encoding=encoding, errors="ignore") as file:
+                for line in file:
+                    data.append(line.rstrip())
+                    continserts += 1
 
-                if continserts == self.MAX_INSERTS:
-                    self.insert_segments(data=data, tagged=is_corpus_tagged)
-                    data = []
-                    continserts = 0
-            
-            self.insert_segments(data=data, tagged=is_corpus_tagged)
+                    if continserts == self.MAX_INSERTS:
+                        self.insert_segments(data=data, tagged=is_corpus_tagged)
+                        data = []
+                        continserts = 0
+                
+                self.insert_segments(data=data, tagged=is_corpus_tagged)
 
     # LOAD METHODS
     def load_corpus(self, corpus, is_corpus_tagged, encoding="utf-8", compoundify=False, comp_symbol="▁"):
@@ -355,6 +357,15 @@ class SQLite:
             with self.conn:
                 self.cur.executemany("INSERT INTO lemmatized_corpus (lemmatized_segment) VALUES (?)", data)
 
+    def insert_word_tokens(self, data):
+        '''Inserts spacy word tokens into the database'''
+        data = [" ".join(segment) for segment in data]
+
+        data = [(segment,) for segment in data]
+        if not self.table_is_populated("word_tokens"):
+            with self.conn:
+                self.cur.executemany("INSERT INTO word_tokens (word_tokens) VALUES (?)", data)
+
     def insert_bert_data(self, df, lemmatize):
         '''Insert dataframe data obtained after processing with BERT models'''
         import numpy as np
@@ -391,7 +402,6 @@ class SQLite:
     # GET METHODS
     def get_segments(self, tagged=False, tokenized=False, to_list=False):
         '''Gets the segmented corpus as a list of segments from the database.'''
-        segments = []
         with self.conn:
             if tagged:
                 self.cur.execute("SELECT tagged_segment from tagged_corpus")
@@ -402,15 +412,12 @@ class SQLite:
             else:
                 self.cur.execute("SELECT segment from corpus")
                 
-            for row in self.cur.fetchall():
+            for row in self.cur:
                 if to_list:
-                    segment = row[0].split()
+                    yield row[0].split()
                 else:
-                    segment = row[0]
-                segments.append(segment)
+                    yield row[0]
         
-        return segments
-    
     def get_ngrams(self, tagged=False):
         '''Gets the list of Ngrams of tagged ngrams from the database'''
         data = []
@@ -452,7 +459,6 @@ class SQLite:
 
         return items
        
-    
     def get_external_terms(self): 
         external_terms= []
         with self.conn:
@@ -463,7 +469,27 @@ class SQLite:
 
         return external_terms
     
-    def get_segment_labels(self):
+    def get_lemmatized_corpus(self):
+        lemmatized_corpus= []
+        with self.conn:
+            self.cur.execute("SELECT lemmatized_segment FROM lemmatized_corpus")
+
+            for row in self.cur.fetchall():
+                lemmatized_corpus.append(row[0])
+
+        return lemmatized_corpus
+    
+    def get_word_tokens(self):
+        word_tokens= []
+        with self.conn:
+            self.cur.execute("SELECT word_tokens FROM word_tokens")
+
+            for word_tokens_row in self.cur.fetchall():
+                word_tokens.append(word_tokens_row[0].split()) # as list for bert
+
+        return word_tokens
+    
+    def _old_get_segment_labels(self):
         labels = []
         with self.conn:
             self.cur.execute("SELECT labels FROM segment_labels")
@@ -472,6 +498,19 @@ class SQLite:
                 # labels.append(labels_row[0].split())
                 int_list = [int(label) for label in labels_row[0].split()] # turning str back into ints
                 labels.append(int_list)
+
+        return labels
+    
+    def get_segment_labels(self):
+        labels = []
+        with self.conn:
+            self.cur.execute("SELECT labels FROM segment_labels")
+
+            for labels_row in self.cur.fetchall():
+                labels.append(labels_row[0].split())
+                
+                # int_list = [int(label) for label in labels_row[0].split()] # turning str back into ints
+                # labels.append(int_list)
 
         return labels
     
@@ -488,7 +527,7 @@ class SQLite:
 # ADD FUNCTIONS
     def add_stopwords(self, stopwords_list):
         '''Add stopwords to the database that do not exist already.'''
-        current_stopwords = self.get_stopwords()
+        current_stopwords = self.get("stopwords")
         data = []
         for stopword in stopwords_list:
             if stopword in set(current_stopwords):

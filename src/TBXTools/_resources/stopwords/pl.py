@@ -1,3 +1,4 @@
+# source: spaCy stopwords https://github.com/explosion/spaCy/blob/master/spacy/lang/pl/stop_words.py
 STOPWORDS = set(
     '''
 a aby ach acz aczkolwiek aj albo ale alez
