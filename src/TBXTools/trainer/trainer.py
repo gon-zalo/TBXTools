@@ -35,7 +35,7 @@ class BertTrainer:
             overwrite_project=overwrite_project, 
             external_terms=external_terms)
         
-    def train(self, model_name, save_as=None, split=False, expand_labels=False, build_balanced_dataset=False, lr=5e-05, batch_size=16, epochs=3, weight_decay=0.01, gradient_accumulation_steps=1, warmup_ratio=0.0):
+    def train(self, model, save_as=None, split=False, expand_labels=False, build_balanced_dataset=False, lr=5e-05, batch_size=16, epochs=3, weight_decay=0.01, gradient_accumulation_steps=1, warmup_ratio=0.0):
         '''
         Fine-tunes the chosen model for automatic terminology extraction.
 
@@ -56,13 +56,13 @@ class BertTrainer:
         from transformers import TrainingArguments, EarlyStoppingCallback
         set_seed(self._seed)
         print("Running training", flush=True)
-        print(f'\nInitializing model:  {model_name}', flush=True)
-        self._processor.model_name = model_name
+        print(f'\nInitializing model:  {model}', flush=True)
+        self._processor.model_name = model
         self._processor._load_model()
         self._processor._load_tokenizer_and_data_collator()
         self._processor.lang_code = self._lang_code
         
-        model = self._processor.model
+        model_ = self._processor.model
         data_collator = self._processor.data_collator
         
         df = self._fetch_data_from_db()
@@ -88,7 +88,7 @@ class BertTrainer:
             )
 
             trainer = Trainer(
-                model=model,
+                model=model_,
                 args=training_args,
                 train_dataset=train_data,
                 data_collator=data_collator # needed to pad the sentences
@@ -102,7 +102,7 @@ class BertTrainer:
             train_data = Dataset.from_pandas(train_df)
             eval_data = Dataset.from_pandas(eval_df)
 
-            model_folder_name = model_name.replace("/", "-")
+            model_folder_name = self._processor.model_name.replace("/", "-")
             model_output_dir = f"./trainer_output/{model_folder_name}"
 
             training_args = TrainingArguments(
@@ -127,7 +127,7 @@ class BertTrainer:
             self._metrics.eval_data= eval_data
             self._metrics.processor = self._processor
             trainer = Trainer(
-                model=model,
+                model=model_,
                 args=training_args,
                 train_dataset=train_data,
                 eval_dataset=eval_data,
