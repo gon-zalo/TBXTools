@@ -134,40 +134,40 @@ results = extractor.extract(verbose=False)
 ```
 
 ## Bert methodology (WORK IN PROGRESS)
-The `BertMethodology` class from the `methodology` module allows you to extract terms using a BERT model. To make use of everything related to BERT models you first need to install the necessary dependencies using:
+The `BertMethodology` class from the `methodology` module allows you to extract terms using a BERT-based model. To make use of everything related to BERT models you first need to install the necessary dependencies using:
 
 `pip install ".[bert]"`
 
-To use this methodology, you need a fine-tuned model on terminology extraction using BIO labels. You may fine-tune such a model using the `BertTrainer` class from the `trainer` module. For this, you only need two things: a list of external terms and a corpus. The tool will automatically annotate the corpus based on the external terms list and will fine-tune your model of choice on that corpus. Below you can find an example of the whole process.
+To use this methodology, you need a fine-tuned model on terminology extraction using BIO labels. You may fine-tune such a model using the `BertTrainer` class from the `trainer` module. For this, you only need two things: a list of external terms and a corpus. The tool will automatically annotate the corpus based on the external terms list and will fine-tune your model of choice on that corpus. Below you can find an example of the annotation, training, and extracting processes.
 
+### Annotation and training
 ```python
-from TBXTools import Extractor
-from TBXTools.methodology import BertMethodology
 from TBXTools.trainer import BertTrainer
 
-distilbert = "distilbert/distilbert-base-multilingual-cased"
+model = "distilbert/distilbert-base-multilingual-cased"
 
 trainer = BertTrainer(
     project_name="bert-train-example",
     corpus="example-train-corpus.txt",
-    model=distilbert,
-    external_terms="example_terms.txt"
-    lr=5e-05,
-    batch_size=16,
-    epochs=3,
-    weight_decay=0.03
-)
+    language="english",
+    external_terms="example_terms.txt")
 
-trainer.train(save_as="bert-model-example", split=False, lemmatize=False)
+trainer.annotate()
+trainer.train(model=model, save_as="saved-model-example", split=True) # `split=True`evaluates model performance using a 20% validation split
+# Training arguments can also be passed as arguments to the `train()` method, like `lr`, `batch_size`, `epochs`, `weight_decay`, `warmup_ratio`, and `gradient_accumulation`.
+```
+### Extraction
+```
+from TBXTools import Extractor
+from TBXTools.methodology import BertMethodology
 
-fine_tuned_model = "bert-model-example"
-methodology = BertMethodology(model="bert-model-example")
+methodology = BertMethodology(model="saved-model-example")
+
 extractor = Extractor(
-    project_name=fine_tuned_model,
+    project_name="bert-test-example",
     methodology=methodology,
     corpus="example-eval-corpus.txt",
-    language="en",
-)
+    language="en")
 
 results = extractor.extract(verbose=False)
 ```
