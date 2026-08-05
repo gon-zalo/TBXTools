@@ -154,9 +154,9 @@ trainer = BertTrainer(
 
 trainer.annotate()
 trainer.train(model=model, save_as="saved-model-example", split=True)
-# `split=True`evaluates model performance using a 20% validation split
-# Training arguments can also be passed as arguments to the `train()` method
-# Available args: `lr`, `batch_size`, `epochs`, `weight_decay`, `warmup_ratio`, and `gradient_accumulation`
+# 'split=True' evaluates model performance using a 20% validation split
+# Training arguments can also be passed as arguments to the 'train()' method
+# Available args: 'lr', 'batch_size', 'epochs', 'weight_decay', 'warmup_ratio', and 'gradient_accumulation'
 ```
 ### Extraction
 ```python
@@ -171,7 +171,7 @@ extractor = Extractor(
     corpus="example-eval-corpus.txt",
     language="english")
 
-results = extractor.extract(verbose=False)
+results = extractor.extract()
 ```
 
 # Results postprocessing
