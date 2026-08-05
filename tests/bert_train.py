@@ -7,7 +7,7 @@ trainer = BertTrainer(
     language="en")
 
 trainer.train(
-    model_name= xlm_roberta, 
+    model= xlm_roberta, 
     save_as="wmt-roberta-allpositive-2-ate", 
     split=False, 
     expand_labels=False, 
