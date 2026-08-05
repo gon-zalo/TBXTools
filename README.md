@@ -153,11 +153,13 @@ trainer = BertTrainer(
     external_terms="example_terms.txt")
 
 trainer.annotate()
-trainer.train(model=model, save_as="saved-model-example", split=True) # `split=True`evaluates model performance using a 20% validation split
-# Training arguments can also be passed as arguments to the `train()` method, like `lr`, `batch_size`, `epochs`, `weight_decay`, `warmup_ratio`, and `gradient_accumulation`.
+trainer.train(model=model, save_as="saved-model-example", split=True)
+# `split=True`evaluates model performance using a 20% validation split
+# Training arguments can also be passed as arguments to the `train()` method
+# Available args: `lr`, `batch_size`, `epochs`, `weight_decay`, `warmup_ratio`, and `gradient_accumulation`
 ```
 ### Extraction
-```
+```python
 from TBXTools import Extractor
 from TBXTools.methodology import BertMethodology
 
@@ -167,7 +169,7 @@ extractor = Extractor(
     project_name="bert-test-example",
     methodology=methodology,
     corpus="example-eval-corpus.txt",
-    language="en")
+    language="english")
 
 results = extractor.extract(verbose=False)
 ```
