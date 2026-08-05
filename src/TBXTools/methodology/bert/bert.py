@@ -12,13 +12,13 @@ class BertMethodology(BaseMethodology):
         labels (str): The labels used in the fine-tuning of the model.
     '''
 
-    def __init__(self, model, labels=None):
+    def __init__(self, model, labels="BIO"):
         from transformers import logging
         logging.set_verbosity_error()
         self.name = "BertMethodology"
         self.model_name = model
 
-        self.labels = labels.lower() if labels else None
+        self.labels = labels.lower()
         self.processor = BertProcessor(model_name=self.model_name, labeling_scheme=self.labels)
 
         
