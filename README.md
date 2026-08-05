@@ -156,7 +156,7 @@ trainer.annotate()
 trainer.train(model=model, save_as="saved-model-example", split=True)
 # 'split=True' evaluates model performance using a 20% validation split
 # Training arguments can also be passed as arguments to the 'train()' method
-# Available args: 'lr', 'batch_size', 'epochs', 'weight_decay', 'warmup_ratio', and 'gradient_accumulation'
+# Available args: 'lr', 'batch_size', 'epochs', 'weight_decay', 'warmup_ratio', 'gradient_accumulation'
 ```
 ### Extraction
 ```python
