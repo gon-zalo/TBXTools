@@ -16,6 +16,7 @@ class SQLite:
         self.TABLES_TO_LOAD_AT_START = ["corpus", "tagged_corpus", "stopwords", "inner_stopwords", "linguistic_patterns", "evaluation_terms", "external_terms"]
 
         self.TABLES_LOADED = []
+        self.descriptive_statistics_data = {}
 
     # Initializing project, corpus, stopwords, etc.
         load_data = self.initialize_project(
@@ -88,15 +89,6 @@ class SQLite:
             self.cur.execute("CREATE TABLE segment_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, labels TEXT)")
             self.cur.execute("CREATE TABLE lemmatized_corpus(id INTEGER PRIMARY KEY AUTOINCREMENT, lemmatized_segment TEXT)")
             self.cur.execute("CREATE TABLE word_tokens(id INTEGER PRIMARY KEY AUTOINCREMENT, word_tokens TEXT)")
-
-
-            # self.cur.execute("CREATE TABLE BERT( \
-            # id INTEGER PRIMARY KEY AUTOINCREMENT,  \
-            # labels TEXT, \
-            # input_ids BLOB NOT NULL, \
-            # attention_mask BLOB NOT NULL, \
-            # offset_mapping BLOB, \
-            # lemmatized BOOLEAN NOT NULL CHECK (lemmatized IN (0, 1)))") 
 
     def open_project(self,project_name):
         '''Opens an existing project. If the project doesn't exist it raises an exception.'''
@@ -366,39 +358,6 @@ class SQLite:
             with self.conn:
                 self.cur.executemany("INSERT INTO word_tokens (word_tokens) VALUES (?)", data)
 
-    def insert_bert_data(self, df, lemmatize):
-        '''Insert dataframe data obtained after processing with BERT models'''
-        import numpy as np
-        rows = []
-        for _, row in df.iterrows():
-            rows.append((
-                np.asarray(row["input_ids"], dtype=np.int32).tobytes(),
-                np.asarray(row["attention_mask"], dtype=np.uint8).tobytes(),
-                np.asarray(row["offset_mapping"], dtype=np.int32).tobytes() if  "offset_mapping" in df.columns else None,
-                np.asarray(row["labels"], dtype=np.uint8).tobytes(),
-                int(lemmatize)
-            ))
-
-        with self.conn:
-            self.cur.executemany(
-                "INSERT INTO BERT (input_ids, attention_mask, offset_mapping, labels,lemmatized) VALUES (?, ?, ?, ?, ?)",rows)
-            
-    def get_bert_data(self):
-        self.cur.execute("SELECT id, input_ids, attention_mask, offset_mapping, labels, lemmatized FROM BERT")
-        import numpy as np
-        import pandas as pd
-        rows = self.cur.fetchall()
-
-        data = []
-        for row in rows:
-            data.append({
-                "attention_mask": np.frombuffer(row[2], dtype=np.uint8).tolist(),
-                "offset_mapping": np.frombuffer(row[3], dtype=np.int32).reshape(-1, 2).tolist() if row[3] is not None else None,
-                "labels": np.frombuffer(row[4], dtype=np.uint8).tolist(),
-                "lemmatize": bool(row[5])})
-
-        return pd.DataFrame(data)
-
     # GET METHODS
     def get_segments(self, tagged=False, tokenized=False, to_list=False):
         '''Gets the segmented corpus as a list of segments from the database.'''
@@ -444,7 +403,6 @@ class SQLite:
         return candidate_terms
     
     def get(self, table):
-
         exception = {"exclusion_regexes" : "exclusion_regex"} #hay que encontrar una logica mejor, que podría ser darle el mismo nombre a tabla y columna
         if table in exception:
             column_name = exception[table]
@@ -454,6 +412,15 @@ class SQLite:
         items = []
         with self.conn:
             self.cur.execute(f"SELECT {column_name} FROM {table}")
+            for item in self.cur.fetchall():
+                items.append(item[0])
+
+        return items
+
+    def new_get(self, column, table):
+        items = []
+        with self.conn:
+            self.cur.execute(f"SELECT {column} FROM {table}")
             for item in self.cur.fetchall():
                 items.append(item[0])
 
@@ -489,18 +456,6 @@ class SQLite:
 
         return word_tokens
     
-    def _old_get_segment_labels(self):
-        labels = []
-        with self.conn:
-            self.cur.execute("SELECT labels FROM segment_labels")
-
-            for labels_row in self.cur.fetchall():
-                # labels.append(labels_row[0].split())
-                int_list = [int(label) for label in labels_row[0].split()] # turning str back into ints
-                labels.append(int_list)
-
-        return labels
-    
     def get_segment_labels(self):
         labels = []
         with self.conn:
@@ -508,9 +463,6 @@ class SQLite:
 
             for labels_row in self.cur.fetchall():
                 labels.append(labels_row[0].split())
-                
-                # int_list = [int(label) for label in labels_row[0].split()] # turning str back into ints
-                # labels.append(int_list)
 
         return labels
     
@@ -525,6 +477,8 @@ class SQLite:
                 self.cur.execute("DELETE FROM candidate_terms WHERE candidate=?", (candidate,))
 
 # ADD FUNCTIONS
+
+# se pueden unificar
     def add_stopwords(self, stopwords_list):
         '''Add stopwords to the database that do not exist already.'''
         current_stopwords = self.get("stopwords")
@@ -540,7 +494,7 @@ class SQLite:
 
     def add_inner_stopwords(self, inner_stopwords_list):
         '''Add inner stopwords to the database that do not exist already.'''
-        current_inner_stopwords = self.get_inner_stopwords()
+        current_inner_stopwords = self.get("inner_stopwords")
         data = []
         for inner_stopword in inner_stopwords_list:
             if inner_stopword in set(current_inner_stopwords):
@@ -593,3 +547,31 @@ class SQLite:
             if loader and not self.table_is_populated(table_name=table):
                 loader()
                 self.TABLES_LOADED.append(table)
+
+
+    def calculate_descriptive_statistics(self):
+        tables = ["corpus", "candidate_terms"]
+
+        with self.conn:
+            for table in tables:
+                self.cur.execute(f"SELECT COUNT(*) FROM {table}")
+                count = self.cur.fetchone()[0]
+
+                self.descriptive_statistics_data[table] = count
+
+                if table == "candidate_terms":
+                    self.cur.execute("SELECT MIN(n), MAX(n) FROM candidate_terms")
+
+                    nmin, nmax = self.cur.fetchone()
+
+                    for n in range(nmin, nmax+1): 
+                        self.cur.execute("""
+                            SELECT candidate, n, measure, value 
+                            FROM candidate_terms 
+                            WHERE n = ? 
+                            ORDER BY value DESC
+                        """, (n,))
+                        
+                        self.descriptive_statistics_data[str(n)] = self.cur.fetchall()
+
+                        self.descriptive_statistics_data["nrange"] = [nmin, nmax]
