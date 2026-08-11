@@ -16,13 +16,14 @@ class StatisticalMethodology(BaseMethodology):
         
         self.name = "StatisticalMethodology"
         self.case_normalization = case_normalization
-        
+
         self.processor = Processor()
         self.processor.nmin = nmin    
         self.processor.nmax = nmax    
+        self.extractor = None
 
 # MAIN FUNCTION
-    def extract(self, segments, verbose=False):
+    def run(self, segments, verbose=False):
         '''
         Extracts candidate terms from text segments using a statistical methodology. This methodology is based on calculating n-grams and filtering candidates using stopwords and inner stopwords. Specifically, it removes any terms that start or end with a word in the stopword list, as well as terms that contain an inner stopword. The actual extraction logic is delegated to the '_statistical_extraction' method.
 
@@ -40,7 +41,8 @@ class StatisticalMethodology(BaseMethodology):
              candidate_terms = self.processor.case_normalization(
                 candidate_terms=candidate_terms, 
                 verbose=verbose) 
-                
+
+        
         return Results(terms=candidate_terms, ngrams=ngrams, tokens=tokens)
     
 # COMPUTING FUNCTIONS

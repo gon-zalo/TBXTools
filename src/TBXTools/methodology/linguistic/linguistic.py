@@ -51,8 +51,6 @@ class LinguisticMethodology(BaseMethodology):
                   tagged n-grams, extracted candidate terms, and the linguistic 
                   patterns used.
                 - list[str]: The POS-tagged segments to store them in the database if newly generated.
-        
-
         '''
 
         if not tagged_segments:
@@ -115,8 +113,6 @@ class LinguisticMethodology(BaseMethodology):
 
         Returns:
             List of list: A list in which each inner list represents and exctracted candidate term. 
-
-
         '''
 
         processed_patterns=[]
