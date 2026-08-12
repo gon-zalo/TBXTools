@@ -54,7 +54,13 @@ class SQLite:
 
             return True
 
-        else:
+        elif not file_name.exists():
+            self.create_project(project_name=project_name)
+
+            return True
+
+        elif not file_name.exists() and overwrite_project==True:
+            print("WARNING: overwrite_project is True, but database does not exist.", flush=True)
             self.create_project(project_name=project_name)
 
             return True
@@ -63,7 +69,7 @@ class SQLite:
         '''Opens a project. If the project already exists, it raises an exception. To avoid the exception use overwrite=True. To open existing projects, use the open_project method.'''
 
         project_name = self.add_extension(project_name)
-        print(f"Creating project: {project_name}")
+        print(f"Creating project: {project_name}" if not overwrite else f"Overwriting project: {project_name}")
         
         if os.path.isfile(project_name) and overwrite:
             os.remove(project_name)
@@ -91,16 +97,13 @@ class SQLite:
             self.cur.execute("CREATE TABLE word_tokens(id INTEGER PRIMARY KEY AUTOINCREMENT, word_tokens TEXT)")
 
     def open_project(self,project_name):
-        '''Opens an existing project. If the project doesn't exist it raises an exception.'''
+        '''Opens an existing project.'''
 
         project_name = self.add_extension(project_name)
         print(f"Opening project: {project_name}", flush=True)
 
-        if not os.path.isfile(project_name):
-                raise Exception("Project not found")
-        else:
-            self.conn = sqlite3.connect(project_name)
-            self.cur = self.conn.cursor() 
+        self.conn = sqlite3.connect(project_name)
+        self.cur = self.conn.cursor() 
 
     def read_corpus(self, corpus_file, is_corpus_tagged, encoding):
         '''Read a corpus file.'''
@@ -401,7 +404,7 @@ class SQLite:
                 candidate_terms.append(candidates_row)
 
         return candidate_terms
-    
+
     def get(self, table):
         exception = {"exclusion_regexes" : "exclusion_regex"} #hay que encontrar una logica mejor, que podría ser darle el mismo nombre a tabla y columna
         if table in exception:
@@ -417,7 +420,7 @@ class SQLite:
 
         return items
 
-    def new_get(self, column, table):
+    def new_get(self, column, table): # build a dict with table name and expression?
         items = []
         with self.conn:
             self.cur.execute(f"SELECT {column} FROM {table}")
@@ -554,23 +557,20 @@ class SQLite:
 
         with self.conn:
             for table in tables:
+                # counting segments and terms
                 self.cur.execute(f"SELECT COUNT(*) FROM {table}")
                 count = self.cur.fetchone()[0]
 
                 self.descriptive_statistics_data[table] = count
 
+                # getting nmin and nmax and its top terms from the candidates ta ble
                 if table == "candidate_terms":
                     self.cur.execute("SELECT MIN(n), MAX(n) FROM candidate_terms")
 
                     nmin, nmax = self.cur.fetchone()
 
                     for n in range(nmin, nmax+1): 
-                        self.cur.execute("""
-                            SELECT candidate, n, measure, value 
-                            FROM candidate_terms 
-                            WHERE n = ? 
-                            ORDER BY value DESC
-                        """, (n,))
+                        self.cur.execute("SELECT candidate,n,measure,value FROM candidate_terms WHERE n=? ORDER BY value DESC", (n,))
                         
                         self.descriptive_statistics_data[str(n)] = self.cur.fetchall()
 
