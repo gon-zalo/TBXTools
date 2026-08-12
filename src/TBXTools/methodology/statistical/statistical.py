@@ -42,8 +42,12 @@ class StatisticalMethodology(BaseMethodology):
                 candidate_terms=candidate_terms, 
                 verbose=verbose) 
 
+        results = Results(terms=candidate_terms, ngrams=ngrams, tokens=tokens)
+
+        self.extractor._sqlite.insert_tokens(results._tokens)
+        self.extractor._sqlite.insert_ngrams(results._ngrams)
         
-        return Results(terms=candidate_terms, ngrams=ngrams, tokens=tokens)
+        return results
     
 # COMPUTING FUNCTIONS
     def _statistical_extraction (self, segments, minfreq=2):

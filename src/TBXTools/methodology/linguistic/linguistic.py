@@ -29,11 +29,12 @@ class LinguisticMethodology(BaseMethodology):
         self.tsr_terms = tsr_terms        
         self.processor = Processor()
         self.processor.nmin = nmin 
-        self.processor.nmax = nmax 
+        self.processor.nmax = nmax
+        self.extractor = None
 
     # MAIN FUNCTION
 
-    def extract(self, segments, tagged_segments, minfreq=2, verbose=False):
+    def run(self, segments, minfreq=2, verbose=False):
         '''
         Extracts candidate terms from text segments using a linguistic methodology.
 
@@ -53,6 +54,10 @@ class LinguisticMethodology(BaseMethodology):
                 - list[str]: The POS-tagged segments to store them in the database if newly generated.
         '''
 
+        evaluation_terms = self.extractor._sqlite.get("evaluation_terms")
+        linguistic_patterns = self.extractor._sqlite.get("linguistic_patterns")
+        tagged_segments = list(self.extractor._sqlite.get_segments(tagged=True))
+
         if not tagged_segments:
             tagged_segments = self.processor.create_tagged_segments(segments=segments)
 
@@ -60,7 +65,7 @@ class LinguisticMethodology(BaseMethodology):
         
         filtered_tagged_ngrams = []
         combined_ngrams = list(zip(clean_ngrams, tagged_ngrams))
-        for term in self.evaluation_terms:
+        for term in evaluation_terms:
             for row in combined_ngrams:
                 clean_ngram = row[0][0]
                 tagged_ngram = row[1][0]
@@ -70,7 +75,7 @@ class LinguisticMethodology(BaseMethodology):
                     row = (tagged_ngram, n, freq)
                     filtered_tagged_ngrams.append(row)
 
-        if not self.linguistic_patterns: # learn patterns
+        if not linguistic_patterns: # learn patterns
             print("Linguistic patterns not found. Starting automatic pattern learning")
             pattern_learner = PatternsLearning()
 
@@ -80,12 +85,12 @@ class LinguisticMethodology(BaseMethodology):
                 #added to order the patterns by frequency
                 sorted_patterns = sorted(learn_dict.keys(), key=lambda x: learn_dict[x], reverse=True)
                 linguistic_patterns = list(sorted_patterns)
-                self.linguistic_patterns = [(linguistic_pattern,) for linguistic_pattern in linguistic_patterns] # strings must be in tuples
+                linguistic_patterns = [(linguistic_pattern,) for linguistic_pattern in linguistic_patterns] # strings must be in tuples
 
             else:
                 raise ValueError("Learning process produced no patterns. Please verify database data.")
      
-        translated_linguistic_patterns = self.processor.translate_pattern(self.linguistic_patterns)
+        translated_linguistic_patterns = self.processor.translate_pattern(linguistic_patterns)
         candidate_terms = self._linguistic_extraction(ngrams_output=tagged_ngrams, linguistic_patterns=translated_linguistic_patterns, minfreq=minfreq)
 
         if self.case_normalization:
@@ -93,10 +98,17 @@ class LinguisticMethodology(BaseMethodology):
                         candidate_terms=candidate_terms, 
                         verbose=verbose) 
 
-        return Results(tagged_ngrams=tagged_ngrams,
+        results = Results(tagged_ngrams=tagged_ngrams,
                        ngrams=clean_ngrams, 
                        terms=candidate_terms, 
-                       linguistic_patterns=self.linguistic_patterns), tagged_segments # returning these, in case they were created, to be stored in the db
+                       linguistic_patterns=linguistic_patterns)
+
+        self.extractor._sqlite.insert_segments(tagged_segments, tagged=True)
+        self.extractor._sqlite.insert_ngrams(results._tagged_ngrams, tagged=True)
+        self.extractor._sqlite.insert_ngrams(results._ngrams)
+        self.extractor._sqlite.insert_linguistic_patterns(results._linguistic_patterns)
+
+        return results
     
     
     def _linguistic_extraction(self, linguistic_patterns, ngrams_output, minfreq=2):
