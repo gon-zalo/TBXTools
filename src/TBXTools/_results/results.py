@@ -10,32 +10,32 @@ class Results:
         _linguistic_patterns: A list of linguistic patterns.
         _methodology: Class to manage the methodology object.
     '''
-    def __init__(self, *, terms=None, ngrams=None, tagged_ngrams=None, tokens=None, linguistic_patterns=None):
+    def __init__(self, terms=None, ngrams=None, tagged_ngrams=None, tokens=None, linguistic_patterns=None):
         self._terms = terms or []
         self._ngrams = ngrams or []
         self._tagged_ngrams= tagged_ngrams or []
         self._linguistic_patterns = linguistic_patterns or []
         self._tokens = tokens or []
+
         self._methodology = None
         self._extractor = None
-        self._sqlite = None
 
-    # [0] is the first element in the tuple (table row)
     def print_candidates(self, limit=20, n=None, verbose=False):
         '''
-        Gets the list of terms
+        Prints a list of the top candidate terms.
 
         Args:
-            limit: The number of terms accessed. Default is 20.
-
-        Return:
-            list: a list of terms.        
+            limit (int, optional): The number of terms accessed. Default is 20.
+            n (int, optional): N-grams to print.
+            verbose (int, optional): If True, prints out n and frequency of the candidate terms. Default is False.    
         '''
         terms = self._terms
 
         print(f"\nTop {limit} candidate terms (n = {n}):" if n else f"\nTop {limit} candidate terms:")
+        
         if n is not None and not isinstance(n, int):
             raise ValueError("n must be an integer.")
+        
         elif n and isinstance(n, int):
             filtered_terms = []
             for row in terms:
@@ -189,7 +189,8 @@ class Results:
         
         regexes = [(r,) for r in raw_regexes]
         
-        candidate_terms = self._terms
+        candidate_terms = self._terms # get preprocessed terms instead 
+        # return processed (self._terms = filtered_terms can stay the same i think)
         candidates_to_exclude = self._methodology.processor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms, verbose=verbose, mode=mode)
         
         if candidates_to_exclude:
@@ -271,22 +272,24 @@ class Results:
 
     def summary(self): #work in progress
         import textwrap
-        self._sqlite.calculate_descriptive_statistics() # sqlite does the calculations and puts everything inside the attr descriptive_statistics_data, which we access here
-        data = self._sqlite.descriptive_statistics_data
+        self.extractor._sqlite.calculate_descriptive_statistics() # sqlite does the calculations and puts everything inside the attr descriptive_statistics_data (dict), which we access here
+        data = self.extractor._sqlite.descriptive_statistics_data
+
         print()
         print(" SUMMARY ".center(60, "-"))
-        print(f"{'Segments in corpus'}: {data['corpus']}")
-        print(f"{'Candidate terms'}: {data['candidate_terms']}")
+        print(f"Segments in corpus: {data['corpus']}")
+        print(f"Candidate terms: {data['candidate_terms']}")
 
         print("-" * 60)
         for n in range(data["nrange"][0], data["nrange"][1]+1):
             num_ngrams = len(data.get(str(n), []))
-            terms = [term[0] for term in data.get(str(n), [])]
-            top_10 = ", ".join(terms[:10])
+            terms = [term[0] for term in data.get(str(n), [])[:10]] # top 10
+            joined = ", ".join(terms)
+
             print(f"{n}-GRAMS  |  Total: {num_ngrams}")
             
             wrapped_terms = textwrap.fill(
-                top_10, 
+                joined, 
                 width=60, 
                 initial_indent="  ", 
                 subsequent_indent="  "
