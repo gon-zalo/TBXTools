@@ -202,15 +202,21 @@ class Results:
         filtered_terms = self._extractor._sqlite.get_candidate_terms()
         self._terms = filtered_terms
 
-    def save_candidates(self, path, only_candidates=False):
+    def save_candidates(self, path, only_candidates=False, by_segment=False, by_segment_id=False, explode=False): # could also be by="segment" or by="id"
         '''
         Save the candidate terms to disk. The file is saved in the specified format. If no format is provided, it defaults to .txt.
 
-        Supported formats: .txt, .csv, .xlsx
+        Supported formats: .txt, .csv, .xlsx, .jsonl
 
         Args:
             path: Path of the file to be saved.
-            only_candidates: ...
+            only_candidates (bool, optional): Exports only candidate terms, without n and frequencies.
+            by_segment (bool, optional): Exports data containing segment id, segment, and candidate terms extracted from it.
+            by_segment_id (bool, optional): Exports data containing segment id, and candidate terms extracted from it. Same as by_segment but without exporting the segment itself.
+            explode (bool, optional): Exports each candidate in its own row, replicating id and/or segment. Only works if by_segment or by_segment_id are True.
+        
+        Raises:
+            ValueError: If both by_segment and by_segment_id are True.
         '''
         from pathlib import Path
         import pandas as pd
@@ -219,12 +225,40 @@ class Results:
         extension = path.suffix.lower()
         candidate_terms = self._extractor._sqlite.get_candidate_terms()
 
-        if only_candidates:
-            output = pd.DataFrame(candidate_terms, columns=['candidate', 'n', 'measure', 'value'])[['candidate']]
+        if by_segment and by_segment_id:
+            raise ValueError("by_segment and by_segment_id cannot be both True. Use one or the other.")
+        if only_candidates and by_segment or by_segment_id:
+            raise ValueError("only_candidates and by_segment or by_segment_id cannot be both True. Use one or the other.")
+        
+        elif by_segment or by_segment_id:
+            segments = self._extractor._sqlite.get_segments()
+            df_rows = []
+            id = 0
+            for segment in segments:
+                id += 1
+                candidates = []
+                for row in candidate_terms:
+                    candidate = row[0]
+                    if candidate in segment:
+                        candidates.append(candidate)
+
+                if candidates:
+                    if by_segment and not by_segment_id:
+                        df_rows.append({"id": id, "segment": segment, "candidates" : candidates})
+                    if by_segment_id and not by_segment:
+                        df_rows.append({"id": id, "candidates" : candidates})
+
+            output = pd.DataFrame(df_rows)
+            
+            if explode:
+                output = output.explode(column="candidates")
 
         else:
-            output = pd.DataFrame(candidate_terms, columns=['candidate', 'n', 'measure', 'value'])
 
+            output = pd.DataFrame(candidate_terms, columns=['candidate', 'n', 'measure', 'value'])
+            if only_candidates:
+                output = output[['candidate']]
+                       
         if not extension:
             extension = ".txt"
             path = path.with_suffix(extension)
@@ -238,10 +272,13 @@ class Results:
         elif extension == ".xlsx":
             output.to_excel(path, index=False)
 
+        elif extension == ".jsonl":
+            output.to_json(path, orient="records", lines=True)
+
         else:
-            raise ValueError(f"Unsupported format '{extension}'. Supported formats: .txt, .csv, .xlsx")
+            raise ValueError(f"Unsupported format '{extension}'. Supported formats: .txt, .csv, .xlsx, .jsonl")
         
-        print(f"Candidate terms saved to disk", flush=True)
+        print(f"Candidate terms saved to disk ({path})", flush=True)
 
     def normalize_declension(self):
         from tqdm import tqdm
@@ -272,8 +309,8 @@ class Results:
 
     def summary(self): #work in progress
         import textwrap
-        self.extractor._sqlite.calculate_descriptive_statistics() # sqlite does the calculations and puts everything inside the attr descriptive_statistics_data (dict), which we access here
-        data = self.extractor._sqlite.descriptive_statistics_data
+        self._extractor._sqlite.calculate_descriptive_statistics() # sqlite does the calculations and puts everything inside the attr descriptive_statistics_data (dict), which we access here
+        data = self._extractor._sqlite.descriptive_statistics_data
 
         print()
         print(" SUMMARY ".center(60, "-"))
