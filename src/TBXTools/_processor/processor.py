@@ -397,9 +397,7 @@ class Processor:
     
     def ngram_calculation(self, segments, is_corpus_tagged=False, minfreq=2):
         '''
-        Calculates ngrmas and their frequencies from a list of text segments.
-
-        If the corpus is tagged, it extracts both the raw text ngrams and the tagged ngrams to use when applying the linguistic extraction.
+        Calculates ngrmas and their frequencies from a list of text segments. If the corpus is tagged, it extracts both the raw text ngrams and the tagged ngrams to use when applying the linguistic extraction.
 
         Args:
           segments (list) : A list of text segments to process.
