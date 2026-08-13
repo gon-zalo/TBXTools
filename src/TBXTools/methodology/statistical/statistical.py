@@ -66,10 +66,9 @@ class StatisticalMethodology(BaseMethodology):
         '''
         
         #tokens calculation
-
         tokensFD= nltk.probability.FreqDist()
         for segment in segments:
-            tokens= self.processor.tokenize(segment)
+            tokens = self.processor.tokenize(segment)
             for token in tokens:
                     tokensFD[token] += 1
         
@@ -80,7 +79,7 @@ class StatisticalMethodology(BaseMethodology):
         self.tokens = tokens_output
 
         #ngrams calculation
-        ngrams_output, _= self.processor.ngram_calculation(segments=segments)
+        ngrams_output, _ = self.processor.ngram_calculation(segments=segments)
         self.ngrams = ngrams_output
        
         #statistical filtering
