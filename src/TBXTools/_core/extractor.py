@@ -26,9 +26,9 @@ class Extractor:
 
         # initializing objects
         self._methodology = methodology
-        self._resources = Resources(lang_code=self._lang_code)
+        self._resources = Resources(lang=self.lang, lang_code=self._lang_code)
 
-        self.stopwords = stopwords or self._resources.fetch_stopwords()
+        self.stopwords = stopwords or self._resources.get_spacy_stopwords()
         self.inner_stopwords = inner_stopwords or self._resources.fetch_inner_stopwords()
 
         # assigning basic attributes to Processor()
