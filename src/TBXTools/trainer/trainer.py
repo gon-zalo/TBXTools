@@ -35,7 +35,7 @@ class BertTrainer:
             overwrite_project=overwrite_project, 
             external_terms=external_terms)
         
-    def train(self, model, save_as=None, split=False, expand_labels=False, build_balanced_dataset=False, lr=5e-05, batch_size=16, epochs=3, weight_decay=0.01, gradient_accumulation_steps=1, warmup_ratio=0.0):
+    def train(self, model, save_as=None, split=False, expand_labels=False, sample=None, only_segments_with_terms=True, lr=5e-05, batch_size=16, epochs=3, weight_decay=0.01, gradient_accumulation_steps=1, warmup_ratio=0.0):
         '''
         Fine-tunes the chosen model for automatic terminology extraction.
 
@@ -65,11 +65,14 @@ class BertTrainer:
         model_ = self._processor.model
         data_collator = self._processor.data_collator
         
-        df = self._fetch_data_from_db()
+        df = self._fetch_data_from_db(
+            sample=sample, 
+            only_segments_with_terms=only_segments_with_terms
+            )
         df = self._processor.preprocess_train(
             df=df, 
-            expand_labels=expand_labels,
-            build_balanced_dataset=build_balanced_dataset)
+            expand_labels=expand_labels
+            )
 
         if not split:
             train_data = Dataset.from_pandas(df)
@@ -97,10 +100,10 @@ class BertTrainer:
         elif split:
             from sklearn.model_selection import train_test_split
             print("\nSplitting training data into train (0.8) and eval (0.2)")
-            train_df, eval_df = train_test_split(df, test_size=0.2, random_state=self._seed)
+            train_df, val_df = train_test_split(df, test_size=0.2, random_state=self._seed)
 
             train_data = Dataset.from_pandas(train_df)
-            eval_data = Dataset.from_pandas(eval_df)
+            val_data = Dataset.from_pandas(val_df)
 
             model_folder_name = self._processor.model_name.replace("/", "-")
             model_output_dir = f"./trainer_output/{model_folder_name}"
@@ -124,13 +127,13 @@ class BertTrainer:
                 gradient_accumulation_steps=gradient_accumulation_steps,
                 warmup_ratio=warmup_ratio)
 
-            self._metrics.eval_data= eval_data
+            self._metrics.eval_data= val_data
             self._metrics.processor = self._processor
             trainer = Trainer(
                 model=model_,
                 args=training_args,
                 train_dataset=train_data,
-                eval_dataset=eval_data,
+                eval_dataset=val_data,
                 compute_metrics=self._metrics.compute_metrics_lemm,
                 data_collator=data_collator,
                 callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
@@ -153,11 +156,11 @@ class BertTrainer:
         '''
         print("Running annotation", flush=True)
 
-        if not self._sqlite.table_is_populated("corpus") or  not self._sqlite.table_is_populated("external_terms"):
+        if not self._sqlite.table_is_populated("corpus") or not self._sqlite.table_is_populated("external_terms"):
             raise RuntimeError("Corpus or external terms not found. They need to be passed as arguments to BertTrainer.")
         
         if self._sqlite.table_is_populated("word_tokens") and self._sqlite.table_is_populated("segment_labels") and self._sqlite.overwrite_project==False:
-            raise RuntimeError("Annotation cancelle. Word tokens and labels found in database. You may run 'train()' to use the existing data or use 'overwrite_project=True' to overwrite the existing data in the database.")
+            raise RuntimeError("Annotation cancelled. Word tokens and labels found in database. You may run 'train()' to use the existing data or use 'overwrite_project=True' to overwrite the existing data in the database.")
         
         self._processor.labeling_scheme = labeling_scheme.lower()
         self._processor.stopwords = self.stopwords
@@ -186,47 +189,21 @@ class BertTrainer:
         # self._sqlite.insert_segments(data=df["tokens"].tolist(), tagged=False, tokenized=True, in_list_of_lists=True) # inserting tokenized segments used in training. Maybe have another table for BERT tokens
 
         self._sqlite.insert_tokens(data=tokens_FD)
-        
-        print(f"{len(df)} segments annotated and saved to database.")
 
-    def merge_databases(self, database_list): # wip
-        pass
+        with_terms = df["labels"].apply(lambda seg_labels: any(label in ["B", "I"] for label in seg_labels))
+        df_with_terms = df[with_terms]
+        df_without_terms = df[~with_terms]
+
+        print(f"\n{len(df)} total segments annotated and saved to database.")
+        print(f"{len(df_with_terms)} segments with terms")
+        print(f"{len(df_without_terms)} segments without terms")
     
-    def _export_data_from_db(self, json_file_name):
-        import pandas as pd
-        #take all the data
-        dataframe = self._fetch_data_from_db()
-
-        with_terms = dataframe["labels"].apply(lambda seg_labels: any(label in ["B", "I"] for label in seg_labels))
-        
-        # 2 dfs, one with terms and another without
-        df_with_terms = dataframe[with_terms]
-        df_without_terms = dataframe[~with_terms]
-        print(f"Total segments with terms: {len(df_with_terms)}")
-        print(f"Total segments without terms: {len(df_without_terms)}")
-
-        if len(df_with_terms) < 12000:
-            n = len(df_with_terms)
-        else:
-            n = 12000
-        # downsampling english data
-        df_with_terms = df_with_terms.sample(n=n, random_state=123)
-        # df_without_terms = df_without_terms.sample(n=1700, random_state=123)
-
-        # concatenate and shuffle
-        full = pd.concat([df_with_terms, df_without_terms])
-        full = full.sample(frac=1, random_state=123).reset_index(drop=True)
-        print(len(full))
-        # save to json
-        full.to_json(f"{json_file_name}.json", orient="records", lines=True)
-        # join them with join.py
-    
-    def _fetch_data_from_db(self, sample=None):
+    def _fetch_data_from_db(self, sample=None, only_segments_with_terms=True):
         import pandas as pd
         print("\nFetching data from database", flush=True)
 
-        segment_labels = self._sqlite.get_segment_labels()  
         word_tokens = self._sqlite.get_word_tokens()
+        segment_labels = self._sqlite.get_segment_labels()  
 
         if segment_labels and word_tokens:
             data = {
@@ -236,9 +213,16 @@ class BertTrainer:
             
             dataframe = pd.DataFrame(data=data)
 
-            if sample:
+            if only_segments_with_terms:
+                with_terms = dataframe["labels"].apply(lambda seg_labels: any(label in ["B", "I"] for label in seg_labels))
+            
+                dataframe = dataframe[with_terms]
+
+            if isinstance(sample, int): 
                 print(f"Sampling {sample} random sentences")
                 dataframe = dataframe.sample(n=sample, random_state=123)
+            else:
+                raise ValueError("'sample' must be an int.")
 
             return dataframe
         else:
