@@ -26,9 +26,9 @@ class Extractor:
 
         # initializing objects
         self._methodology = methodology
-        self._resources = Resources(lang_code=self._lang_code)
+        self._resources = Resources(lang=self.lang, lang_code=self._lang_code)
 
-        self.stopwords = stopwords or self._resources.fetch_stopwords()
+        self.stopwords = stopwords or self._resources.get_spacy_stopwords()
         self.inner_stopwords = inner_stopwords or self._resources.fetch_inner_stopwords()
 
         # assigning basic attributes to Processor()
@@ -61,47 +61,38 @@ class Extractor:
         Returns:
             Results: An instance of the Results class.
         '''
-        print(f"\n{self._methodology.name} initialized", flush=True)
-        print("Running term extraction", flush=True)
         
-        segments = list(self._sqlite.get_segments(tagged=False))
+        self._methodology.extractor = self
 
-        if self._methodology.name == "LinguisticMethodology":
+        if self._sqlite.overwrite_project == False and self._sqlite.table_is_populated("candidate_terms"): # if we are not overwriting and the calculations have been done
+            print("Fetching data from database", flush=True)
+            candidate_terms = self._sqlite.get_candidate_terms()
+            ngrams = self._sqlite.get_ngrams()
+            tokens = self._sqlite.get("tokens")
+            tagged_ngrams = self._sqlite.get_ngrams(tagged=True)
+            linguistic_patterns = self._sqlite.get("linguistic_patterns")
 
-            self._methodology.evaluation_terms = self._sqlite.get("evaluation_terms")
-            self._methodology.linguistic_patterns = self._sqlite.get("linguistic_patterns")
-            tagged_segments = list(self._sqlite.get_segments(tagged=True))
+            results = Results(
+                terms=candidate_terms, 
+                ngrams=ngrams if ngrams else None, 
+                tokens=tokens, 
+                tagged_ngrams=tagged_ngrams if tagged_ngrams else None,
+                linguistic_patterns=linguistic_patterns if linguistic_patterns else None
+                )
 
-            results, returned_segments = self._methodology.extract(segments=segments, tagged_segments=tagged_segments, verbose=verbose)
+        else:
+            print(f"\n{self._methodology.name} initialized", flush=True)
+            print("Running term extraction", flush=True)
 
-            self._sqlite.insert_segments(returned_segments, tagged=True)
-            self._sqlite.insert_ngrams(results._tagged_ngrams, tagged=True)
-            self._sqlite.insert_ngrams(results._ngrams)
-            self._sqlite.insert_linguistic_patterns(self._methodology.linguistic_patterns)
+            segments = list(self._sqlite.get_segments(tagged=False))
 
-        if self._methodology.name == "StatisticalMethodology":
+            results = self._methodology.run(segments=segments, verbose=verbose)
 
-            results = self._methodology.extract(segments=segments, verbose=verbose)
-
-            self._sqlite.insert_tokens(results._tokens)
-            self._sqlite.insert_ngrams(results._ngrams)
-
-        if self._methodology.name == "BertMethodology":
-
-            results, tokenized_corpus = self._methodology.extract(segments=segments, verbose=False)
-
-            self._sqlite.insert_segments(data=tokenized_corpus, tagged=False, tokenized=True)
-            self._sqlite.insert_tokens(data=results._tokens)
+            self._sqlite.insert_candidate_terms(results._terms)   
 
         results._extractor = self  
         results._methodology = self._methodology
-
-        self._sqlite.delete("candidate_terms") # keep an eye on this
-        self._sqlite.insert_candidate_terms(results._terms)   
-
-        if not results._methodology.name:
-            print("Error: Unknown extractor")
-
+        
         return results
     
     def add_stopwords(self, stopwords_list):

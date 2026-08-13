@@ -1,6 +1,6 @@
 import pandas as pd
 from tqdm import tqdm
-from .._utils.utils import get_model_from_code
+from .._utils.utils import get_spacy_model_from_code
 import string
 
 class BertProcessor():
@@ -72,7 +72,7 @@ class BertProcessor():
         self._label2id = {l: i for i, l in enumerate(self._labeling_scheme_list)}
         self._id2label = {i: l for l, i in self._label2id.items()}
             
-    def preprocess_train(self, df, expand_labels=False, build_balanced_dataset=False):
+    def preprocess_train(self, df, expand_labels=False):
         encoding = self._encode(
             df["word_tokens"].tolist(),
             is_split_into_words=True) # its tokenized, so True
@@ -87,9 +87,6 @@ class BertProcessor():
 
         df["labels"] = self._align_labels(encoding, df["labels"].tolist(), is_split_into_words=True, expand_labels=expand_labels)
 
-        if build_balanced_dataset:
-            df = self._build_balanced_dataset(dataframe=df, target_size=15000, negative_ratio=0.15)
-
         df["labels"] = self._transform_labels_into_ints(df["labels"])
 
         # return tokens_FD, df
@@ -100,7 +97,7 @@ class BertProcessor():
         Runs the whole annotation process.
         '''
         import spacy
-        spacy_model = get_model_from_code(self.lang_code)
+        spacy_model = get_spacy_model_from_code(self.lang_code)
         nlp = spacy.load(spacy_model)
 
         word_tokens, lemmas = self._lemmatize_segments(nlp, segments) # with spacy
@@ -117,7 +114,7 @@ class BertProcessor():
 
     def preprocess_test(self, segments):
         import spacy
-        nlp = spacy.load(get_model_from_code(self.lang_code))
+        nlp = spacy.load(get_spacy_model_from_code(self.lang_code))
         tokens_list = []
 
         # use a proper function
@@ -253,53 +250,6 @@ class BertProcessor():
 
         return labels
 
-    def _build_balanced_dataset(self, dataframe, target_size=15000, negative_ratio=0.15):
-        # change this func so it takes all examples if target_size=None
-        print(f"\nBuilding a dataset of {target_size} segments with {negative_ratio * 100}% negative examples from a dataframe of {len(dataframe)} segments", flush=True)
-        
-        # filter
-        with_terms = dataframe["labels"].apply(lambda seg_labels: any(label in ["B", "I"] for label in seg_labels))
-        
-        # 2 dfs, one with terms and another without
-        df_with_terms = dataframe[with_terms]
-        df_without_terms = dataframe[~with_terms]
-        print(f"Total segments with terms: {len(df_with_terms)}")
-        print(f"Total segments without terms: {len(df_without_terms)}")
-
-        if target_size > len(df_with_terms):
-            print("\nWARNING: Specified target size is bigger than identified segments with terms.")
-
-            n_segments_with_terms = len(df_with_terms)
-            # n_negative_examples = int(len(df_with_terms) * negative_ratio)
-            n_negative_examples = n_segments_with_terms * (negative_ratio / (1 - negative_ratio))
-            n_negative_examples = min(n_negative_examples, len(df_without_terms))
-
-            print(f"Building a dataset {negative_ratio * 100}% negative examples and {(1 - negative_ratio) * 100} positive examples")
-
-            df_with_terms = df_with_terms.sample(n=n_segments_with_terms, random_state=123)
-            df_without_terms = df_without_terms.sample(n=n_negative_examples, random_state=123)
-
-        else: 
-            # n_negative_examples = int(len(df_with_terms) * negative_ratio)
-            n_negative_examples = n_segments_with_terms * (negative_ratio / (1 - negative_ratio))
-            n_segments_with_terms = target_size - n_negative_examples
-            
-            n_segments_with_terms = min(n_segments_with_terms, len(df_with_terms))
-            n_negative_examples = min(n_negative_examples, len(df_without_terms))
-            
-            df_with_terms = df_with_terms.sample(n=n_segments_with_terms, random_state=123)
-            df_without_terms = df_without_terms.sample(n=n_negative_examples, random_state=123)
-        
-        # concat and merge
-        full = pd.concat([df_with_terms, df_without_terms])
-        full = full.sample(frac=1, random_state=123).reset_index(drop=True)
-        
-        print(f"\nRemaining segments with terms:{len(df_with_terms)}")
-        print(f"Remaining segments without terms:  {len(df_without_terms)}")
-        print(f"Remaining total segments: {len(full)}")
-        
-        return full
-
     def _order_terms_by_len(self, tokenized_terms):
         from collections import defaultdict
         terms_by_len = defaultdict(list)
@@ -329,7 +279,7 @@ class BertProcessor():
         import spacy
         import re
 
-        nlp = spacy.load(get_model_from_code(self.lang_code))
+        nlp = spacy.load(get_spacy_model_from_code(self.lang_code))
         doc = nlp(term)
         result = []
 

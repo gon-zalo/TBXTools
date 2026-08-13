@@ -10,32 +10,55 @@ class Results:
         _linguistic_patterns: A list of linguistic patterns.
         _methodology: Class to manage the methodology object.
     '''
-    def __init__(self, *, terms=None, ngrams=None, tagged_ngrams=None, tokens=None, linguistic_patterns=None):
+    def __init__(self, terms=None, ngrams=None, tagged_ngrams=None, tokens=None, linguistic_patterns=None):
         self._terms = terms or []
         self._ngrams = ngrams or []
         self._tagged_ngrams= tagged_ngrams or []
         self._linguistic_patterns = linguistic_patterns or []
         self._tokens = tokens or []
+
         self._methodology = None
         self._extractor = None
 
-    # [0] is the first element in the tuple (table row)
-    def terms(self, limit=20):
+    def print_candidates(self, limit=20, n=None, verbose=False):
         '''
-        Gets the list of terms
+        Prints a list of the top candidate terms.
 
         Args:
-            limit: The number of terms accessed. Default is 20.
-
-        Return:
-            list: a list of terms.        
+            limit (int, optional): The number of terms accessed. Default is 20.
+            n (int, optional): N-grams to print.
+            verbose (int, optional): If True, prints out n and frequency of the candidate terms. Default is False.    
         '''
-        terms = [term[0] for term in self._terms]
+        terms = self._terms
 
-        if limit == None:
-            return terms
+        print(f"\nTop {limit} candidate terms (n = {n}):" if n else f"\nTop {limit} candidate terms:")
         
-        return terms[:limit]
+        if n is not None and not isinstance(n, int):
+            raise ValueError("n must be an integer.")
+        
+        elif n and isinstance(n, int):
+            filtered_terms = []
+            for row in terms:
+                term_n = row[1]
+                if n == term_n:
+                    filtered_terms.append((row[0], term_n, "frequency", row[3]))
+
+            terms = filtered_terms
+        
+        if verbose:
+            output_terms = []
+            print(f"term, n, frequency")
+            for row in terms:
+                    out = f"{row[0]}, {row[1]}, {row[3]}"
+                    output_terms.append(out)
+
+        else:
+            output_terms = [row[0] for row in terms]
+
+        if limit:
+            output_terms = output_terms[:limit]
+        
+        print("\n".join(output_terms))
 
     def tokens(self, limit=20):
         '''
@@ -91,7 +114,7 @@ class Results:
     
     def nest_normalization(self, percent=10, verbose=False):
         '''
-        Performs nest normalization of the terms.
+        Normalizes candidate term frequencies by accounting for nested subterms. It reduces the frequency of terms that appear inside longer candidate terms. A frequency compatibility interval (±percent%) is defined around each candidate term's frequency. The frequency of a nested term is only subtracted from the base term if it falls within this interval. Terms whose normalized frequency drops to 0 are removed from the final list.
 
         Args:
             percent: The frequency compatibility interval that is used to calculate if a term is nested inside another.
@@ -120,7 +143,6 @@ class Results:
         self._extractor._sqlite.insert_candidate_terms(filtered_terms)
         self._terms = filtered_terms
 
-  
     def tsr(self, tsr_terms=None, type=None, max_iterations=10000000000, verbose=True):
         '''
         Filters the extracted candidate terms using Token Slot Recognition (TSR). The algorithm is based on the concept of terminological token, i.e., it filters out term candidates by taking into account their tokens.
@@ -149,7 +171,7 @@ class Results:
         self._extractor._sqlite.insert_candidate_terms(self._terms)
         print(f"TSR filter completed. {len(self._terms)} candidates saved.")
             
-    def regex_exclusion(self, regexes=None, verbose=False):
+    def regex_exclusion(self, regexes=None, verbose=False, mode="strict"):
         '''
         Deletes term candidates matching a set of regular expresions loaded in the Extractor() class.
 
@@ -167,8 +189,9 @@ class Results:
         
         regexes = [(r,) for r in raw_regexes]
         
-        candidate_terms = self._terms
-        candidates_to_exclude = self._methodology.processor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms, verbose=verbose)
+        candidate_terms = self._terms # get preprocessed terms instead 
+        # return processed (self._terms = filtered_terms can stay the same i think)
+        candidates_to_exclude = self._methodology.processor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms, verbose=verbose, mode=mode)
         
         if candidates_to_exclude:
             self._extractor._sqlite.delete_specific_candidate_term(candidates=candidates_to_exclude)
@@ -179,14 +202,21 @@ class Results:
         filtered_terms = self._extractor._sqlite.get_candidate_terms()
         self._terms = filtered_terms
 
-    def save_candidates(self, path, only_candidates=False):
+    def save_candidates(self, path, only_candidates=False, by_segment=False, by_segment_id=False, explode=False): # could also be by="segment" or by="id"
         '''
         Save the candidate terms to disk. The file is saved in the specified format. If no format is provided, it defaults to .txt.
 
-        Supported formats: .txt, .csv, .xlsx
+        Supported formats: .txt, .csv, .xlsx, .jsonl
 
         Args:
             path: Path of the file to be saved.
+            only_candidates (bool, optional): Exports only candidate terms, without n and frequencies.
+            by_segment (bool, optional): Exports data containing segment id, segment, and candidate terms extracted from it.
+            by_segment_id (bool, optional): Exports data containing segment id, and candidate terms extracted from it. Same as by_segment but without exporting the segment itself.
+            explode (bool, optional): Exports each candidate in its own row, replicating id and/or segment. Only works if by_segment or by_segment_id are True.
+        
+        Raises:
+            ValueError: If both by_segment and by_segment_id are True.
         '''
         from pathlib import Path
         import pandas as pd
@@ -195,12 +225,40 @@ class Results:
         extension = path.suffix.lower()
         candidate_terms = self._extractor._sqlite.get_candidate_terms()
 
-        if only_candidates == False:
-            output = pd.DataFrame(candidate_terms, columns=['candidate', 'n', 'measure', 'value'])
+        if by_segment and by_segment_id:
+            raise ValueError("by_segment and by_segment_id cannot be both True. Use one or the other.")
+        if only_candidates and by_segment or by_segment_id:
+            raise ValueError("only_candidates and by_segment or by_segment_id cannot be both True. Use one or the other.")
+        
+        elif by_segment or by_segment_id:
+            segments = self._extractor._sqlite.get_segments()
+            df_rows = []
+            id = 0
+            for segment in segments:
+                id += 1
+                candidates = []
+                for row in candidate_terms:
+                    candidate = row[0]
+                    if candidate in segment:
+                        candidates.append(candidate)
+
+                if candidates:
+                    if by_segment and not by_segment_id:
+                        df_rows.append({"id": id, "segment": segment, "candidates" : candidates})
+                    if by_segment_id and not by_segment:
+                        df_rows.append({"id": id, "candidates" : candidates})
+
+            output = pd.DataFrame(df_rows)
+            
+            if explode:
+                output = output.explode(column="candidates")
 
         else:
-            output = pd.DataFrame(candidate_terms, columns=['candidate', 'n', 'measure', 'value'])[['candidate']]
 
+            output = pd.DataFrame(candidate_terms, columns=['candidate', 'n', 'measure', 'value'])
+            if only_candidates:
+                output = output[['candidate']]
+                       
         if not extension:
             extension = ".txt"
             path = path.with_suffix(extension)
@@ -214,10 +272,13 @@ class Results:
         elif extension == ".xlsx":
             output.to_excel(path, index=False)
 
+        elif extension == ".jsonl":
+            output.to_json(path, orient="records", lines=True)
+
         else:
-            raise ValueError(f"Unsupported format '{extension}'. Supported formats: .txt, .csv, .xlsx")
+            raise ValueError(f"Unsupported format '{extension}'. Supported formats: .txt, .csv, .xlsx, .jsonl")
         
-        print(f"Candidate terms saved to disk", flush=True)
+        print(f"Candidate terms saved to disk ({path})", flush=True)
 
     def normalize_declension(self):
         from tqdm import tqdm
@@ -238,18 +299,37 @@ class Results:
                 normalized_terms.append((term, row[1], row[2], row[3]))
 
             elif len(split_term) > 1:
-                # new_term = []
-                # lemmatized_first_token = self._methodology.processor.lemmatize_term(first_token)
-
-                # new_term.append(lemmatized_first_token)
-                # split_term.remove(first_token)
-                # for token in split_term:
-                #     new_term.append(token)
-
-                # joined = " ".join(new_term)
+                
                 term = self._methodology.processor.lemmatize_term(term)
                 normalized_terms.append((term, row[1], row[2], row[3]))
         
         self._extractor._sqlite.delete("candidate_terms")
         self._extractor._sqlite.insert_candidate_terms(normalized_terms)
         self._terms = normalized_terms
+
+    def summary(self): #work in progress
+        import textwrap
+        self._extractor._sqlite.calculate_descriptive_statistics() # sqlite does the calculations and puts everything inside the attr descriptive_statistics_data (dict), which we access here
+        data = self._extractor._sqlite.descriptive_statistics_data
+
+        print()
+        print(" SUMMARY ".center(60, "-"))
+        print(f"Segments in corpus: {data['corpus']}")
+        print(f"Candidate terms: {data['candidate_terms']}")
+
+        print("-" * 60)
+        for n in range(data["nrange"][0], data["nrange"][1]+1):
+            num_ngrams = len(data.get(str(n), []))
+            terms = [term[0] for term in data.get(str(n), [])[:10]] # top 10
+            joined = ", ".join(terms)
+
+            print(f"{n}-GRAMS  |  Total: {num_ngrams}")
+            
+            wrapped_terms = textwrap.fill(
+                joined, 
+                width=60, 
+                initial_indent="  ", 
+                subsequent_indent="  "
+            )
+            print(wrapped_terms)
+            print()

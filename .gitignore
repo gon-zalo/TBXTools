@@ -32,3 +32,6 @@ tests/join_data.py
 tests/lem_test.py
 tests/bert_dret.py
 detech26/
+bert-dret*
+bert_pat/
+tests/wiki_data/

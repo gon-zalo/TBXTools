@@ -26,7 +26,6 @@ class Processor:
         self.model_name = None
         self.nlp = None
 
-    
     def case_normalization(self, candidate_terms, verbose=False): 
         '''
         Performs case normalization. If a capitalized term exists as non-capitalized, the capitalized one will be deleted and the frequency of the non-capitalized one will be increased by the frequency of the capitalized.
@@ -63,6 +62,8 @@ class Processor:
 
             if verbose:
                 print(term, "->", freq)
+
+        normalized_terms.sort(key=lambda row: row[3], reverse=True)
 
         return normalized_terms
     
@@ -121,6 +122,8 @@ class Processor:
             if verbose:
                 print(f"{lemma} -> {freq}")
 
+        normalized_terms.sort(key=lambda row: row[3], reverse=True)
+
         return normalized_terms
         
     
@@ -160,8 +163,8 @@ class Processor:
             nested_frequency = 0
 
             # frequency bounds (POST control)
-            fmax = candidate_term_freq + candidate_term_freq * percent / 100
-            fmin = candidate_term_freq - candidate_term_freq * percent / 100
+            fmax = candidate_term_freq + candidate_term_freq * (percent / 100)
+            fmin = candidate_term_freq - candidate_term_freq * (percent / 100)
             
             # compare the current term only with longer terms
             for longer_n, longer_terms in terms_by_n.items():
@@ -199,10 +202,11 @@ class Processor:
                 f"Removed '{candidate_term}' "
                 f"because normalized frequency became 0"
                 )
-    
+        updated_terms.sort(key=lambda row: row[3], reverse=True)
+
         return updated_terms
     
-    def regex_exclusion(self, regexes, candidate_terms, verbose=False):
+    def regex_exclusion(self, regexes, candidate_terms, verbose=False, mode="strict"):
         '''
         Remove candidate terms that match regex expressions. It takes data in tuples as rows and outputs a list of candidate terms to exclude.
 
@@ -216,7 +220,6 @@ class Processor:
 
         '''
         import re
-        # import regex
          
         candidates_to_exclude = []
         for candidate_row in tqdm(candidate_terms, desc="Applying regex exclusion", total=len(candidate_terms)):
@@ -227,13 +230,22 @@ class Processor:
             for regex_expression in regexes:
                 regex_expression = regex_expression[0]
                 regex_n = len(regex_expression.split())
-                match = re.fullmatch(regex_expression, candidate)
+                
+                if mode == "strict":
+                    match = re.fullmatch(regex_expression, candidate)
+                    is_valid_match = bool(match and regex_n == candidate_n)
 
-                if match and regex_n == candidate_n:
+                if mode == "flexible":
+                    match = re.search(regex_expression, candidate)
+                    is_valid_match = bool(match)
+
+                if is_valid_match:
                     candidates_to_exclude.append(candidate)
 
                     if verbose:
                         print(f"'{candidate}' removed by: {regex_expression}")
+
+                    break
 
         return candidates_to_exclude
              
@@ -241,9 +253,7 @@ class Processor:
         """
         Tokenizes a text segment into word tokens using a custom regular expression.
 
-        This tokenizer strips away general boundary punctuation, but keeps optional surrounding parentheses attached to the tokens. It also preserves internal 
-        word characters such as apostrophes, hyphens, periods, commas, and the 
-        Catalan middle dot (·).
+        This tokenizer strips away general boundary punctuation, but keeps optional surrounding parentheses attached to the tokens. It also preserves internal word characters such as apostrophes, hyphens, periods, commas, and the Catalan middle dot (·).
 
         Args: 
           segment (str): A text segment to be tokenized.
@@ -254,9 +264,8 @@ class Processor:
         from nltk.tokenize import RegexpTokenizer
         #tokenizer = RegexpTokenizer(r"\b\w(?:[\w'‘’.,-]*\w)?\b")
         tokenizer = RegexpTokenizer(r"\(?\b\w(?:[\w'‘’.,-·]*\w)?\b\)?")
-        token = tokenizer.tokenize(segment)
-        
-        return token
+        tokenized_segment = tokenizer.tokenize(segment.replace("\xa0", " "))
+        return tokenized_segment
     
     def filter_by_stopwords(self, term):
         """
@@ -388,9 +397,7 @@ class Processor:
     
     def ngram_calculation(self, segments, is_corpus_tagged=False, minfreq=2):
         '''
-        Calculates ngrmas and their frequencies from a list of text segments.
-
-        If the corpus is tagged, it extracts both the raw text ngrams and the tagged ngrams to use when applying the linguistic extraction.
+        Calculates ngrmas and their frequencies from a list of text segments. If the corpus is tagged, it extracts both the raw text ngrams and the tagged ngrams to use when applying the linguistic extraction.
 
         Args:
           segments (list) : A list of text segments to process.
@@ -590,5 +597,7 @@ class Processor:
             #value=hashvalue[new_candidate]
             
             updated_terms.append((term, n, measure, freqtotal))
-              
+
+        updated_terms.sort(key=lambda row: row[3], reverse=True)
+
         return updated_terms
