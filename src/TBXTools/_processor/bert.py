@@ -21,10 +21,6 @@ class BertProcessor():
         self._label2id = None
         self._id2label = None
 
-        self.tokenized_terms = None
-
-        self.choose_labels()
-
     def _load_model(self):
         from transformers import AutoModelForTokenClassification
         import torch
@@ -52,17 +48,16 @@ class BertProcessor():
         print(f"Loading model {self.model_name}", flush=True)
         return AutoModelForTokenClassification.from_pretrained(self.model_name, num_labels=len(self._labeling_scheme_list), id2label=self._id2label, label2id=self._label2id)
     
-    def choose_labels(self):
-
-        if not self.labeling_scheme: # default
+    def choose_labels(self, labeling_scheme):
+        if not labeling_scheme: # default
             self.labeling_scheme = "BIO"
             self._labeling_scheme_list = ['O', 'B', 'I']
 
-        elif self.labeling_scheme.lower() == "bio":
+        elif labeling_scheme.upper() == "BIO":
             self.labeling_scheme = "BIO"
             self._labeling_scheme_list = ['O', 'B', 'I']
-
-        elif self.labeling_scheme.lower() == "bilou":
+            
+        elif labeling_scheme.upper() == "BILOU":
             self.labeling_scheme = "BILOU"
             self._labeling_scheme_list = ['O', 'B', 'I', 'L', 'U']
 
@@ -106,7 +101,7 @@ class BertProcessor():
             "text": segments,
             "word_tokens": word_tokens, 
             "lemmas": lemmas})
-
+        
         tagged_terms = self._lemmatize_and_annotate_terms(nlp, external_terms=external_terms)
         df["labels"] = self._annotate_corpus(df["lemmas"], tokenized_terms=tagged_terms)
 
@@ -115,21 +110,23 @@ class BertProcessor():
     def preprocess_test(self, segments):
         import spacy
         nlp = spacy.load(get_spacy_model_from_code(self.lang_code))
-        tokens_list = []
+        word_tokens = []
 
         # use a proper function
         for segment in tqdm(segments, desc="Tokenizing segments", total=len(segments)):
 
             doc = nlp(segment)
             tokens = [t.text for t in doc]
-            tokens_list.append(tokens)
+            word_tokens.append(tokens)
 
-        encoding = self._encode(tokens_list, is_split_into_words=True)
+        encoding = self._encode(word_tokens, is_split_into_words=True)
+        word_ids_list = [encoding.word_ids(i) for i in range(len(word_tokens))]
 
         df = pd.DataFrame({
-            "tokens": tokens_list,
+            "tokens": word_tokens,
             "input_ids": encoding["input_ids"],
-            "attention_mask": encoding["attention_mask"]
+            "attention_mask": encoding["attention_mask"],
+            "word_ids": word_ids_list
             })
 
         return df
@@ -172,6 +169,10 @@ class BertProcessor():
             # print(list_of_terms)
             cleaned = []
             for term in list_of_terms:
+                term = term.strip()
+
+                if not term:
+                    continue
             
                 if all(char in ignore for char in term):
                     continue
@@ -187,17 +188,12 @@ class BertProcessor():
                     term = re.sub(r"\s+\)", ")", term)
                     term = re.sub(r"\[\s+", "[", term)
                     term = re.sub(r"\s+\]", "]", term)
-                                
-                    # split_term = term.lower().split()
-
-                    # if not split_term:
-                    #     continue
-
-                    # if split_term[0] in self.stopwords or split_term[-1] in self.stopwords:
-                    #     continue
+                    term = re.sub(r" '([a-zA-Z])", r"'\1", term) #fix apostrophe
                     
-                    # else:
-                    cleaned.append(term)
+                    if term == "":
+                        continue
+                    else:
+                        cleaned.append(term)
 
             clean_terms.append(cleaned)
 
@@ -231,7 +227,7 @@ class BertProcessor():
                         continue
 
                     for term in terms:
-                        term_tokens = term["tokens"]
+                        term_tokens = term["lemmas"]
                         # if first element is not the same as the first token of term, skip
                         if segment[start_idx] != term_tokens[0]:
                             continue
@@ -255,7 +251,7 @@ class BertProcessor():
         terms_by_len = defaultdict(list)
 
         for term in tokenized_terms:
-            length = len(term["tokens"])
+            length = len(term["lemmas"])
             terms_by_len[length].append(term)
 
         return terms_by_len
@@ -325,12 +321,15 @@ class BertProcessor():
             elif self.labeling_scheme == "BIO":
                 labels = ["B"] + ["I"] * (num_of_lemmas - 1)
 
+            else:
+                raise ValueError(f"Invalid labeling scheme detected: '{self.labeling_scheme}'")
+            
             annotated_terms.append({
-                "tokens": lemmas,
+                "lemmas": lemmas,
                 "labels": labels
             })
             
-        annotated_terms.sort(key=lambda x: len(x["tokens"]), reverse=True) # sorting by length in descending order
+        annotated_terms.sort(key=lambda x: len(x["lemmas"]), reverse=True) # sorting by length in descending order
 
         return annotated_terms
             
@@ -338,8 +337,8 @@ class BertProcessor():
         # spacy tokenizer/lemmatizer
         tokens_list = []
         lemmas_list = []
-
-        for segment in tqdm(segments, desc="\nTokenizing and lemmatizing segments", total=len(segments)):
+        print()
+        for segment in tqdm(segments, desc="Tokenizing and lemmatizing segments", total=len(segments)):
 
             doc = nlp(segment)
             tokens = [t.text for t in doc]
