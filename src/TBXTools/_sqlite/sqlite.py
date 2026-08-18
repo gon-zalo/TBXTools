@@ -123,18 +123,37 @@ class SQLite:
                 self.insert_segments(data=data, tagged=is_corpus_tagged)
 
     # LOAD METHODS
-    def load_corpus(self, corpus, is_corpus_tagged, encoding="utf-8", compoundify=False, comp_symbol="▁"):
-
-        corpora_list = corpus if isinstance(corpus, list) else [corpus]
-
-        for corpus_file in corpora_list:
-            self.read_corpus(corpus_file=corpus_file, is_corpus_tagged=is_corpus_tagged, encoding=encoding)
-
-        if isinstance(corpus, list) and len(corpus) > 1:
-            print(f"{len(corpus)} corpora loaded")
-        else:
+    def load_corpus(self, corpus, is_corpus_tagged=False, encoding="utf-8", compoundify=False, comp_symbol="▁"):
+        from pathlib import Path
+        
+        if len(corpus) == 1 and Path(corpus).is_file():
+            self.read_corpus(
+            corpus_file=corpus, 
+            is_corpus_tagged=is_corpus_tagged, 
+            encoding=encoding)
             print(f"Corpus loaded")
 
+        if isinstance(corpus, list):
+            is_file = False
+            try:
+                if Path(corpus[0]).is_file():
+                    is_file = True
+            except OSError:
+                    is_file  = False
+
+            if is_file:
+                for c in corpus:
+                    if Path(c).is_file():
+                        self.read_corpus(
+                            corpus_file=c, 
+                            is_corpus_tagged=is_corpus_tagged, 
+                            encoding=encoding)
+                print(f"{len(corpus)} corpora loaded")
+
+            else: # if not file, its separate segments
+                self.insert_segments(data=corpus, tagged=is_corpus_tagged)
+                print(f"Segments loaded")
+        
     def load_stopwords(self, stopwords , encoding="utf-8"):
         '''Load the stopwords into the database.
         
