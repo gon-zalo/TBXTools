@@ -12,20 +12,23 @@ class BertTrainer:
         project_name (str): The unique name identifier for the current project, which also determines the filename of the generated SQLite database.
         corpus: The text corpus used as the training data.
         external_terms: File path to the terms that will be used in the data annotation process.
+        labeling_scheme (str, optional): The labeling scheme to annotate the data or train the model with. Defaults to BIO.
     '''
 
-    def __init__(self, project_name, language, corpus=None, external_terms=None, overwrite_project=False, seed=123):
+    def __init__(self, project_name, language, corpus=None, external_terms=None, overwrite_project=False, seed=123, labeling_scheme="BIO"):
         from transformers import logging
         logging.set_verbosity_error()
         self.lang, self._lang_code = get_lang(language.lower())
 
         self.name = "BertTrainer"
-        self._resources = Resources(lang_code=self._lang_code)
+        self._resources = Resources(lang=self.lang, lang_code=self._lang_code)
 
-        self.stopwords = self._resources.fetch_stopwords()
+        self.stopwords = self._resources.get_spacy_stopwords()
         self.inner_stopwords = self._resources.fetch_inner_stopwords()
 
         self._processor = BertProcessor()
+        self._processor.choose_labels(labeling_scheme=labeling_scheme)
+        self._processor.lang_code = self._lang_code
         self._metrics = Metrics()
         self._seed = seed
 
@@ -50,7 +53,6 @@ class BertTrainer:
             epochs (int, optional): Defaults to 3.
             weight_decay (int, optional): Defaults to 0.01.
         '''
-
         from transformers import Trainer, set_seed
         from datasets import Dataset
         from transformers import TrainingArguments, EarlyStoppingCallback
@@ -60,7 +62,6 @@ class BertTrainer:
         self._processor.model_name = model
         self._processor._load_model()
         self._processor._load_tokenizer_and_data_collator()
-        self._processor.lang_code = self._lang_code
         
         model_ = self._processor.model
         data_collator = self._processor.data_collator
@@ -110,11 +111,10 @@ class BertTrainer:
 
             training_args = TrainingArguments(
                 output_dir=model_output_dir,
-                eval_strategy="steps",
-                save_strategy="steps",
-                eval_steps=500,
-                save_steps=500,
+                eval_strategy="epoch",
+                save_strategy="epoch",
                 load_best_model_at_end=True,
+                logging_strategy="epoch",
                 save_total_limit=3,
                 metric_for_best_model="f1",
                 greater_is_better=True,
@@ -146,13 +146,12 @@ class BertTrainer:
             trainer.save_model(f'{save_as}')
             print(f"Model saved as '{save_as}'")
 
-    def annotate(self, sample=None, labeling_scheme="BIO"):
+    def annotate(self, sample=None):
         '''
         Generate training data to fine-tune a model. It automatically annotates a corpus using an external list of terms. The resulting annotated data get saved in the database.
 
         Attributes:
             sample (int, optional): Number of sentences to randomly sample out of the corpus. Useful for testing purposes.
-            labeling_scheme (str, optional): The labeling scheme to annotate the data with. Defaults to BIO.
         '''
         print("Running annotation", flush=True)
 
@@ -162,10 +161,8 @@ class BertTrainer:
         if self._sqlite.table_is_populated("word_tokens") and self._sqlite.table_is_populated("segment_labels") and self._sqlite.overwrite_project==False:
             raise RuntimeError("Annotation cancelled. Word tokens and labels found in database. You may run 'train()' to use the existing data or use 'overwrite_project=True' to overwrite the existing data in the database.")
         
-        self._processor.labeling_scheme = labeling_scheme.lower()
         self._processor.stopwords = self.stopwords
         self._processor.inner_stopwords = self.inner_stopwords
-        self._processor.lang_code = self._lang_code
 
         segments = list(self._sqlite.get_segments())
         external_terms = set(self._sqlite.get_external_terms())
@@ -195,8 +192,8 @@ class BertTrainer:
         df_without_terms = df[~with_terms]
 
         print(f"\n{len(df)} total segments annotated and saved to database.")
-        print(f"{len(df_with_terms)} segments with terms")
-        print(f"{len(df_without_terms)} segments without terms")
+        print(f"{len(df_with_terms)} segments with terms.")
+        print(f"{len(df_without_terms)} segments without terms.")
     
     def _fetch_data_from_db(self, sample=None, only_segments_with_terms=True):
         import pandas as pd
@@ -221,8 +218,6 @@ class BertTrainer:
             if isinstance(sample, int): 
                 print(f"Sampling {sample} random sentences")
                 dataframe = dataframe.sample(n=sample, random_state=123)
-            else:
-                raise ValueError("'sample' must be an int.")
 
             return dataframe
         else:
