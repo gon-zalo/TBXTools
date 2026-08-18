@@ -107,6 +107,8 @@ class Extractor:
             self._methodology.processor.stopwords = self._sqlite.get("stopwords") # updating the attribute of the class
             self.stopwords = self._sqlite.get("stopwords")
 
+            print("Additional stopwords added")
+
     def add_inner_stopwords(self, inner_stopwords_list):
         '''
         Adds inner stopwords to the project and updates the processor. Inserts the provided list of inner stopwords into the SQLite database and refreshes the internal processor's active inner stopword list.
