@@ -227,7 +227,7 @@ class Results:
 
         if by_segment and by_segment_id:
             raise ValueError("by_segment and by_segment_id cannot be both True. Use one or the other.")
-        if only_candidates and by_segment or by_segment_id:
+        if only_candidates and by_segment or only_candidates and by_segment_id:
             raise ValueError("only_candidates and by_segment or by_segment_id cannot be both True. Use one or the other.")
         
         elif by_segment or by_segment_id:
