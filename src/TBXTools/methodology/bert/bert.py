@@ -2,6 +2,7 @@ from ..base import BaseMethodology
 from ..._results.results import Results
 from ..._processor.bert import BertProcessor
 from collections import Counter
+from ...trainer.metrics import Metrics
 #
 class BertMethodology(BaseMethodology):
     '''
@@ -12,14 +13,16 @@ class BertMethodology(BaseMethodology):
         labels (str): The labels used in the fine-tuning of the model.
     '''
 
-    def __init__(self, model, labeling_scheme="BIO"):
+    def __init__(self, model, labeling_scheme="BIO", evaluate=False, golden_labels=None, analyze_false_positives=False):
         from transformers import logging
         logging.set_verbosity_error()
         self.name = "BertMethodology"
         self.model_name = model
+        self.golden_labels = golden_labels
+        self.analyze_false_positives = analyze_false_positives
 
-        self.labeling_scheme = labeling_scheme.lower()
         self.processor = BertProcessor()
+        self.processor.choose_labels(labeling_scheme=labeling_scheme)
         self.extractor = None
 
     def run(self, segments, verbose=False):
@@ -34,17 +37,16 @@ class BertMethodology(BaseMethodology):
         '''
         # verbose (bool, optional): If True, enables detailed logging. Defaults to False.
         # by_segment (bool, optional): If True, outputs candidate terms grouped by segment.
-        
+    
         from datasets import Dataset
         import numpy as np
-
         print(f'\nInitializing model:  {self.model_name}', flush=True)
         self.processor.model_name = self.model_name
-        self.processor.labeling_scheme = self.labeling_scheme.lower()
+        
         self.processor._load_model()
         self.processor._load_trainer()
         self.processor._load_tokenizer_and_data_collator()
-
+            
         dataframe = self.processor.preprocess_test(segments=segments)
         eval_data = Dataset.from_pandas(dataframe)
 
@@ -57,15 +59,42 @@ class BertMethodology(BaseMethodology):
         for i in range(len(eval_data)):
             tokens = eval_data[i]['tokens']
             predicted_ids = predictions[i]
+            word_ids = eval_data[i]['word_ids']
+            
+            aligned_labels = []
+            previous_word_idx = None
+            
+            for word_idx, pred_id in zip(word_ids, predicted_ids):
+                if word_idx is None:
+                    continue
+
+                elif word_idx != previous_word_idx:
+                    aligned_labels.append(pred_id)
+                
+                else:
+                    pass
+                
+                previous_word_idx = word_idx
+
             reconstructed = self.processor._bio_to_terms(
                 tokens=tokens,
-                labels=predicted_ids)
+                labels=aligned_labels)
 
             predicted_terms.append(reconstructed)
 
         clean_terms = self.processor.process_predictions(predicted_terms)
 
         dataframe['predicted_terms'] = clean_terms
+        if self.golden_labels:
+            from TBXTools.trainer.metrics import Metrics
+            metrics = Metrics()
+            print(f"EVALUATION ON DATASET")
+            print(metrics.compute_metrics_with_golden_labels(df=dataframe, gl=self.golden_labels))
+
+        if self.analyze_false_positives:
+            from TBXTools.trainer.metrics import Metrics
+            metrics = Metrics()
+            metrics.analyze_false_positives(df=dataframe, gl=self.golden_labels)
 
         #i dont remember why im doing this, but keep for now, otherwise it wont work
         clean_terms = dataframe['predicted_terms'].tolist()
