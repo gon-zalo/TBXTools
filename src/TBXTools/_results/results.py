@@ -34,11 +34,6 @@ class Results:
         prefix = f"Top {limit} candidate terms" if limit is not None else "Candidate terms"
         n_suffix = f" (n = {n})" if n else ""
         print(f"\n{prefix}{n_suffix}:")
-
-        #limit=None, n=None - Candidate terms:
-        # limit=None, n=2 - Candidate terms (n = 2):
-        # limit=20, n=None - Top 20 candidate terms:
-        # limit=20, n=2 - Top 20 candidate terms (n = 2):
         
         if n is not None and not isinstance(n, int):
             raise ValueError("n must be an integer.")
