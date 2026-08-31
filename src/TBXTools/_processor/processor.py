@@ -1,5 +1,6 @@
 from .._utils.utils import get_spacy_model_from_code
 from tqdm import tqdm
+import re
 
 class Processor:
 
@@ -26,17 +27,21 @@ class Processor:
         self.model_name = None
         self.nlp = None
 
-    def case_normalization(self, candidate_terms, verbose=False): 
+    
+    def case_normalization(self, candidate_terms, verbose=False):
+        
         '''
-        Performs case normalization. If a capitalized term exists as non-capitalized, the capitalized one will be deleted and the frequency of the non-capitalized one will be increased by the frequency of the capitalized.
-
+        Performs case normalization on candidate terms while preserving acronyms. 
+        Converts candidate terms to lowercase except for uppercase tokens (e.g acronyms like 'ADH1B' or 'ADHD'). If a capitalized term exists as non-capitalized, the capitalized one will be deleted and the frequency of the non-capitalized one will be increased by the frequency of the capitalized.
+                
+        
         Args:
           candidate_terms: a list of tuple containing the candidate terms. 
           verbose: If True, enables detailed logging. Defaults to False.
-        
+                
         Returns:
           normalized_terms: A new list of tuple after applying case normalization.
-        '''
+        '''        
         print("Applying case normalization")
 
         freq_dict = {}
@@ -45,13 +50,19 @@ class Processor:
             term = terms_row[0]
             freq = terms_row[3]
 
-            
-            if term.isupper():
-                key = term.strip()
-            else:
-                key = term.lower().strip()
+            tokens = term.split() #hacer split invece di tokenize
+            normalized_tokens = []
 
-            freq_dict[key] = freq_dict.get(key, 0) + freq
+            for token in tokens:
+                
+                if token.isupper():
+                    normalized_tokens.append(token)
+                else:
+                    normalized_tokens.append(token.lower())
+
+            normalized_term = " ".join(normalized_tokens)
+
+            freq_dict[normalized_term] = freq_dict.get(normalized_term, 0) + freq
 
         normalized_terms = []
         for term, freq in freq_dict.items():
@@ -61,7 +72,7 @@ class Processor:
             normalized_terms.append(row)
 
             if verbose:
-                print(term, "->", freq)
+                print(f"{term} -> {freq}")
 
         normalized_terms.sort(key=lambda row: row[3], reverse=True)
 
@@ -528,6 +539,8 @@ class Processor:
                     else:
                         truesfalses.append(False)
 
+                is_accepted = False
+
                 if type=="strict":
                         if not False in truesfalses:
                             if not candidate in newcandidates: 
@@ -550,8 +563,11 @@ class Processor:
                             w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
                             firstcomponent[w_first_low]=1
                             lastcomponent[w_last_low]=1
-                            component[w_first_low]=1
-                            component[w_last_low]=1
+                            if n>2:
+                                for i in range(1,n-1):
+                                    w_mid = rcamps[i].lower()
+                                    middlecomponent[w_mid]=1
+                                    component[w_mid]=1
 
                 elif type=="combined":
                     if iterations== 1:
@@ -560,7 +576,7 @@ class Processor:
                                 newcandidates[candidate]=frequency
                                 hashmeasure[candidate]=measure
                                 #hashvalue[candidate]=value     
-                                new=True                         
+                                new=True                      
                                 w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
                                 firstcomponent[w_first_low]=1
                                 lastcomponent[w_last_low]=1
@@ -587,7 +603,7 @@ class Processor:
                                         component[w_mid]=1
                                 component[w_first_low]=1
                                 component[w_last_low]=1
-                                
+                                                                                                
         updated_terms=[] 
         for new_candidate in newcandidates:
             term= new_candidate
@@ -599,5 +615,8 @@ class Processor:
             updated_terms.append((term, n, measure, freqtotal))
 
         updated_terms.sort(key=lambda row: row[3], reverse=True)
-
+        
         return updated_terms
+
+
+    
