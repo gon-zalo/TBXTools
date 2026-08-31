@@ -57,6 +57,4 @@ class BilingualExtractor:
             tgt_results=tgt_results
         )
 
-        #aqui igual se podría poner la lógica del align? ya veremos esto
-
         return bilingual_results

@@ -1,5 +1,5 @@
 from TBXTools._core.bilingual_extractor import BilingualExtractor 
-from TBXTools.methodology import LinguisticMethodology #devi vedere se riesci a farlo funzionare per linguistic pure - poi in caso glielo mostri prima di fare bert (lo mette lui al massimo)
+from TBXTools.methodology import LinguisticMethodology 
 from TBXTools.methodology import StatisticalMethodology
 
 #linguistic_patterns="ling_pat-en.txt" #questo poi in caso per il linguistic
@@ -31,8 +31,7 @@ bilingual_extractor = BilingualExtractor(
     ),
     src_language="en",
     tgt_language="es",
-    src_corpus=src_corpus_txt,
-    tgt_corpus=tgt_corpus_txt,
+    parallel_corpus=corpus_tmx,
     overwrite_project=True
 )
 

@@ -4,4 +4,4 @@ class BilingualResults:
         self.tgt_results = tgt_results
         
         
-        
+        #aqui pondremos la logica del align en algun momento- el usuario la puede hacer si quiere
