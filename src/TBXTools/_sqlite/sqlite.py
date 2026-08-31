@@ -116,35 +116,6 @@ class SQLite:
         self.conn = sqlite3.connect(project_name)
         self.cur = self.conn.cursor() 
 
-    def read_corpus(self, corpus_file, is_corpus_tagged, encoding):
-        '''Read a corpus file.'''
-        data = []
-        continserts = 0
-        if corpus_file:
-            with open(corpus_file, "r", encoding=encoding, errors="ignore") as file:
-                for line in file:
-                    data.append(line.rstrip())
-                    continserts += 1
-
-                    if continserts == self.MAX_INSERTS:
-                        self.insert_segments(data=data, tagged=is_corpus_tagged)
-                        data = []
-                        continserts = 0
-                
-                self.insert_segments(data=data, tagged=is_corpus_tagged)
-
-    # LOAD METHODS
-    def load_corpus5(self, corpus, is_corpus_tagged, encoding="utf-8", compoundify=False, comp_symbol="▁"):
-
-        corpora_list = corpus if isinstance(corpus, list) else [corpus]
-
-        for corpus_file in corpora_list:
-            self.read_corpus(corpus_file=corpus_file, is_corpus_tagged=is_corpus_tagged, encoding=encoding)
-
-        if isinstance(corpus, list) and len(corpus) > 1:
-            print(f"{len(corpus)} corpora loaded")
-        else:
-            print(f"Corpus loaded")
             
     def _parse_tmx(self, file_path, target_lang=None):
     
@@ -209,43 +180,45 @@ class SQLite:
                 if line.strip():
                     yield line.strip()
 
-    def _get_segments_from_item(self, item, target_lang, encoding):
-        if isinstance(item, (str, Path)) and os.path.exists(str(item)):
-            ext = Path(item).suffix.lower()
-            if ext == ".tmx":
-                return self._parse_tmx(item, target_lang)
-            elif ext in [".tsv", ".csv", ".tab"]:
-                return self._parse_tab(item, target_lang, encoding)
-            else:
-                return self._parse_txt(item, encoding)
-        elif isinstance(item, str):
-            return [item.strip()] if item.strip() else []
-        return []
+    def _extract_segments(self, input_source, target_lang, encoding): 
+        source_path= Path(input_source)
+        
+        if not source_path.is_file():
+            raise FileNotFoundError(f"No such file or invalid path: '{source_path}'")
+            
+        file_extension = source_path.suffix.lower()
+        
+        if file_extension == ".tmx":
+            return self._parse_tmx(source_path, target_lang)
+        elif file_extension in [".tsv", ".tab"]: 
+            return self._parse_tab(source_path, target_lang, encoding)
+        else:
+            return self._parse_txt(source_path, encoding)
+    
+    def _yield_segments(self, corpus, target_lang, encoding):
+        
+        corpora_list = corpus if isinstance(corpus, list) else [corpus] #corpus= list
+        
+        for corpus_item in corpora_list:
+            for segment in self._extract_segments(corpus_item, target_lang, encoding):
+                yield segment
+                
 
-    def load_corpus(self, corpus, is_corpus_tagged=False, encoding="utf-8", compoundify=False, comp_symbol="▁", lang=None, **kwargs):
+    def load_corpus(self, corpus, is_corpus_tagged=False, encoding="utf-8", lang=None):
         if not corpus:
             raise ValueError("The 'corpus' argument cannot be empty or None.")
         
-        corpora_list = corpus if isinstance(corpus, list) else [corpus]
-        
-        # Salva la lingua e garantisce che sia disponibile come ISO a 2 lettere
         if lang:
             self.lang = str(lang).lower().strip()
             self._lang_code = self.lang[:2]
         
         target_lang = getattr(self, '_lang_code', getattr(self, 'lang', lang))
-
-        segments_generator = (
-            seg 
-            for corpus_item in corpora_list 
-            for seg in self._get_segments_from_item(corpus_item, target_lang, encoding)
-        )
-
         maxinserts = getattr(self, 'MAX_INSERTS', 5000)
         batch = []
 
-        for segment in segments_generator:
+        for segment in self._yield_segments(corpus, target_lang, encoding):
             batch.append(segment)
+            
             if len(batch) >= maxinserts:
                 self.insert_segments(data=batch, tagged=is_corpus_tagged)
                 batch.clear()

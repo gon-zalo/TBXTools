@@ -31,7 +31,8 @@ bilingual_extractor = BilingualExtractor(
     ),
     src_language="en",
     tgt_language="es",
-    parallel_corpus=corpus_tmx,
+    src_corpus=src_corpus_txt,
+    tgt_corpus=tgt_corpus_txt,
     overwrite_project=True
 )
 
