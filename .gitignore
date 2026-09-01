@@ -36,3 +36,7 @@ bert-dret*
 bert_pat/
 tests/wiki_data/
 tests/detech_re/
+old/
+tutorial/*.sqlite
+tutorial/*.py
+tutorial/tutorial-model/
