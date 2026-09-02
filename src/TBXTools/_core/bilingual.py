@@ -1,13 +1,5 @@
-#from .._sqlite.sqlite import SQLite
 from TBXTools._results.bilingual_results import BilingualResults
-#from .._resources.resources import Resources
-#from .._utils.utils import get_lang
 from .extractor import Extractor
-
-import re
-from pathlib import Path
-from xml.etree import ElementTree as etree
-
 
 class BilingualExtractor:
 
@@ -21,9 +13,8 @@ class BilingualExtractor:
             src_corpus = parallel_corpus
             tgt_corpus = parallel_corpus
             
-
         self.src_extractor = Extractor(
-            project_name=f"{project_name}_{src_language}",
+            project_name=f"{project_name}-{src_language}",
             methodology=src_methodology,
             corpus=src_corpus,
             stopwords=src_stopwords,
@@ -33,12 +24,12 @@ class BilingualExtractor:
         )
 
         self.tgt_extractor = Extractor(
-            project_name=f"{project_name}_{tgt_language}",
+            project_name=f"{project_name}-{tgt_language}",
             methodology=tgt_methodology,
             corpus=tgt_corpus,
             stopwords=tgt_stopwords,
             language=tgt_language,
-            role= "target",
+            role="target",
             overwrite_project=True
         )
         
