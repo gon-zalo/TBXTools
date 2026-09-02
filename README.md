@@ -1,4 +1,4 @@
-`TBXTools` is a free and open-source Python library for automatic terminology extraction (ATE). It supports monolingual automatic terminology extraction using 3 different methodologies:
+`TBXTools` is a free and open-source Python library for automatic terminology extraction (ATE). It supports monolingual automatic terminology extraction using three different methodologies:
 
 - Statistical
 - Linguistic
