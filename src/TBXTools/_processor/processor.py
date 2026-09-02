@@ -3,9 +3,8 @@ from tqdm import tqdm
 import re
 
 class Processor:
-
-    '''Manages the text preprocessing pipeline for terminology extraction. This class
-    provides methods for tokenizing text segments, applying lemmatization, case and nest normalizations, and filtering candidate terms using stopwords and regular expressions.
+    '''
+    Manages the text preprocessing pipeline for terminology extraction. This class provides methods for tokenizing text segments, applying lemmatization, case and nest normalizations, and filtering candidate terms using stopwords and regular expressions.
 
     Attributes:
         stopwords (list/set): A collection of standard words to filter out.
@@ -15,7 +14,6 @@ class Processor:
         lang_code (str): The ISO code for the language.
         model_name (str): The name of the spacy model used (e.g., "en_core_web_sm" or "ca_core_news_sm").
         nlp: The NLP pipeline or model used for text processing.
-        
     '''
 
     def __init__(self):
@@ -29,12 +27,9 @@ class Processor:
 
     
     def case_normalization(self, candidate_terms, verbose=False):
-        
         '''
-        Performs case normalization on candidate terms while preserving acronyms. 
-        Converts candidate terms to lowercase except for uppercase tokens (e.g acronyms like 'ADH1B' or 'ADHD'). If a capitalized term exists as non-capitalized, the capitalized one will be deleted and the frequency of the non-capitalized one will be increased by the frequency of the capitalized.
+        Performs case normalization on candidate terms while preserving acronyms. Converts candidate terms to lowercase except for uppercase tokens (e.g acronyms like 'ADH1B' or 'ADHD'). If a capitalized term exists as non-capitalized, the capitalized one will be deleted and the frequency of the non-capitalized one will be increased by the frequency of the capitalized.
                 
-        
         Args:
           candidate_terms: a list of tuple containing the candidate terms. 
           verbose: If True, enables detailed logging. Defaults to False.
@@ -228,8 +223,8 @@ class Processor:
         
         Returns:
           candidates_to_exclude: a list of candidate terms to exclude.
-
         '''
+        
         import re
          
         candidates_to_exclude = []
