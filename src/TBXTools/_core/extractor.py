@@ -5,9 +5,7 @@ from .._utils.utils import get_lang
 
 class Extractor:
     """
-    Orchestrates the terminology extraction pipeline.
-
-    This class acts as the main controller, managing the integration between the chosen extraction methodology, database storage, and text preprocessing components.
+    Orchestrates the terminology extraction pipeline. This class acts as the main controller, managing the integration between the chosen extraction methodology, database storage, and text preprocessing components.
 
     Attributes:
         methodology (object): The extraction strategy instance (e.g., LinguisticExtractor or StatisticalExtractor).
@@ -20,7 +18,7 @@ class Extractor:
         _sqlite (SQLiteManager): Internal component to manage database interactions.
     """
 
-    def __init__(self, project_name, methodology, corpus=None, stopwords=None, inner_stopwords=None, language=None, role = "source", overwrite_project=False):
+    def __init__(self, project_name, methodology, corpus=None, stopwords=None, inner_stopwords=None, language=None, role="source", overwrite_project=False):
         
         self.lang, self._lang_code = get_lang(language.lower())
         self.role = role
@@ -44,7 +42,7 @@ class Extractor:
             inner_stopwords=self.inner_stopwords, 
             corpus=corpus,
             lang=self._lang_code, 
-            role= self.role,
+            role=self.role,
             is_corpus_tagged=getattr(self._methodology,'is_corpus_tagged', False),
             exclusion_regexes=getattr(self._methodology,'exclusion_regexes', None),
             linguistic_patterns=getattr(self._methodology, 'linguistic_patterns', None),
