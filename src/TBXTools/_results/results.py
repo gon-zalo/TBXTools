@@ -31,7 +31,9 @@ class Results:
         '''
         terms = self._terms
 
-        print(f"\nTop {limit} candidate terms (n = {n}):" if n else f"\nTop {limit} candidate terms:")
+        prefix = f"Top {limit} candidate terms" if limit is not None else "Candidate terms"
+        n_suffix = f" (n = {n})" if n else ""
+        print(f"\n{prefix}{n_suffix}:")
         
         if n is not None and not isinstance(n, int):
             raise ValueError("n must be an integer.")

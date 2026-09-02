@@ -1,12 +1,11 @@
 from TBXTools import Extractor
 from TBXTools.methodology import LinguisticMethodology
 
-evaluation_terms = "evaluation_terms.txt"
+evaluation_terms = "wiki-terms-medicine-en.txt"
 linguistic_patterns="ling_pat-en.txt"
 tagged_corpus = "tagged-corpus.txt"
-corpus = "Mental_disorder.txt"
+corpus = "wikipedia-mental-health.txt"
 tsr_terms = "tsr_terms.txt"
-tsr_terms2 = "wiki-terms-medicine-en.txt"
 # Scenario A
 print("--- SCENARIO A ---\n")
 extractor = Extractor(
@@ -77,8 +76,9 @@ print("")
 print("\n--- SCENARIO D ---\n")
 extractor = Extractor(
     methodology=LinguisticMethodology(nmin=2, nmax=3, is_corpus_tagged=False, 
-    evaluation_terms=evaluation_terms),
-    project_name="linguistic-example",
+    evaluation_terms=evaluation_terms,
+    case_normalization=True),
+    project_name="linguistic-example-case",
     corpus=corpus,
     language="english",
     overwrite_project=True
