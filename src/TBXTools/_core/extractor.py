@@ -35,7 +35,8 @@ class Extractor:
             evaluation_terms=getattr(self._methodology,'evaluation_terms', None),
             tsr_terms=getattr(self._methodology, "tsr_terms", None),
             overwrite_project=overwrite_project,
-            lang_code=self._lang_code
+            lang_code=self._lang_code,
+            lang=self.lang
             )
         
         self.stopwords = self._sqlite.get("stopwords")
