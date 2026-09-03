@@ -37,6 +37,8 @@ class BertTrainer:
             corpus=corpus, 
             overwrite_project=overwrite_project, 
             external_terms=external_terms)
+
+        self.test_df = None
         
     def train(self, model, save_as=None, split=False, expand_labels=False, sample=None, only_segments_with_terms=True, lr=5e-05, batch_size=16, epochs=3, weight_decay=0.01, gradient_accumulation_steps=1, warmup_ratio=0.0):
         '''
@@ -70,6 +72,7 @@ class BertTrainer:
             sample=sample, 
             only_segments_with_terms=only_segments_with_terms
             )
+        
         df = self._processor.preprocess_train(
             df=df, 
             expand_labels=expand_labels
@@ -100,11 +103,14 @@ class BertTrainer:
         
         elif split:
             from sklearn.model_selection import train_test_split
-            print("\nSplitting training data into train (0.8) and eval (0.2)")
-            train_df, val_df = train_test_split(df, test_size=0.2, random_state=self._seed)
+            print("\nSplitting training data into train (0.7), validation (0.15) and test (0.15)")
+            train_val_df, test_df = train_test_split(df, test_size=0.15, random_state=self._seed)
+            self.test_df = test_df
+            train_df, val_df = train_test_split(train_val_df, test_size=0.15, random_state=self._seed)
 
             train_data = Dataset.from_pandas(train_df)
             val_data = Dataset.from_pandas(val_df)
+            test_data = Dataset.from_pandas(test_df)
 
             model_folder_name = self._processor.model_name.replace("/", "-")
             model_output_dir = f"./trainer_output/{model_folder_name}"
@@ -134,7 +140,7 @@ class BertTrainer:
                 args=training_args,
                 train_dataset=train_data,
                 eval_dataset=val_data,
-                compute_metrics=self._metrics.compute_metrics_lemm,
+                compute_metrics=self._metrics.compute_metrics,
                 data_collator=data_collator,
                 callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
                 )
@@ -142,6 +148,11 @@ class BertTrainer:
         print('Fine-tuning model', flush=True)
         print(f"Parameters: lr = {lr}, batch size = {batch_size}, weight decay = {weight_decay}, warmup ratio = {warmup_ratio}, epochs = {epochs}")
         trainer.train()
+
+        test_results = trainer.evaluate(test_data)
+        print("\nResults on the test data")
+        print(test_results)
+
         if save_as:
             trainer.save_model(f'{save_as}')
             print(f"Model saved as '{save_as}'")
@@ -199,18 +210,20 @@ class BertTrainer:
         import pandas as pd
         print("\nFetching data from database", flush=True)
 
+        segments = self._sqlite.get_segments()
         word_tokens = self._sqlite.get_word_tokens()
         segment_labels = self._sqlite.get_segment_labels()  
 
         if segment_labels and word_tokens:
             data = {
+                "segment": pd.Series(segments),
                 "word_tokens": pd.Series(word_tokens),
                 "labels": pd.Series(segment_labels)
                 }
             
             dataframe = pd.DataFrame(data=data)
 
-            if only_segments_with_terms:
+            if only_segments_with_terms: # True by default
                 with_terms = dataframe["labels"].apply(lambda seg_labels: any(label in ["B", "I"] for label in seg_labels))
             
                 dataframe = dataframe[with_terms]
@@ -223,6 +236,7 @@ class BertTrainer:
         else:
             raise RuntimeError("Annotated data not found in database. Run 'annotate()' before 'train()'.")   
 
+    # this func needs an update
     def hp_tuning(self, models, sample=None, lr_range=(1e-5, 5e-5), epoch_range=(3, 6), batch_sizes=(8, 16, 32), weight_decay_range=(0.0, 0.05), warmup_ratio_range=(0.0, 0.2), n_trials=15):
         from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
         from sklearn.model_selection import train_test_split
@@ -296,7 +310,7 @@ class BertTrainer:
                     args=training_args,
                     train_dataset=train_data,
                     eval_dataset=eval_data,
-                    compute_metrics=self._metrics.compute_metrics_lemm,
+                    compute_metrics=self._metrics.compute_metrics,
                     data_collator=self._processor.data_collator,
                     callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
                     )
