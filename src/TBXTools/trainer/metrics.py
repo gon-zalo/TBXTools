@@ -69,7 +69,7 @@ class Metrics:
 
         return {"precision": precision, "recall": recall, "f1": f1}
     
-    def compute_metrics_lemm(self, p):
+    def compute_metrics(self, p):
         import numpy as np
         
         prediction_logits, label_ids = p
@@ -103,6 +103,18 @@ class Metrics:
         precision, recall, f1 = self.score(pred_dict, true_dict)
 
         return {"precision": precision, "recall": recall, "f1": f1}
+
+    def _compute_metrics_with_golden_labels(self, candidate_terms, gl):
+        # future function
+        pred_list = candidate_terms
+        true_list = list(gl.values())
+        
+        pred_dict = {i: terms for i, terms in enumerate(pred_list)}
+        true_dict = {i: terms for i, terms in enumerate(true_list)}
+
+        precision, recall, f1 = self.score(pred_dict, true_dict)
+
+        return {"precision": precision, "recall": recall, "f1": f1}
     
     def score(self, pred_dict, true_dict):
         tp = 0
@@ -121,7 +133,7 @@ class Metrics:
             for pred in preds:
                 if pred in true_pool:
                     tp += 1
-                    true_pool.remove(pred) # Remove match to avoid double-counting
+                    true_pool.remove(pred)
 
         precision = tp / total_preds if total_preds > 0 else 0.0
         recall = tp / total_trues if total_trues > 0 else 0.0
