@@ -19,7 +19,7 @@ class LinguisticMethodology(BaseMethodology):
         processor (Processor): An internal instance of the Processor class configured with 'nmin' and 'nmax' used to handle text preprocessing tasks.
     '''
 
-    def __init__(self, nmin, nmax, is_corpus_tagged=False, case_normalization=False, linguistic_patterns=None, evaluation_terms=None, tsr_terms=None):
+    def __init__(self, nmin, nmax, is_corpus_tagged=False, case_normalization=True, linguistic_patterns=None, evaluation_terms=None, tsr_terms=None):
         
         self.name = "LinguisticMethodology"
         self.is_corpus_tagged = is_corpus_tagged
