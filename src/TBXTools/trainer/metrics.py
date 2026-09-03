@@ -69,7 +69,7 @@ class Metrics:
 
         return {"precision": precision, "recall": recall, "f1": f1}
     
-    def compute_metrics_lemm(self, p):
+    def compute_metrics(self, p):
         import numpy as np
         
         prediction_logits, label_ids = p
@@ -93,6 +93,29 @@ class Metrics:
 
         return {"precision": precision, "recall": recall, "f1": f1}
 
+    def compute_metrics_with_golden_labels(self, df, gl):
+        pred_list = df['predicted_terms'].tolist()
+        true_list = list(gl.values())
+        
+        pred_dict = {i: terms for i, terms in enumerate(pred_list)}
+        true_dict = {i: terms for i, terms in enumerate(true_list)}
+
+        precision, recall, f1 = self.score(pred_dict, true_dict)
+
+        return {"precision": precision, "recall": recall, "f1": f1}
+
+    def _compute_metrics_with_golden_labels(self, candidate_terms, gl):
+        # future function
+        pred_list = candidate_terms
+        true_list = list(gl.values())
+        
+        pred_dict = {i: terms for i, terms in enumerate(pred_list)}
+        true_dict = {i: terms for i, terms in enumerate(true_list)}
+
+        precision, recall, f1 = self.score(pred_dict, true_dict)
+
+        return {"precision": precision, "recall": recall, "f1": f1}
+    
     def score(self, pred_dict, true_dict):
         tp = 0
         total_preds = 0
@@ -110,7 +133,7 @@ class Metrics:
             for pred in preds:
                 if pred in true_pool:
                     tp += 1
-                    true_pool.remove(pred) # Remove match to avoid double-counting
+                    true_pool.remove(pred)
 
         precision = tp / total_preds if total_preds > 0 else 0.0
         recall = tp / total_trues if total_trues > 0 else 0.0
@@ -121,3 +144,31 @@ class Metrics:
             f1 = 2 * precision * recall / (precision + recall)
             
         return precision, recall, f1
+
+    # work in progress
+    def analyze_false_positives(self, df, gl):
+        from collections import Counter
+        
+        pred_list = df['predicted_terms'].tolist()
+        true_list = list(gl.values())
+        
+        false_positives = []
+        
+        for preds, trues in zip(pred_list, true_list):
+
+            true_pool = [str(true).lower().strip() for true in trues]
+            
+            for pred in preds:
+                pred_norm = str(pred).lower().strip()
+                
+                if pred_norm not in true_pool:
+                    false_positives.append(pred) 
+
+                else:
+                    true_pool.remove(pred_norm)
+                    
+        fp_counts = Counter(false_positives)
+        
+        print(f"\nTop 20 false positives")
+        for term, count in fp_counts.most_common(20):
+            print(f"{term} | x{count}")

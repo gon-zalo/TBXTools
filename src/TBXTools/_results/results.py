@@ -143,15 +143,15 @@ class Results:
         self._extractor._sqlite.insert_candidate_terms(filtered_terms)
         self._terms = filtered_terms
 
-    def tsr(self, tsr_terms=None, type=None, max_iterations=10000000000, verbose=True):
+    def tsr(self, tsr_terms=None, mode="strict", max_iterations=10000000000, verbose=True):
         '''
         Filters the extracted candidate terms using Token Slot Recognition (TSR). The algorithm is based on the concept of terminological token, i.e., it filters out term candidates by taking into account their tokens.
 
-        If type is 'strict', a term candidate will be kept only if all the tokens are present in the corresponding position. If type is 'flexible', a term candidate will be kept if any of the tokens is present in the corresponding position. If type is 'combined', strict filtering is first used and is then followed by flexible filtering.
+        If mode is 'strict', a term candidate will be kept only if all the tokens are present in the corresponding position. If mode is 'flexible', a term candidate will be kept if any of the tokens is present in the corresponding position. If mode is 'combined', strict filtering is first used and is then followed by flexible filtering.
 
         Args:
             tsr_terms: The reference standard terms.
-            type (str, optional): Filtering mode ("strict", "flexible", "combined"). Defaults to "combined".
+            mode (str, optional): Filtering mode ("strict", "flexible", "combined"). Defaults to "combined".
             max_iterations (int, optional): Loop ceiling for recursion. Defaults to 10000000000.
             verbose (bool, optional): Prints the process in the console. Defaults to False.
         '''
@@ -164,7 +164,7 @@ class Results:
             return
 
         candidate_terms = self._terms
-        filtered_terms = self._methodology.processor.apply_tsr_filter(tsr_terms=tsr_terms, candidate_terms=candidate_terms, type=type, max_iterations= max_iterations, verbose=verbose)
+        filtered_terms = self._methodology.processor.apply_tsr_filter(tsr_terms=tsr_terms, candidate_terms=candidate_terms, mode=mode, max_iterations= max_iterations, verbose=verbose)
         
         self._terms = filtered_terms
         self._extractor._sqlite.delete("candidate_terms") 
@@ -202,7 +202,7 @@ class Results:
         filtered_terms = self._extractor._sqlite.get_candidate_terms()
         self._terms = filtered_terms
 
-    def save_candidates(self, path, only_candidates=False, by_segment=False, by_segment_id=False, explode=False): # could also be by="segment" or by="id"
+    def save_candidates(self, path, only_candidates=False, by=None, explode=False):
         '''
         Save the candidate terms to disk. The file is saved in the specified format. If no format is provided, it defaults to .txt.
 
@@ -211,12 +211,11 @@ class Results:
         Args:
             path: Path of the file to be saved.
             only_candidates (bool, optional): Exports only candidate terms, without n and frequencies.
-            by_segment (bool, optional): Exports data containing segment id, segment, and candidate terms extracted from it.
-            by_segment_id (bool, optional): Exports data containing segment id, and candidate terms extracted from it. Same as by_segment but without exporting the segment itself.
-            explode (bool, optional): Exports each candidate in its own row, replicating id and/or segment. Only works if by_segment or by_segment_id are True.
+            by (str, optional):  Available options "segment" and "id". If "segment", data is exported containing segment id, segment, and candidate terms extracted from it. If "id", the segment is omitted.
+            explode (bool, optional): Exports each candidate in its own row, replicating id and/or segment. Only works if 'by' is being used.
         
         Raises:
-            ValueError: If both by_segment and by_segment_id are True.
+            ValueError: If 'only_candidates' and 'by' are used at the same time.
         '''
         from pathlib import Path
         import pandas as pd
@@ -225,17 +224,17 @@ class Results:
         extension = path.suffix.lower()
         candidate_terms = self._extractor._sqlite.get_candidate_terms()
 
-        if by_segment and by_segment_id:
-            raise ValueError("by_segment and by_segment_id cannot be both True. Use one or the other.")
-        if only_candidates and by_segment or by_segment_id:
-            raise ValueError("only_candidates and by_segment or by_segment_id cannot be both True. Use one or the other.")
+        if only_candidates and by == "segment" or only_candidates and by == "id":
+            raise ValueError("only_candidates and by cannot be both True. Use one or the other.")
         
-        elif by_segment or by_segment_id:
+        elif by:
+            if by not in ["segment", "id"]:
+                raise ValueError("Unsupported format passed to 'by'. You need to pass 'segment' or 'id'.")
+            
             segments = self._extractor._sqlite.get_segments()
             df_rows = []
-            id = 0
-            for segment in segments:
-                id += 1
+            
+            for id, segment in enumerate(segments):
                 candidates = []
                 for row in candidate_terms:
                     candidate = row[0]
@@ -243,9 +242,9 @@ class Results:
                         candidates.append(candidate)
 
                 if candidates:
-                    if by_segment and not by_segment_id:
+                    if by == "segment":
                         df_rows.append({"id": id, "segment": segment, "candidates" : candidates})
-                    if by_segment_id and not by_segment:
+                    if by == "id":
                         df_rows.append({"id": id, "candidates" : candidates})
 
             output = pd.DataFrame(df_rows)

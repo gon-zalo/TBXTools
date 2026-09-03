@@ -7,18 +7,20 @@ class SQLite:
     Manage SQLite functions.
     '''
 
-    def __init__(self, project_name, corpus, stopwords=None, inner_stopwords=None, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None, exclusion_regexes=None, tsr_terms=None, external_terms=None, overwrite_project=False):
+    def __init__(self, project_name, corpus, stopwords=None, inner_stopwords=None, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None, exclusion_regexes=None, tsr_terms=None, external_terms=None, overwrite_project=False, lang=None, lang_code=None):
+        from TBXTools._resources.resources import Resources
 
         self.cur = None
         self.MAX_INSERTS = 10000
         self.overwrite_project = overwrite_project
         self.project_name = None
-        self.TABLES_TO_LOAD_AT_START = ["corpus", "tagged_corpus", "stopwords", "inner_stopwords", "linguistic_patterns", "evaluation_terms", "external_terms"]
+        self.resources = Resources(lang=lang, lang_code=lang_code)
 
+        self.TABLES_TO_LOAD_AT_START = ["corpus", "tagged_corpus", "stopwords", "inner_stopwords", "linguistic_patterns", "evaluation_terms", "external_terms"]
+        
         self.TABLES_LOADED = []
         self.descriptive_statistics_data = {}
 
-    # Initializing project, corpus, stopwords, etc.
         load_data = self.initialize_project(
             project_name=project_name, 
             overwrite_project=self.overwrite_project)
@@ -123,23 +125,41 @@ class SQLite:
                 self.insert_segments(data=data, tagged=is_corpus_tagged)
 
     # LOAD METHODS
-    def load_corpus(self, corpus, is_corpus_tagged, encoding="utf-8", compoundify=False, comp_symbol="▁"):
-
-        corpora_list = corpus if isinstance(corpus, list) else [corpus]
-
-        for corpus_file in corpora_list:
-            self.read_corpus(corpus_file=corpus_file, is_corpus_tagged=is_corpus_tagged, encoding=encoding)
-
-        if isinstance(corpus, list) and len(corpus) > 1:
-            print(f"{len(corpus)} corpora loaded")
-        else:
+    def load_corpus(self, corpus, is_corpus_tagged=False, encoding="utf-8", compoundify=False, comp_symbol="▁"):
+        from pathlib import Path
+        
+        if type(corpus) == str and Path(corpus).is_file():
+            self.read_corpus(
+            corpus_file=corpus, 
+            is_corpus_tagged=is_corpus_tagged, 
+            encoding=encoding)
             print(f"Corpus loaded")
 
+        if isinstance(corpus, list):
+            is_file = False
+            try:
+                if Path(corpus[0]).is_file():
+                    is_file = True
+            except OSError:
+                    is_file  = False
+
+            if is_file:
+                for c in corpus:
+                    if Path(c).is_file():
+                        self.read_corpus(
+                            corpus_file=c, 
+                            is_corpus_tagged=is_corpus_tagged, 
+                            encoding=encoding)
+                print(f"{len(corpus)} corpora loaded")
+
+            else: # if not file, its separate segments
+                self.insert_segments(data=corpus, tagged=is_corpus_tagged)
+                print(f"Segments loaded")
+        
     def load_stopwords(self, stopwords , encoding="utf-8"):
         '''Load the stopwords into the database.
         
         Args:
-        
             stopwords: A stopwords list or file.
         '''
         data=[]
@@ -151,12 +171,12 @@ class SQLite:
         else:
             with open(stopwords, "r", encoding=encoding) as f:
                 data = [(line.rstrip(),) for line in f]
-
             print("Stopwords loaded from file") 
+
         with self.conn:
             self.cur.executemany("INSERT INTO stopwords (stopword) VALUES (?)",data) 
 
-    def load_inner_stopwords(self, inner_stopwords , encoding="utf-8"):
+    def load_inner_stopwords(self, inner_stopwords, encoding="utf-8"):
         '''Load the inner stopwords into the database.
         
         Args:
@@ -164,7 +184,7 @@ class SQLite:
             stopwords: A inner stopwords list or file.
         '''
         data=[]
-        
+
         if isinstance(inner_stopwords, set):
             data = [(word,) for word in sorted(inner_stopwords)]
             print("Inner stopwords loaded")
@@ -523,11 +543,13 @@ class SQLite:
 
         loaders = {}
 
-        if stopwords:
-            loaders["stopwords"] = lambda: self.load_stopwords(stopwords=stopwords)
-        
-        if inner_stopwords:
-            loaders["inner_stopwords"] = lambda: self.load_inner_stopwords(inner_stopwords=inner_stopwords)
+        if not stopwords:
+            stopwords = self.resources.get_spacy_stopwords()
+        loaders["stopwords"] = lambda: self.load_stopwords(stopwords=stopwords)
+
+        if not inner_stopwords:
+            inner_stopwords = self.resources.fetch_inner_stopwords()
+        loaders["inner_stopwords"] = lambda: self.load_inner_stopwords(inner_stopwords=inner_stopwords)
 
         if is_corpus_tagged==False:
             loaders["corpus"] = lambda: self.load_corpus(corpus=corpus, is_corpus_tagged=False)

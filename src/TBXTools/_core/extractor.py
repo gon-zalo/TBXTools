@@ -23,24 +23,11 @@ class Extractor:
     def __init__(self, project_name, methodology, corpus=None, stopwords=None, inner_stopwords=None, language=None, overwrite_project=False):
         
         self.lang, self._lang_code = get_lang(language.lower())
-
-        # initializing objects
         self._methodology = methodology
-        self._resources = Resources(lang=self.lang, lang_code=self._lang_code)
-
-        self.stopwords = stopwords or self._resources.get_spacy_stopwords()
-        self.inner_stopwords = inner_stopwords or self._resources.fetch_inner_stopwords()
-
-        # assigning basic attributes to Processor()
-        self._methodology.processor.stopwords = self.stopwords
-        self._methodology.processor.inner_stopwords = self.inner_stopwords
-        self._methodology.processor.lang_code = self._lang_code
-
-        # initializing the SQLite database
         self._sqlite = SQLite(
             project_name=project_name, 
-            stopwords=self.stopwords, 
-            inner_stopwords=self.inner_stopwords, 
+            stopwords=stopwords, 
+            inner_stopwords=inner_stopwords, 
             corpus=corpus,
             is_corpus_tagged=getattr(self._methodology,'is_corpus_tagged', False),
             exclusion_regexes=getattr(self._methodology,'exclusion_regexes', None),
@@ -48,7 +35,16 @@ class Extractor:
             evaluation_terms=getattr(self._methodology,'evaluation_terms', None),
             tsr_terms=getattr(self._methodology, "tsr_terms", None),
             overwrite_project=overwrite_project,
+            lang_code=self._lang_code,
+            lang=self.lang
             )
+        
+        self.stopwords = self._sqlite.get("stopwords")
+        self.inner_stopwords = self._sqlite.get("inner_stopwords")
+
+        self._methodology.processor.stopwords = self.stopwords
+        self._methodology.processor.inner_stopwords = self.inner_stopwords
+        self._methodology.processor.lang_code = self._lang_code
 
 # EXTRACTION FUNCTIONS
     def extract(self, verbose=False) -> Results:
@@ -104,8 +100,8 @@ class Extractor:
         '''
         if isinstance(stopwords_list, list):
             self._sqlite.add_stopwords(stopwords_list=stopwords_list)
-            self._methodology.processor.stopwords = self._sqlite.get("stopwords") # updating the attribute of the class
             self.stopwords = self._sqlite.get("stopwords")
+            self._methodology.processor.stopwords = self.stopwords# updating the attribute of the class
 
     def add_inner_stopwords(self, inner_stopwords_list):
         '''
@@ -116,5 +112,5 @@ class Extractor:
         '''
         if isinstance(inner_stopwords_list, list):
             self._sqlite.add_inner_stopwords(inner_stopwords_list=inner_stopwords_list)
-            self._methodology.processor.inner_stopwords = self._sqlite.get("inner_stopwords")
             self.inner_stopwords = self._sqlite.get("inner_stopwords")
+            self._methodology.processor.inner_stopwords = self.inner_stopwords

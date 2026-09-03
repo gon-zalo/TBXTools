@@ -23,11 +23,11 @@ results.regex_exclusion(regexes=regexes, verbose=False)
 #results.save_candidates("statistical-candidates.txt")
 
 # Results can be inspected with the following methods:
-all_terms = results.terms(limit=None)
+all_terms = results._terms
 print(f"\nNumber of terms: {len(all_terms)}. Expected number: 223") 
-print(f"\nTerms: {results.terms()}")
-print(f"\nNgrams: {results.ngrams()}")
-print(f"\nTokens: {results.tokens()}") 
+# print(f"\nTerms: {results.terms()}")
+# print(f"\nNgrams: {results.ngrams()}")
+# print(f"\nTokens: {results.tokens()}") 
 
 # ----------
 # Scenario TSR
@@ -53,8 +53,8 @@ results.regex_exclusion(regexes=regexes, verbose=False)
 results.tsr(tsr_terms=tsr_terms, type="flexible", max_iterations=10, verbose=False)
 
 # Results can be inspected with the following methods:
-all_terms = results.terms(limit=None)
+all_terms = results._terms
 print(f"\nNumber of terms: {len(all_terms)}. Expected number: 121") 
-print(f"\nTerms: {results.terms()}")
-print(f"\nNgrams: {results.ngrams()}")
-print(f"\nTokens: {results.tokens()}") 
+# print(f"\nTerms: {results.terms()}")
+# print(f"\nNgrams: {results.ngrams()}")
+# print(f"\nTokens: {results.tokens()}") 
