@@ -13,7 +13,7 @@ class BertMethodology(BaseMethodology):
         labels (str): The labels used in the fine-tuning of the model.
     '''
 
-    def __init__(self, model, labeling_scheme="BIO", evaluate=False, golden_labels=None, analyze_false_positives=False):
+    def __init__(self, model, labeling_scheme="BIO", golden_labels=None, analyze_false_positives=False):
         from transformers import logging
         logging.set_verbosity_error()
         self.name = "BertMethodology"
@@ -27,7 +27,7 @@ class BertMethodology(BaseMethodology):
 
     def run(self, segments, verbose=False):
         '''
-        Extracts candidate terms using BERT. This methodology uses a previously fine-tuned model on automatically annotated data to predict terms.
+        Extracts candidate terms using a previously fine-tuned BERT model on automatically annotated data to predict terms.
 
         Args:
             segments: A list of segments to process.
@@ -35,9 +35,7 @@ class BertMethodology(BaseMethodology):
         Returns:
             Results: An object containing the tokens, candidate terms. It also returns separately the tokenized corpus.
         '''
-        # verbose (bool, optional): If True, enables detailed logging. Defaults to False.
-        # by_segment (bool, optional): If True, outputs candidate terms grouped by segment.
-    
+
         from datasets import Dataset
         import numpy as np
         print(f'\nInitializing model:  {self.model_name}', flush=True)
@@ -91,7 +89,7 @@ class BertMethodology(BaseMethodology):
             print(f"EVALUATION ON DATASET")
             print(metrics.compute_metrics_with_golden_labels(df=dataframe, gl=self.golden_labels))
 
-        if self.analyze_false_positives:
+        if self.analyze_false_positives: # could this be implemented for all methodologies? like evaluate()
             from TBXTools.trainer.metrics import Metrics
             metrics = Metrics()
             metrics.analyze_false_positives(df=dataframe, gl=self.golden_labels)
