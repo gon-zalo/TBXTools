@@ -97,11 +97,11 @@ class Processor:
             
         freq_dict = {}
 
-        for terms_row in tqdm(candidate_terms, desc="Applying lemmatization to extracted terms", total=len(candidate_terms)):
+        for terms_row in tqdm(candidate_terms, desc="Applying lemmatization", total=len(candidate_terms)):
             term = terms_row[0].strip()
             freq = terms_row[3]
 
-            words = term.split()
+            words = term.split() #is this necesary? Doc probably splits already, if we split then I THINK words like l'estat dont get tokenized and lemmatized like spaCy does
 
             doc = Doc(self.nlp.vocab, words=words)
 
@@ -441,7 +441,7 @@ class Processor:
 
         return ngrams_output, tagged_ngrams_output
     
-    def apply_tsr_filter(self, tsr_terms, candidate_terms, type="strict", max_iterations=10000000000, verbose=False): 
+    def apply_tsr_filter(self, tsr_terms, candidate_terms, mode="strict", max_iterations=10000000000, verbose=False): 
         '''
         Filters the extracted candidate terms using the TSR (Token Slot Recognition) method. The algorithm is based on the concept of terminological token to filter out term candidates. It reads the terminological tokens from a list of terms (tsr_terms) and stores them taking into account their position in the terminological unit (first, middle, last). The TSR method filters term candidates by taking into account their tokens. To do so, 3 filtering variants are designed: strict, flexible and combined. 
         In strict TSR filtering, a term candidate will be kept only if all the tokens are present in the corresponding position. In flexible TSR filtering, a term candidate will be kept if any of the tokens is present in the corresponding position. In combined TSR filtering, strict filtering is first used and is then followed by flexible filtering. In flexible and combined mode the algorithm performs the filtering process recursively, that is, by enlarging the list of terminological tokens with the new selected term candidates.
@@ -449,7 +449,7 @@ class Processor:
         Args:
             tsr_terms: The reference standard terms.
             candidate_terms (list of list): Candidates terms.
-            type (str, optional): Filtering mode ("strict", "flexible", "combined"). Defaults to "combined".
+            mode (str, optional): Filtering mode ("strict", "flexible", "combined"). Defaults to "combined".
             max_iterations (int, optional): Loop ceiling for recursion. Defaults to 10000000000.
             verbose (bool, optional): Defaults to False.
 
@@ -479,7 +479,7 @@ class Processor:
 
         new=True  #flag used to control the loop- initialized True to ensure the loop runs at least once
         newcandidates={} #candidate-frequency
-        hashmeasure={} #to store the measurement types for each accepted candidate ("tsr")
+        hashmeasure={} #to store the measurement modes for each accepted candidate ("tsr")
         #hashvalue={} #stores the values for each accepted candidate
         
         iterations=0 #how many times the loop executes
@@ -528,7 +528,7 @@ class Processor:
                     else:
                         truesfalses.append(False)
 
-                if type=="strict":
+                if mode=="strict":
                         if not False in truesfalses:
                             if not candidate in newcandidates: 
                                 newcandidates[candidate]=frequency
@@ -540,7 +540,7 @@ class Processor:
                                 firstcomponent[w_first_low]=1 
                                 lastcomponent[w_last_low]=1
 
-                elif type=="flexible": 
+                elif mode=="flexible": 
                     if True in truesfalses:
                         if not candidate in newcandidates:
                             newcandidates[candidate]=frequency
@@ -553,7 +553,7 @@ class Processor:
                             component[w_first_low]=1
                             component[w_last_low]=1
 
-                elif type=="combined":
+                elif mode=="combined":
                     if iterations== 1:
                         if not False in truesfalses: 
                             if not candidate in newcandidates:
