@@ -27,8 +27,6 @@ class Extractor:
             stopwords=stopwords, 
             inner_stopwords=inner_stopwords, 
             corpus=corpus,
-            lang=self._lang_code, 
-            role=self.role,
             is_corpus_tagged=getattr(self._methodology,'is_corpus_tagged', False),
             exclusion_regexes=getattr(self._methodology,'exclusion_regexes', None),
             linguistic_patterns=getattr(self._methodology, 'linguistic_patterns', None),

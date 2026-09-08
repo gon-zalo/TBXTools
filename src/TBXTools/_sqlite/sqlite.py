@@ -27,7 +27,7 @@ class SQLite:
         
         self.lang = str(lang or '').lower().strip()
         self._lang_code = self.lang[:2] if self.lang else ""
-        self.role = role
+        #self.role = role
         
 
         load_data = self.initialize_project(
