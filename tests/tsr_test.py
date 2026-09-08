@@ -2,7 +2,7 @@ from TBXTools import Extractor
 from TBXTools.methodology import StatisticalMethodology
 
 regexes = [".+ health"]
-tsr_terms="tsr_terms"
+tsr_terms="tsr_terms.txt"
 
 corpus= "wikipedia-mental-health.txt"
 
@@ -24,7 +24,7 @@ results = extractor.extract(verbose=False)
 #results.nest_normalization(verbose=False)
 #results.save_candidates("statistical-candidates.txt")
 
-results.tsr(tsr_terms=tsr_terms, type="flexible", max_iterations=10)
+results.tsr(tsr_terms=tsr_terms, type="strict", max_iterations=10)
 
 # Results can be inspected with the following methods:
 all_terms = [row[0] for row in results._terms]
@@ -61,7 +61,7 @@ terms_list= ["bipolar disorder", "mental health", "united states", "mental disor
 
 results._terms = [(term, len(term.split()), "frequency", 1) for term in terms_list] #frequency=1 just to try
 
-results.tsr(tsr_terms=tsr_terms, type="flexible", max_iterations=10, verbose=True)
+results.tsr(tsr_terms=tsr_terms, type="combined", max_iterations=10, verbose=True)
 
 # Results can be inspected with the following methods:
 all_terms = [row[0] for row in results._terms]
