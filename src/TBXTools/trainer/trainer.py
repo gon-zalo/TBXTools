@@ -12,20 +12,23 @@ class BertTrainer:
         project_name (str): The unique name identifier for the current project, which also determines the filename of the generated SQLite database.
         corpus: The text corpus used as the training data.
         external_terms: File path to the terms that will be used in the data annotation process.
+        labeling_scheme (str, optional): The labeling scheme to annotate the data or train the model with. Defaults to BIO.
     '''
 
-    def __init__(self, project_name, language, corpus=None, external_terms=None, overwrite_project=False, seed=123):
+    def __init__(self, project_name, language, corpus=None, external_terms=None, overwrite_project=False, seed=123, labeling_scheme="BIO"):
         from transformers import logging
         logging.set_verbosity_error()
         self.lang, self._lang_code = get_lang(language.lower())
 
         self.name = "BertTrainer"
-        self._resources = Resources(lang_code=self._lang_code)
+        self._resources = Resources(lang=self.lang, lang_code=self._lang_code)
 
-        self.stopwords = self._resources.fetch_stopwords()
+        self.stopwords = self._resources.get_spacy_stopwords()
         self.inner_stopwords = self._resources.fetch_inner_stopwords()
 
         self._processor = BertProcessor()
+        self._processor.choose_labels(labeling_scheme=labeling_scheme)
+        self._processor.lang_code = self._lang_code
         self._metrics = Metrics()
         self._seed = seed
 
@@ -34,6 +37,8 @@ class BertTrainer:
             corpus=corpus, 
             overwrite_project=overwrite_project, 
             external_terms=external_terms)
+
+        self.test_df = None
         
     def train(self, model, save_as=None, split=False, expand_labels=False, sample=None, only_segments_with_terms=True, lr=5e-05, batch_size=16, epochs=3, weight_decay=0.01, gradient_accumulation_steps=1, warmup_ratio=0.0):
         '''
@@ -50,7 +55,6 @@ class BertTrainer:
             epochs (int, optional): Defaults to 3.
             weight_decay (int, optional): Defaults to 0.01.
         '''
-
         from transformers import Trainer, set_seed
         from datasets import Dataset
         from transformers import TrainingArguments, EarlyStoppingCallback
@@ -60,7 +64,6 @@ class BertTrainer:
         self._processor.model_name = model
         self._processor._load_model()
         self._processor._load_tokenizer_and_data_collator()
-        self._processor.lang_code = self._lang_code
         
         model_ = self._processor.model
         data_collator = self._processor.data_collator
@@ -69,6 +72,7 @@ class BertTrainer:
             sample=sample, 
             only_segments_with_terms=only_segments_with_terms
             )
+        
         df = self._processor.preprocess_train(
             df=df, 
             expand_labels=expand_labels
@@ -99,22 +103,24 @@ class BertTrainer:
         
         elif split:
             from sklearn.model_selection import train_test_split
-            print("\nSplitting training data into train (0.8) and eval (0.2)")
-            train_df, val_df = train_test_split(df, test_size=0.2, random_state=self._seed)
+            print("\nSplitting training data into train (0.7), validation (0.15) and test (0.15)")
+            train_val_df, test_df = train_test_split(df, test_size=0.15, random_state=self._seed)
+            self.test_df = test_df
+            train_df, val_df = train_test_split(train_val_df, test_size=0.15, random_state=self._seed)
 
             train_data = Dataset.from_pandas(train_df)
             val_data = Dataset.from_pandas(val_df)
+            test_data = Dataset.from_pandas(test_df)
 
             model_folder_name = self._processor.model_name.replace("/", "-")
             model_output_dir = f"./trainer_output/{model_folder_name}"
 
             training_args = TrainingArguments(
                 output_dir=model_output_dir,
-                eval_strategy="steps",
-                save_strategy="steps",
-                eval_steps=500,
-                save_steps=500,
+                eval_strategy="epoch",
+                save_strategy="epoch",
                 load_best_model_at_end=True,
+                logging_strategy="epoch",
                 save_total_limit=3,
                 metric_for_best_model="f1",
                 greater_is_better=True,
@@ -134,7 +140,7 @@ class BertTrainer:
                 args=training_args,
                 train_dataset=train_data,
                 eval_dataset=val_data,
-                compute_metrics=self._metrics.compute_metrics_lemm,
+                compute_metrics=self._metrics.compute_metrics,
                 data_collator=data_collator,
                 callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
                 )
@@ -142,17 +148,21 @@ class BertTrainer:
         print('Fine-tuning model', flush=True)
         print(f"Parameters: lr = {lr}, batch size = {batch_size}, weight decay = {weight_decay}, warmup ratio = {warmup_ratio}, epochs = {epochs}")
         trainer.train()
+
+        test_results = trainer.evaluate(test_data)
+        print("\nResults on the test data")
+        print(test_results)
+
         if save_as:
             trainer.save_model(f'{save_as}')
             print(f"Model saved as '{save_as}'")
 
-    def annotate(self, sample=None, labeling_scheme="BIO"):
+    def annotate(self, sample=None):
         '''
         Generate training data to fine-tune a model. It automatically annotates a corpus using an external list of terms. The resulting annotated data get saved in the database.
 
         Attributes:
             sample (int, optional): Number of sentences to randomly sample out of the corpus. Useful for testing purposes.
-            labeling_scheme (str, optional): The labeling scheme to annotate the data with. Defaults to BIO.
         '''
         print("Running annotation", flush=True)
 
@@ -162,10 +172,8 @@ class BertTrainer:
         if self._sqlite.table_is_populated("word_tokens") and self._sqlite.table_is_populated("segment_labels") and self._sqlite.overwrite_project==False:
             raise RuntimeError("Annotation cancelled. Word tokens and labels found in database. You may run 'train()' to use the existing data or use 'overwrite_project=True' to overwrite the existing data in the database.")
         
-        self._processor.labeling_scheme = labeling_scheme.lower()
         self._processor.stopwords = self.stopwords
         self._processor.inner_stopwords = self.inner_stopwords
-        self._processor.lang_code = self._lang_code
 
         segments = list(self._sqlite.get_segments())
         external_terms = set(self._sqlite.get_external_terms())
@@ -195,25 +203,27 @@ class BertTrainer:
         df_without_terms = df[~with_terms]
 
         print(f"\n{len(df)} total segments annotated and saved to database.")
-        print(f"{len(df_with_terms)} segments with terms")
-        print(f"{len(df_without_terms)} segments without terms")
+        print(f"{len(df_with_terms)} segments with terms.")
+        print(f"{len(df_without_terms)} segments without terms.")
     
     def _fetch_data_from_db(self, sample=None, only_segments_with_terms=True):
         import pandas as pd
         print("\nFetching data from database", flush=True)
 
+        segments = self._sqlite.get_segments()
         word_tokens = self._sqlite.get_word_tokens()
         segment_labels = self._sqlite.get_segment_labels()  
 
         if segment_labels and word_tokens:
             data = {
+                "segment": pd.Series(segments),
                 "word_tokens": pd.Series(word_tokens),
                 "labels": pd.Series(segment_labels)
                 }
             
             dataframe = pd.DataFrame(data=data)
 
-            if only_segments_with_terms:
+            if only_segments_with_terms: # True by default
                 with_terms = dataframe["labels"].apply(lambda seg_labels: any(label in ["B", "I"] for label in seg_labels))
             
                 dataframe = dataframe[with_terms]
@@ -221,13 +231,12 @@ class BertTrainer:
             if isinstance(sample, int): 
                 print(f"Sampling {sample} random sentences")
                 dataframe = dataframe.sample(n=sample, random_state=123)
-            else:
-                raise ValueError("'sample' must be an int.")
 
             return dataframe
         else:
             raise RuntimeError("Annotated data not found in database. Run 'annotate()' before 'train()'.")   
 
+    # this func needs an update
     def hp_tuning(self, models, sample=None, lr_range=(1e-5, 5e-5), epoch_range=(3, 6), batch_sizes=(8, 16, 32), weight_decay_range=(0.0, 0.05), warmup_ratio_range=(0.0, 0.2), n_trials=15):
         from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
         from sklearn.model_selection import train_test_split
@@ -301,7 +310,7 @@ class BertTrainer:
                     args=training_args,
                     train_dataset=train_data,
                     eval_dataset=eval_data,
-                    compute_metrics=self._metrics.compute_metrics_lemm,
+                    compute_metrics=self._metrics.compute_metrics,
                     data_collator=self._processor.data_collator,
                     callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
                     )

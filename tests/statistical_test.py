@@ -27,12 +27,11 @@ results.regex_exclusion(regexes=regexes, verbose=False)
 results.summary()
 
 # Results can be inspected with the following methods:
-all_terms = [row[0] for row in results._terms]
+all_terms = results._terms
 print(f"\nNumber of terms: {len(all_terms)}. Expected number: 223") 
-results.print_candidates(limit=20)
-
-print(f"\nNgrams: {results.ngrams()}")
-print(f"\nTokens: {results.tokens()}") 
+# print(f"\nTerms: {results.terms()}")
+# print(f"\nNgrams: {results.ngrams()}")
+# print(f"\nTokens: {results.tokens()}") 
 
 # ----------
 # Scenario TSR
@@ -58,9 +57,8 @@ results.regex_exclusion(regexes=regexes, verbose=False)
 results.tsr(tsr_terms=tsr_terms, type="flexible", max_iterations=10, verbose=False)
 
 # Results can be inspected with the following methods:
-all_terms = [row[0] for row in results._terms]
+all_terms = results._terms
 print(f"\nNumber of terms: {len(all_terms)}. Expected number: 121") 
-results.print_candidates(limit=20)
-
-print(f"\nNgrams: {results.ngrams()}")
-print(f"\nTokens: {results.tokens()}") 
+# print(f"\nTerms: {results.terms()}")
+# print(f"\nNgrams: {results.ngrams()}")
+# print(f"\nTokens: {results.tokens()}") 

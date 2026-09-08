@@ -12,7 +12,7 @@ class StatisticalMethodology(BaseMethodology):
         case_normalization = If True applies case_normalization to the candidate terms. Default to False.
     '''
     
-    def __init__(self, nmin, nmax, case_normalization=False):
+    def __init__(self, nmin, nmax, case_normalization=True):
         
         self.name = "StatisticalMethodology"
         self.case_normalization = case_normalization
@@ -21,7 +21,7 @@ class StatisticalMethodology(BaseMethodology):
         self.processor.nmin = nmin    
         self.processor.nmax = nmax    
         self.extractor = None
-
+ 
 # MAIN FUNCTION
     def run(self, segments, verbose=False):
         '''
