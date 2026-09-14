@@ -4,6 +4,8 @@ from pathlib import Path
 import pandas as pd
 from xml.etree import ElementTree as etree
 import re
+from TBXTools._utils.utils import get_lang
+from TBXTools._processor.parser import FileParser
 
 
 class SQLite:
@@ -25,11 +27,9 @@ class SQLite:
         self.TABLES_LOADED = []
         self.descriptive_statistics_data = {}
         
-        self.lang = str(lang or '').lower().strip()
-        self._lang_code = self.lang[:2] if self.lang else ""
-        #self.role = role
+        self.lang = lang
+        self._lang_code = lang_code
         
-
         load_data = self.initialize_project(
             project_name=project_name, 
             overwrite_project=self.overwrite_project)
@@ -117,149 +117,43 @@ class SQLite:
 
         self.conn = sqlite3.connect(project_name)
         self.cur = self.conn.cursor() 
-
-            
-    def _parse_tmx(self, file_path, target_lang=None):
     
-        raw_lang = str(target_lang or getattr(self, 'lang', '')).lower().strip()
-        # Estrae il codice ISO a 2 lettere (es. "en" o "es")
-        lang_iso = raw_lang[:2] if len(raw_lang) > 2 else raw_lang
-
-        for event, elem in etree.iterparse(str(file_path), events=("end",)):
-            if elem.tag == "tu":
-                for tuv in elem.findall("tuv"):
-                    l_attr = (
-                        tuv.attrib.get("{http://www.w3.org/XML/1998/namespace}lang") 
-                        or tuv.attrib.get("lang", "")
-                    ).lower().strip()
-                    
-                    # Verifica se la lingua cercata (es. "en") è presente nel tag tuv (es. "en-us")
-                    if lang_iso and (l_attr.startswith(lang_iso) or f"-{lang_iso}" in l_attr or lang_iso in l_attr):
-                        seg = tuv.find("seg")
-                        if seg is not None and seg.text and seg.text.strip():
-                            yield seg.text.strip()
                 
-                # Pulisce l'elemento tu intero solo dopo aver estratto i dati
-                elem.clear()
-                
-    def _parse_sdltm(self, file_path, target_lang=None):
-        is_target = getattr(self, 'role', 'source') == "target"
-
-        try:
-            with sqlite3.connect(str(file_path)) as conn:
-                conn.row_factory = sqlite3.Row
-                query = "SELECT source_segment, target_segment FROM translation_units"
-                for row in conn.execute(query):
-                    selected_seg = row["target_segment"] if is_target else row["source_segment"]
-                    
-                    if selected_seg and str(selected_seg).strip():
-                        yield str(selected_seg).strip()
-        except Exception as e:
-            print(f"Error reading SDLTM file {file_path}: {e}")
-
-    def _parse_tab(self, file_path, lang=None, encoding="utf-8"):
-        # Se il ruolo dell'istanza è "target", legge la Colonna 1. Altrimenti la Colonna 0.
-        is_target = getattr(self, 'role', 'source') == "target"
-
-        with open(str(file_path), "r", encoding=encoding, errors="ignore") as cf:
-            for linia in cf:
-                line_str = linia.strip()
-                if not line_str:
-                    continue
-                
-                camps = [c.strip() for c in re.split(r'\t|\s{2,}', line_str) if c.strip()]
-                
-                if len(camps) >= 2:
-                    segment = camps[1] if is_target else camps[0]
-                    if segment:
-                        yield segment
-                elif len(camps) == 1 and not is_target:
-                    yield camps[0]
-                            
-    def _parse_txt(self, file_path, encoding):
-        with open(str(file_path), "r", encoding=encoding, errors="ignore") as f:
-            for line in f:
-                if line.strip():
-                    yield line.strip()
-
-    def _extract_segments(self, input_source, target_lang, encoding): 
-        source_path= Path(input_source)
+    def load_corpus(self, corpus, is_corpus_tagged=False, encoding="utf-8", lang=None, compoundify=False, comp_symbol="▁"):
         
-        if not source_path.is_file():
-            raise FileNotFoundError(f"No such file or invalid path: '{source_path}'")
-            
-        file_extension = source_path.suffix.lower()
-        
-        if file_extension == ".tmx":
-            return self._parse_tmx(source_path, target_lang)
-        elif file_extension in [".tsv", ".tab"]: 
-            return self._parse_tab(source_path, target_lang, encoding)
-        else:
-            return self._parse_txt(source_path, encoding)
-    
-    def _yield_segments(self, corpus, target_lang, encoding):
-        
-        corpora_list = corpus if isinstance(corpus, list) else [corpus] #corpus= list
-        
-        for corpus_item in corpora_list:
-            for segment in self._extract_segments(corpus_item, target_lang, encoding):
-                yield segment
-                
+        #corpus can be- a file path, a list of paths, or a list of text strings
 
-    def load_corpus_2(self, corpus, is_corpus_tagged=False, encoding="utf-8", lang=None):
         if not corpus:
             raise ValueError("The 'corpus' argument cannot be empty or None.")
-        
-        if lang:
-            self.lang = str(lang).lower().strip()
-            self._lang_code = self.lang[:2]
-        
-        target_lang = getattr(self, '_lang_code', getattr(self, 'lang', lang))
-        maxinserts = getattr(self, 'MAX_INSERTS', 5000)
-        batch = []
 
-        for segment in self._yield_segments(corpus, target_lang, encoding):
-            batch.append(segment)
+        # Input is a single valid file on disk (str or Path)
+        if isinstance(corpus, (str, Path)) and Path(corpus).is_file():
             
-            if len(batch) >= maxinserts:
-                self.insert_segments(data=batch, tagged=is_corpus_tagged)
-                batch.clear()
-
-        if batch:
-            self.insert_segments(data=batch, tagged=is_corpus_tagged)
-    
-    # LOAD METHODS
-    def load_corpus(self, corpus, is_corpus_tagged=False, encoding="utf-8", compoundify=False, comp_symbol="▁"):
-        from pathlib import Path
-        
-        if type(corpus) == str and Path(corpus).is_file():
-            self.read_corpus(
-            corpus_file=corpus, 
-            is_corpus_tagged=is_corpus_tagged, 
-            encoding=encoding)
-            print(f"Corpus loaded")
-
-        if isinstance(corpus, list):
+            file_path = Path(corpus)
+            
+            data = FileParser._parse_txt(file_path, encoding=encoding)
+            self.insert_segments(data=list(data), tagged=is_corpus_tagged)
+            print("Corpus loaded")
+         
+        # Input is a sequence (list or tuple of file paths or raw text strings)
+        elif isinstance(corpus, (list, tuple)):
             is_file = False
             try:
-                if Path(corpus[0]).is_file():
+                if Path(corpus[0]).exists():
                     is_file = True
             except OSError:
-                    is_file  = False
+                is_file = False
 
             if is_file:
                 for c in corpus:
-                    if Path(c).is_file():
-                        self.read_corpus(
-                            corpus_file=c, 
-                            is_corpus_tagged=is_corpus_tagged, 
-                            encoding=encoding)
+                    if Path(c).exists():
+                        self.load_corpus(c, is_corpus_tagged=is_corpus_tagged, encoding=encoding, lang=lang)
                 print(f"{len(corpus)} corpora loaded")
-
-            else: # if not file, its separate segments
+            else:
+                
                 self.insert_segments(data=corpus, tagged=is_corpus_tagged)
-                print(f"Segments loaded")
-        
+                print("Segments loaded")
+            
     def load_stopwords(self, stopwords , encoding="utf-8"):
         '''Load the stopwords into the database.
         
@@ -656,10 +550,10 @@ class SQLite:
         loaders["inner_stopwords"] = lambda: self.load_inner_stopwords(inner_stopwords=inner_stopwords)
 
         if is_corpus_tagged==False:
-            loaders["corpus"] = lambda: self.load_corpus(corpus=corpus, is_corpus_tagged=False, lang=lang or getattr(self, '_lang_code', None))
+            loaders["corpus"] = lambda: self.load_corpus(corpus=corpus, is_corpus_tagged=False)
 
         elif is_corpus_tagged==True:
-            loaders["tagged_corpus"] = lambda: self.load_corpus(corpus=corpus, is_corpus_tagged=True, lang=lang or getattr(self, '_lang_code', None))
+            loaders["tagged_corpus"] = lambda: self.load_corpus(corpus=corpus, is_corpus_tagged=True)
 
         if evaluation_terms:
             loaders["evaluation_terms"] = lambda: self.load_evaluation_terms(evaluation_terms=evaluation_terms)
