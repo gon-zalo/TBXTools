@@ -5,8 +5,6 @@ regexes = [".+ health"]
 tsr_terms="tsr_terms.txt"
 
 
-
-
 extractor = Extractor(
     methodology=StatisticalMethodology(
         nmin=2,
@@ -54,7 +52,7 @@ results = extractor.extract(verbose=False)
 
 results.nest_normalization(verbose=False)
 results.regex_exclusion(regexes=regexes, verbose=False)
-results.tsr(tsr_terms=tsr_terms, type="flexible", max_iterations=10, verbose=False)
+results.tsr(tsr_terms=tsr_terms, mode="flexible", max_iterations=10, verbose=False)
 
 # Results can be inspected with the following methods:
 all_terms = results._terms
