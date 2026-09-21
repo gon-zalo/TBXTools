@@ -18,7 +18,7 @@ class Extractor:
         _sqlite (SQLiteManager): Internal component to manage database interactions.
     """
 
-    def __init__(self, project_name, methodology, corpus=None, stopwords=None, inner_stopwords=None, language=None, role="source", overwrite_project=False):
+    def __init__(self, project_name, methodology, corpus=None, stopwords=None, inner_stopwords=None, language=None, overwrite_project=False):
         
         self.lang, self._lang_code = get_lang(language.lower())
         self._methodology = methodology
@@ -28,10 +28,8 @@ class Extractor:
             inner_stopwords=inner_stopwords, 
             corpus=corpus,
             is_corpus_tagged=getattr(self._methodology,'is_corpus_tagged', False),
-            exclusion_regexes=getattr(self._methodology,'exclusion_regexes', None),
             linguistic_patterns=getattr(self._methodology, 'linguistic_patterns', None),
             evaluation_terms=getattr(self._methodology,'evaluation_terms', None),
-            tsr_terms=getattr(self._methodology, "tsr_terms", None),
             overwrite_project=overwrite_project,
             lang_code=self._lang_code,
             lang=self.lang

@@ -1,19 +1,13 @@
 import sqlite3
 import os
 from pathlib import Path
-import pandas as pd
-from xml.etree import ElementTree as etree
-import re
-from TBXTools._utils.utils import get_lang
-from TBXTools._processor.parser import FileParser
-
 
 class SQLite:
     '''
     Manage SQLite functions.
     '''
 
-    def __init__(self, project_name, corpus, stopwords=None, inner_stopwords=None, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None, exclusion_regexes=None, tsr_terms=None, external_terms=None, overwrite_project=False, lang=None, lang_code=None):
+    def __init__(self, project_name, corpus, stopwords=None, inner_stopwords=None, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None, external_terms=None, overwrite_project=False, lang=None, lang_code=None):
         from TBXTools._resources.resources import Resources
 
         self.cur = None
@@ -119,40 +113,54 @@ class SQLite:
         self.cur = self.conn.cursor() 
     
                 
-    def load_corpus(self, corpus, is_corpus_tagged=False, encoding="utf-8", lang=None, compoundify=False, comp_symbol="▁"):
+    def read_corpus(self, corpus_file, is_corpus_tagged, encoding):
+        '''Read a corpus file.'''
+        data = []
+        continserts = 0
+        if corpus_file:
+            with open(corpus_file, "r", encoding=encoding, errors="ignore") as file:
+                for line in file:
+                    data.append(line.rstrip())
+                    continserts += 1
+
+                    if continserts == self.MAX_INSERTS:
+                        self.insert_segments(data=data, tagged=is_corpus_tagged)
+                        data = []
+                        continserts = 0
+                
+                self.insert_segments(data=data, tagged=is_corpus_tagged)
+
+    # LOAD METHODS
+    def load_corpus(self, corpus, is_corpus_tagged=False, encoding="utf-8", compoundify=False, comp_symbol="▁"):
+        from pathlib import Path
         
-        #corpus can be- a file path, a list of paths, or a list of text strings
+        if type(corpus) == str and Path(corpus).is_file():
+            self.read_corpus(
+            corpus_file=corpus, 
+            is_corpus_tagged=is_corpus_tagged, 
+            encoding=encoding)
+            print(f"Corpus loaded")
 
-        if not corpus:
-            raise ValueError("The 'corpus' argument cannot be empty or None.")
-
-        # Input is a single valid file on disk (str or Path)
-        if isinstance(corpus, (str, Path)) and Path(corpus).is_file():
-            
-            file_path = Path(corpus)
-            
-            data = FileParser._parse_txt(file_path, encoding=encoding)
-            self.insert_segments(data=list(data), tagged=is_corpus_tagged)
-            print("Corpus loaded")
-         
-        # Input is a sequence (list or tuple of file paths or raw text strings)
-        elif isinstance(corpus, (list, tuple)):
+        if isinstance(corpus, (list, tuple)):
             is_file = False
             try:
-                if Path(corpus[0]).exists():
+                if corpus and Path(corpus[0]).is_file():
                     is_file = True
-            except OSError:
-                is_file = False
+            except (OSError, TypeError):
+                is_file  = False
 
             if is_file:
                 for c in corpus:
-                    if Path(c).exists():
-                        self.load_corpus(c, is_corpus_tagged=is_corpus_tagged, encoding=encoding, lang=lang)
+                    if Path(c).is_file():
+                        self.read_corpus(
+                            corpus_file=c, 
+                            is_corpus_tagged=is_corpus_tagged, 
+                            encoding=encoding)
                 print(f"{len(corpus)} corpora loaded")
-            else:
-                
+
+            else: # if not file, its separate segments
                 self.insert_segments(data=corpus, tagged=is_corpus_tagged)
-                print("Segments loaded")
+                print(f"Segments loaded")
             
     def load_stopwords(self, stopwords , encoding="utf-8"):
         '''Load the stopwords into the database.
