@@ -1,7 +1,8 @@
 from .._sqlite.sqlite import SQLite
 from .._results.results import Results
-from .._resources.resources import Resources
+from .._processor.preprocessor import Preprocessor
 from .._utils.utils import get_lang
+import time
 
 class Extractor:
     """
@@ -30,10 +31,10 @@ class Extractor:
             inner_stopwords=inner_stopwords, 
             corpus=corpus,
             is_corpus_tagged=getattr(self._methodology,'is_corpus_tagged', False),
-            exclusion_regexes=getattr(self._methodology,'exclusion_regexes', None),
+            # exclusion_regexes=getattr(self._methodology,'exclusion_regexes', None),
             linguistic_patterns=getattr(self._methodology, 'linguistic_patterns', None),
             evaluation_terms=getattr(self._methodology,'evaluation_terms', None),
-            tsr_terms=getattr(self._methodology, "tsr_terms", None),
+            # tsr_terms=getattr(self._methodology, "tsr_terms", None),
             overwrite_project=overwrite_project,
             lang_code=self._lang_code,
             lang=self.lang
@@ -42,12 +43,14 @@ class Extractor:
         self.stopwords = self._sqlite.get("stopwords")
         self.inner_stopwords = self._sqlite.get("inner_stopwords")
 
-        self._methodology.processor.stopwords = self.stopwords
-        self._methodology.processor.inner_stopwords = self.inner_stopwords
-        self._methodology.processor.lang_code = self._lang_code
+        self._methodology.extractor = self
+
+        # self._methodology.processor.stopwords = self.stopwords
+        # self._methodology.processor.inner_stopwords = self.inner_stopwords
+        # self._methodology.processor.lang_code = self._lang_code
 
 # EXTRACTION FUNCTIONS
-    def extract(self, verbose=False) -> Results:
+    def extract(self, timer=False, verbose=False) -> Results:
         '''
         Coordinates the extraction pipeline by fetching data from the database, calling the selected extraction methodology (linguistic or statistical), applying optional filtering/normalization procedures, and persisting the extracted candidates back to the SQLite database.
 
@@ -80,7 +83,7 @@ class Extractor:
             print(f"\n{self._methodology.name} initialized", flush=True)
             print("Running term extraction", flush=True)
 
-            segments = list(self._sqlite.get_segments(tagged=False))
+            segments = list(self._sqlite.get_segments(tagged=False)) #need to change when using yield in get segments
 
             results = self._methodology.run(segments=segments, verbose=verbose)
 
@@ -88,7 +91,12 @@ class Extractor:
 
         results._extractor = self  
         results._methodology = self._methodology
-        
+
+        if timer:
+            end = time.time()
+            length = end - self._methodology.start
+            print(f"\nExtraction time: {length:.3f} seconds")
+
         return results
     
     def add_stopwords(self, stopwords_list):
