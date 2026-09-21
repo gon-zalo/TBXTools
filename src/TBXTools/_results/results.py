@@ -171,12 +171,13 @@ class Results:
         self._extractor._sqlite.insert_candidate_terms(self._terms)
         print(f"TSR filter completed. {len(self._terms)} candidates saved.")
             
-    def regex_exclusion(self, regexes=None, verbose=False, mode="strict"):
+    def regex_exclusion(self, regexes=None, mode="strict", verbose=False):
         '''
-        Deletes term candidates matching a set of regular expresions loaded in the Extractor() class.
+        Remove candidate terms that match regex expressions.
 
         Args:
             regexes: regular expression patterns used to match and filter out unwanted terms.
+            mode: 'strict' removes full string matches, 'flexible' removes candidates that contain the regex. Defaults to 'strict'.
             verbose (bool, optional): Prints the process in the console. Default to False.
         '''
         
@@ -184,8 +185,7 @@ class Results:
         raw_regexes = self._extractor._sqlite.get("exclusion_regexes")
 
         if not raw_regexes:
-            print("Exclusion regexes not found. Not applying regex exclusion.")
-            return
+            raise ValueError("Exclusion regexes not found. Not applying regex exclusion.")
         
         regexes = [(r,) for r in raw_regexes]
         
