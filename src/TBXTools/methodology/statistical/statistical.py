@@ -1,95 +1,100 @@
-import nltk
-from ..base.base import BaseMethodology
-from ..._results.results import Results
-from ..._processor.processor import Processor
-
-class StatisticalMethodology(BaseMethodology):
+class StatisticalMethodology():
     '''
     Manages statistical terminology extraction.
     
     Attributes:
-        name (str): The name of the methodology ("StatisticalMethodology")        _processor (Processor): An internal instance of the Processor class configured with 'nmin' and 'nmax' used to handle text preprocessing tasks.
-        case_normalization = If True applies case_normalization to the candidate terms. Default to False.
+        name (str): The name of the methodology 
+        _processor (Processor): An internal instance of the Processor class configured with 'nmin' and 'nmax' used to handle text preprocessing tasks.
+        case_normalization: If True applies case_normalization to the candidate terms. Default to True.
+        min_freq (int): The minimum frequency threshold. Only n-grams appearing at least "min_freq" times will be included in the output.
     '''
     
-    def __init__(self, nmin, nmax, case_normalization=True):
+    def __init__(self, nmin, nmax, case_normalization=True, min_freq=2):
+        from ..._processor.postprocessor import Postprocessor
+        from ..._processor.preprocessor import Preprocessor
+        import time
         
+        self.start = time.time()
+
         self.name = "StatisticalMethodology"
         self.case_normalization = case_normalization
-
-        self.processor = Processor()
-        self.processor.nmin = nmin    
-        self.processor.nmax = nmax    
+        self.min_freq = min_freq
+        self.nmin = nmin
+        self.nmax = nmax
+    
         self.extractor = None
- 
-# MAIN FUNCTION
+        self.preprocessor = Preprocessor(methodology=self)
+        self.postprocessor = Postprocessor()
+
     def run(self, segments, verbose=False):
+        from ..._results.results import Results
         '''
-        Extracts candidate terms from text segments using a statistical methodology. This methodology is based on calculating n-grams and filtering candidates using stopwords and inner stopwords. Specifically, it removes any terms that start or end with a word in the stopword list, as well as terms that contain an inner stopword. The actual extraction logic is delegated to the '_statistical_extraction' method.
+        Run the statistical extraction pipeline.
 
         Args:
             segments: A list of text segments to process.
-            verbose (bool, optional): If True, enables detailed logging. Defaults to False.
-
-        Returns:
-            Results: An object containing the candidate terms, n-grams, tokens, and extractor information. 
-        '''
         
-        ngrams, tokens, candidate_terms = self._statistical_extraction(segments=segments)
+        Returns:
+            results: A Results object containing the extracted candidate terms.
+        '''
 
-        if self.case_normalization:
-             candidate_terms = self.processor.case_normalization(
+        self._extract_ngrams(segments=segments)
+        candidate_terms = self._extract_candidates()
+
+        if self.case_normalization: # post? no me gusta aqui, quiza mejor en extract() o algo
+             candidate_terms = self.postprocessor.case_normalization(
                 candidate_terms=candidate_terms, 
                 verbose=verbose) 
 
-        results = Results(terms=candidate_terms, ngrams=ngrams, tokens=tokens)
+        results = Results(terms=candidate_terms)
 
-        self.extractor._sqlite.insert_tokens(results._tokens)
-        self.extractor._sqlite.insert_ngrams(results._ngrams)
-        
         return results
-    
-# COMPUTING FUNCTIONS
-    def _statistical_extraction (self, segments, minfreq=2):
+
+    def _extract_ngrams(self, segments):
         '''
-        Handles the core computation of the statistical extraction pipeline. It processes the text segments to generate tokens and n-grams, calculates their frequency distributions, and applies stopword filtering (both boundary and inner) alongside a minimum frequency threshold to isolate the final candidate terms. 
+        Helper function to extract n-grams from segments. It processes the text segments to generate tokens and n-grams, computes their frequency, and applies stopword filtering (both boundary and inner).
 
         Args:
-            segments (list of str): A list of text segments to process.
-            minfreq (int, optional): The minimum frequency required for an n-gram to be considered a candidate term. Defaults to 2.
+            segments: A list of text segments to process.
+        '''
+        self.preprocessor._set_filter_parameters()
+
+        ngrams = []
+
+        for segment in segments: #needs to change when using yield in get_segments
+
+            tokenized_segment = segment.split()
+
+            raw_ngrams = self.preprocessor.compute_ngrams(tokenized_segment)
+
+            for raw_ngram in raw_ngrams:
+                raw_ngram = " ".join(raw_ngram)
+                filtered_ngram = self.preprocessor.filter_ngram(raw_ngram)
+
+                if filtered_ngram:
+                    clean_ngram = self.preprocessor.clean_ngram(filtered_ngram)
+                    
+                    if clean_ngram:
+                        ngrams.append(clean_ngram)
+
+        self.preprocessor.calculate_ngrams_freq_dist(ngrams)
+
+    def _extract_candidates(self):
+        '''
+        Helper function to extract candidate terms from the extracted ngrams according to the minimum frequency threshold.
 
         Returns:
-               tuple: A tuple containing three elements:
-                    - ngrams: The extracted n-grams with their respective frequencies.
-                    - tokens: The tokenized words from the input segments.
-                    - candidate_terms: The final filtered statistical candidate terms.
+            candidate_terms: A list of extracted candidate terms.
         '''
-        
-        #tokens calculation
-        tokensFD= nltk.probability.FreqDist()
-        for segment in segments:
-            tokens = self.processor.tokenize(segment)
-            for token in tokens:
-                    tokensFD[token] += 1
-        
-        tokens_output = []                
-        for token, freq in tokensFD.most_common():
-             tokens_output.append((token, freq))
-
-        self.tokens = tokens_output
-
-        #ngrams calculation
-        ngrams_output, _ = self.processor.ngram_calculation(segments=segments)
-        self.ngrams = ngrams_output
-       
-        #statistical filtering
         candidate_terms = []
-        for full_term, n, freq in ngrams_output:
-            full_term = self.processor.filter_by_stopwords(term=full_term)
 
-            if full_term is None:
-                continue
+        for ngram, freq in self.preprocessor.ngrams_freq_dist.items():
+            n = len(ngram.split())
 
-            candidate_terms.append((full_term, n, "frequency", freq))
+            if (freq >= self.min_freq 
+            and n >= self.preprocessor.nmin 
+            and n <= self.preprocessor.nmax):
+                
+                candidate_terms.append((ngram, n, "frequency", freq))
 
-        return ngrams_output, tokens_output, candidate_terms
+        return candidate_terms
