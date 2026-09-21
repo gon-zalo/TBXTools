@@ -360,10 +360,7 @@ class BertProcessor():
         import nltk
 
         tokensFD = nltk.probability.FreqDist()
-        
-        for tokens in tokenized_segments:
-            tokensFD.update(tokens)
-
+        tokensFD.update(tokenized_segments)
         tokens_output = list(tokensFD.most_common())
 
         return tokens_output
