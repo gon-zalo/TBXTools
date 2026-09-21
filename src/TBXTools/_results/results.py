@@ -145,7 +145,7 @@ class Results:
         self._extractor._sqlite.insert_candidate_terms(filtered_terms)
         self._terms = filtered_terms
 
-    def tsr(self, tsr_terms=None, mode="strict", max_iterations=10000000000, debug=True):
+    def tsr(self, tsr_terms=None, mode="strict", max_iterations=10000000000, debug=False):
         '''
         Filters the extracted candidate terms using Token Slot Recognition (TSR). The algorithm is based on the concept of terminological token, i.e., it filters out term candidates by taking into account their tokens.
 
@@ -155,7 +155,7 @@ class Results:
             tsr_terms: The reference standard terms.
             mode (str, optional): Filtering mode ("strict", "flexible", "combined"). Defaults to "combined".
             max_iterations (int, optional): Loop ceiling for recursion. Defaults to 10000000000.
-            verbose (bool, optional): Prints the process in the console. Defaults to False.
+            debug (bool, optional): Prints the process in the console. Defaults to False.
         '''
 
         self._extractor._sqlite.load_tsr_terms(tsr_terms=tsr_terms)

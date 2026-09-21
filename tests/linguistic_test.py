@@ -105,10 +105,10 @@ extractor = Extractor(
     overwrite_project=True
 )
 
-results = extractor.extract(verbose=False)
+results = extractor.extract()
 
 results.nest_normalization(verbose=False)
-results.tsr(tsr_terms=tsr_terms, mode="strict", max_iterations=10, verbose=False)
+results.tsr(tsr_terms=tsr_terms, mode="strict", max_iterations=10)
 all_terms = [row[0] for row in results._terms]
 print(f"\nNumber of terms: {len(all_terms)}. Expected number (type=strict): 22") 
 results.print_candidates(limit=20)
