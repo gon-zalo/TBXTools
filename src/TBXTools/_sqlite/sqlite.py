@@ -109,53 +109,65 @@ class SQLite:
 
     def read_corpus(self, corpus_file, is_corpus_tagged, encoding):
         '''Read a corpus file.'''
+        from .._processor.normalizer import Normalizer
         data = []
         continserts = 0
         if corpus_file:
-            with open(corpus_file, "r", encoding=encoding, errors="ignore") as file:
-                for line in file:
-                    data.append(line.rstrip())
-                    continserts += 1
+            try:
+                with open(corpus_file, "r", encoding=encoding) as file:
+                    for line in file:
+                        clean_line = Normalizer.normalize(segment=line)
+                        
+                        data.append(clean_line.rstrip())
+                        continserts += 1
 
-                    if continserts == self.MAX_INSERTS:
-                        self.insert_segments(data=data, tagged=is_corpus_tagged)
-                        data = []
-                        continserts = 0
-                
-                self.insert_segments(data=data, tagged=is_corpus_tagged)
+                        if continserts == self.MAX_INSERTS:
+                            self.insert_segments(data=data, tagged=is_corpus_tagged)
+                            data = []
+                            continserts = 0
+                    
+                    self.insert_segments(data=data, tagged=is_corpus_tagged)
+
+            except FileNotFoundError:
+                print("Corpus file does not exist")
 
     # LOAD METHODS
     def load_corpus(self, corpus, is_corpus_tagged=False, encoding="utf-8", compoundify=False, comp_symbol="▁"):
         from pathlib import Path
-        
-        if type(corpus) == str and Path(corpus).is_file():
-            self.read_corpus(
-            corpus_file=corpus, 
-            is_corpus_tagged=is_corpus_tagged, 
-            encoding=encoding)
-            print(f"Corpus loaded")
 
-        if isinstance(corpus, list):
-            is_file = False
-            try:
-                if Path(corpus[0]).is_file():
-                    is_file = True
-            except OSError:
-                    is_file  = False
+        if corpus:
+            if type(corpus) == str and Path(corpus).is_file():
+                self.read_corpus(
+                corpus_file=corpus, 
+                is_corpus_tagged=is_corpus_tagged, 
+                encoding=encoding)
+                print(f"Corpus loaded")
 
-            if is_file:
-                for c in corpus:
-                    if Path(c).is_file():
-                        self.read_corpus(
-                            corpus_file=c, 
-                            is_corpus_tagged=is_corpus_tagged, 
-                            encoding=encoding)
-                print(f"{len(corpus)} corpora loaded")
+            elif isinstance(corpus, list):
+                is_file = False
+                try:
+                    if Path(corpus[0]).is_file():
+                        is_file = True
+                except OSError:
+                        is_file  = False
 
-            else: # if not file, its separate segments
-                self.insert_segments(data=corpus, tagged=is_corpus_tagged)
-                print(f"Segments loaded")
-        
+                if is_file:
+                    for c in corpus:
+                        if Path(c).is_file():
+                            self.read_corpus(
+                                corpus_file=c, 
+                                is_corpus_tagged=is_corpus_tagged, 
+                                encoding=encoding)
+                    print(f"{len(corpus)} corpora loaded")
+
+                else: # if not file, its separate segments
+                    self.insert_segments(data=corpus, tagged=is_corpus_tagged)
+                    print(f"Segments loaded")
+            
+            else:
+                raise ValueError("Corpus file not found")
+
+            
     def load_stopwords(self, stopwords , encoding="utf-8"):
         '''Load the stopwords into the database.
         
@@ -164,7 +176,7 @@ class SQLite:
         '''
         data=[]
 
-        if isinstance(stopwords, set):
+        if isinstance(stopwords, set) or isinstance(stopwords, list):
             data = [(word,) for word in sorted(stopwords)]
             print("Stopwords loaded")
 
@@ -332,12 +344,24 @@ class SQLite:
             query = f"INSERT INTO {table} ({column}, n, frequency) VALUES (?,?,?)"
             with self.conn:
                 self.cur.executemany(query, data)
+
+    # def insert_ngrams(self, data):
+    #     '''Inserts ngrams into the database'''
+    #     if not self.table_is_populated("ngrams"):
+    #         data = data.items()
+
+    #         for ngram, freq in data:
+    #             with self.conn:
+    #                 self.cur.execute("INSERT INTO ngrams (ngram, frequency) VALUES (?,?)", (ngram, freq))
     
     def insert_tokens(self, data):
         '''Inserts tokens into the database'''
         if not self.table_is_populated("tokens"):
-            with self.conn:
-                self.cur.executemany("INSERT INTO tokens (token, frequency) VALUES (?,?)", data)
+            data = data.items()
+
+            for token, freq in data:
+                with self.conn:
+                    self.cur.execute("INSERT INTO tokens (token, frequency) VALUES (?,?)", (token, freq))
 
     def insert_candidate_terms(self, data):
         '''Inserts candidate terms into the database'''
