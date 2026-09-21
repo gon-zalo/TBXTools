@@ -30,6 +30,9 @@ print(f"\nNumber of terms: {len(all_terms)}. Expected number: 223")
 # print(f"\nTerms: {results.terms()}")
 # print(f"\nNgrams: {results.ngrams()}")
 # print(f"\nTokens: {results.tokens()}") 
+results.print_candidates()
+
+results.save_candidates("candidatos.txt", by= "segment")
 
 # ----------
 # Scenario TSR
@@ -52,7 +55,7 @@ results = extractor.extract(verbose=False)
 
 results.nest_normalization(verbose=False)
 results.regex_exclusion(regexes=regexes, verbose=False)
-results.tsr(tsr_terms=tsr_terms, mode="flexible", max_iterations=10, verbose=False)
+results.tsr(tsr_terms=tsr_terms, mode="flexible", max_iterations=10, debug=False)
 
 # Results can be inspected with the following methods:
 all_terms = results._terms
