@@ -448,27 +448,26 @@ class Processor:
         return ngrams_output, tagged_ngrams_output
     
     
-    def apply_tsr_filter(self, tsr_terms, candidate_terms, mode="strict", max_iterations=10000000000, verbose=False): 
+    def apply_tsr_filter(self, tsr_terms, candidate_terms, mode="strict", max_iterations=10000000000, debug=False): 
         '''
-        Filters the extracted candidate terms using the TSR (Token Slot Recognition) method. The algorithm is based on the concept of terminological token to filter out term candidates. It reads the terminological tokens from a list of terms (tsr_terms) and stores them taking into account their position in the terminological unit (first, middle, last). The TSR method filters term candidates by taking into account their tokens. To do so, 3 filtering variants are designed: strict, flexible and combined. 
-                In strict TSR filtering, a term candidate will be kept only if all the tokens are present in the corresponding position. In flexible TSR filtering, a term candidate will be kept if any of the tokens is present in the corresponding position. In combined TSR filtering, strict filtering is first used and is then followed by flexible filtering. In flexible and combined mode the algorithm performs the filtering process recursively, that is, by enlarging the list of terminological tokens with the new selected term candidates.
+        Filters the extracted candidate terms using the TSR (Token Slot Recognition) method. The algorithm is based on the concept of terminological token to filter out term candidates. It reads the terminological tokens from a list of terms (tsr_terms) and stores them taking into account their position in the terminological unit (first, middle, last). The TSR method filters term candidates by taking into account their tokens. To do so, 3 filtering variants are designed: strict, flexible and combined. In strict TSR filtering, a term candidate will be kept only if all the tokens are present in the corresponding position. In flexible TSR filtering, a term candidate will be kept if any of the tokens is present in the corresponding position. In combined TSR filtering, strict filtering is first used and is then followed by flexible filtering. In flexible and combined mode the algorithm performs the filtering process recursively, that is, by enlarging the list of terminological tokens with the new selected term candidates.
         
-                Args:
-                    tsr_terms: The reference standard terms.
-                    candidate_terms (list of list): Candidates terms.
-                    mode (str, optional): Filtering mode ("strict", "flexible", "combined"). Defaults to "combined".
-                    max_iterations (int, optional): Loop ceiling for recursion. Defaults to 10000000000.
-                    verbose (bool, optional): Defaults to False.
-        
-                Returns:
-                    updated_terms(list of list): Final candidate terms that passed the tsr filter structured as [term, n, freq, measure, value].
+            Args:
+                tsr_terms: The reference standard terms.
+                candidate_terms (list of list): Candidates terms.
+                mode (str, optional): Filtering mode ("strict", "flexible", "combined"). Defaults to "combined".
+                max_iterations (int, optional): Loop ceiling for recursion. Defaults to 10000000000.
+                debug (bool, optional): Defaults to False.
+    
+            Returns:
+                updated_terms(list of list): Final candidate terms that passed the tsr filter structured as [term, n, freq, measure, value].
         '''
         component = {}  
         firstcomponent = {}
         middlecomponent = {}
         lastcomponent = {}
 
-        if verbose:
+        if debug:
             print(f"\n==================================================================")
             print(f"--- [DEBUG] START apply_tsr_filter | Type: '{mode}' ---")
             print(f"==================================================================")
@@ -490,7 +489,7 @@ class Processor:
                         middlecomponent[tsr_ngrams[i].lower()] = 1
                         component[tsr_ngrams[i].lower()] = 1
 
-        if verbose:
+        if debug:
             print(f"\n[DEBUG] Initial TSR Vocabulary:")
             print(f"  • First ({len(firstcomponent)}): {sorted(list(firstcomponent.keys()))}")
             print(f"  • Middle ({len(middlecomponent)}): {sorted(list(middlecomponent.keys()))}")
@@ -510,7 +509,7 @@ class Processor:
             words_added_to_last = []
             words_added_to_middle = []
             
-            if verbose:
+            if debug:
                 print(f"------------ ITERATION {iterations} ------------")
 
             for term in candidate_terms:
@@ -626,22 +625,22 @@ class Processor:
 
                 if is_accepted:
                     accepted_in_this_iteration += 1
-                    if verbose:
+                    if debug:
                         print(f"  [ACCEPTED] Candidate: '{candidate}'")
                         print(f"  Match Detail: {' | '.join(match_details)}")
                 else:
-                    if verbose and candidate not in newcandidates:
+                    if debug and candidate not in newcandidates:
                         print(f"  [REJECTED]  Candidate: '{candidate}'")
                         print(f"  Match detail: {' | '.join(match_details)}")
 
-            if verbose: 
+            if debug: 
                 print(f"\n--> ITERATION {iterations} SUMMARY:")
                 print(f"    • Candidates accepted in this iteration: {accepted_in_this_iteration}")
                 print(f"    • Newly learned tokens: First={words_added_to_first} | Middle={words_added_to_middle} | Last={words_added_to_last}")
                 print(f"    • Continue to next iteration?  -> {new}\n")
                             
             if iterations >= max_iterations:
-                if verbose: print(f"[DEBUG] Maximum iteration limit reached ({max_iterations}). Stopping.")
+                if debug: print(f"[DEBUG] Maximum iteration limit reached ({max_iterations}). Stopping.")
                 break
 
         updated_terms = [] 
@@ -654,7 +653,7 @@ class Processor:
 
         updated_terms.sort(key=lambda row: row[3], reverse=True)
 
-        if verbose:
+        if debug:
             print(f"==================================================================")
             print(f"--- [DEBUG] TSR FILTER COMPLETED ---")
             print(f"Final accepted candidates ({len(updated_terms)}):")
@@ -663,8 +662,3 @@ class Processor:
             print(f"==================================================================\n")
 
         return updated_terms
-    
-    
-
-
-    
