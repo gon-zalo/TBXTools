@@ -1,1 +1,1 @@
-from .bilingual_results import BilingualResults
+from .bilingual import BilingualResults

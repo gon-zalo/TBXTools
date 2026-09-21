@@ -1,48 +1,35 @@
-from TBXTools._results.bilingual_results import BilingualResults
+from TBXTools._results.bilingual import BilingualResults
 from .extractor import Extractor
-from pathlib import Path
-from TBXTools._processor.parser import FileParser
-
+from TBXTools._processor.file_parser import FileParser
 
 class BilingualExtractor: 
 
-    def __init__(self, project_name, src_methodology, tgt_methodology, src_language, tgt_language, src_corpus=None, tgt_corpus=None, parallel_corpus=None, src_stopwords=None, tgt_stopwords=None, overwrite_project=False):
-
-        self.project_name = project_name
+    def __init__(self, project_name, src_methodology, tgt_methodology, src_language, tgt_language, parallel_corpus=None, src_stopwords=None, tgt_stopwords=None, overwrite_project=False):
+        
         self.src_language = src_language
         self.tgt_language = tgt_language
-        
-        if parallel_corpus:
-            if isinstance(parallel_corpus, (tuple, list)) and len(parallel_corpus) == 2:
-                src_corpus, tgt_corpus = parallel_corpus
-            else:
-                ext = Path(parallel_corpus).suffix.lower()
-                if ext in [".tab", ".tsv"]:
-                    src_corpus, tgt_corpus = FileParser._parse_tab(parallel_corpus)
-                elif ext == ".tmx":
-                    src_corpus, tgt_corpus = FileParser._parse_tmx(parallel_corpus, src_language, tgt_language)
-                else:
-                    raise ValueError(f"Unsupported file format: {ext}")
+
+        self.project_name = project_name
+        self.parser = FileParser(corpus=parallel_corpus, src_lang=src_language, tgt_lang=tgt_language)
             
         self.src_extractor = Extractor(
             project_name=f"{project_name}-{src_language}",
             methodology=src_methodology,
-            corpus=src_corpus,
+            corpus=self.parser.src,
             stopwords=src_stopwords,
             language=src_language,
-            overwrite_project=True
+            overwrite_project=overwrite_project
         )
         
         self.tgt_extractor = Extractor(
             project_name=f"{project_name}-{tgt_language}",
             methodology=tgt_methodology,
-            corpus=tgt_corpus,
+            corpus=self.parser.tgt,
             stopwords=tgt_stopwords,
             language=tgt_language,
-            overwrite_project=True
+            overwrite_project=overwrite_project
         )
-        
-        
+                
     def extract(self, verbose: bool = False) -> BilingualResults:
         
         src_results = self.src_extractor.extract(verbose=verbose)
@@ -51,7 +38,9 @@ class BilingualExtractor:
 
         bilingual_results = BilingualResults(
             src_results=src_results, 
-            tgt_results=tgt_results
+            tgt_results=tgt_results,
+            src_lang=self.src_language,  
+            tgt_lang=self.tgt_language         
         )
 
         return bilingual_results
