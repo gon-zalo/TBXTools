@@ -5,9 +5,7 @@ from .._utils.utils import get_lang
 
 class Extractor:
     """
-    Orchestrates the terminology extraction pipeline.
-
-    This class acts as the main controller, managing the integration between the chosen extraction methodology, database storage, and text preprocessing components.
+    Orchestrates the terminology extraction pipeline. This class acts as the main controller, managing the integration between the chosen extraction methodology, database storage, and text preprocessing components.
 
     Attributes:
         methodology (object): The extraction strategy instance (e.g., LinguisticExtractor or StatisticalExtractor).
@@ -30,10 +28,8 @@ class Extractor:
             inner_stopwords=inner_stopwords, 
             corpus=corpus,
             is_corpus_tagged=getattr(self._methodology,'is_corpus_tagged', False),
-            exclusion_regexes=getattr(self._methodology,'exclusion_regexes', None),
             linguistic_patterns=getattr(self._methodology, 'linguistic_patterns', None),
             evaluation_terms=getattr(self._methodology,'evaluation_terms', None),
-            tsr_terms=getattr(self._methodology, "tsr_terms", None),
             overwrite_project=overwrite_project,
             lang_code=self._lang_code,
             lang=self.lang
@@ -112,5 +108,5 @@ class Extractor:
         '''
         if isinstance(inner_stopwords_list, list):
             self._sqlite.add_inner_stopwords(inner_stopwords_list=inner_stopwords_list)
+            self._methodology.processor.inner_stopwords = self._sqlite.get("inner_stopwords")
             self.inner_stopwords = self._sqlite.get("inner_stopwords")
-            self._methodology.processor.inner_stopwords = self.inner_stopwords

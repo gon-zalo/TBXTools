@@ -7,7 +7,7 @@ class SQLite:
     Manage SQLite functions.
     '''
 
-    def __init__(self, project_name, corpus, stopwords=None, inner_stopwords=None, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None, exclusion_regexes=None, tsr_terms=None, external_terms=None, overwrite_project=False, lang=None, lang_code=None):
+    def __init__(self, project_name, corpus, stopwords=None, inner_stopwords=None, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None, external_terms=None, overwrite_project=False, lang=None, lang_code=None):
         from TBXTools._resources.resources import Resources
 
         self.cur = None
@@ -20,13 +20,17 @@ class SQLite:
         
         self.TABLES_LOADED = []
         self.descriptive_statistics_data = {}
-
+        
+        self.lang = lang
+        self._lang_code = lang_code
+        
         load_data = self.initialize_project(
             project_name=project_name, 
             overwrite_project=self.overwrite_project)
         
         if load_data:
             print("Loading data to database")
+
             self.load_data_to_tables(
                 table_names=self.TABLES_TO_LOAD_AT_START, 
                 corpus=corpus, 
@@ -35,7 +39,8 @@ class SQLite:
                 linguistic_patterns=linguistic_patterns,
                 evaluation_terms=evaluation_terms,
                 external_terms=external_terms,
-                is_corpus_tagged=is_corpus_tagged)
+                is_corpus_tagged=is_corpus_tagged, 
+                lang=self._lang_code)
 
     def add_extension(self, project_name):
         '''Adds the extension .sqlite to the database file.'''
@@ -106,7 +111,8 @@ class SQLite:
 
         self.conn = sqlite3.connect(project_name)
         self.cur = self.conn.cursor() 
-
+    
+                
     def read_corpus(self, corpus_file, is_corpus_tagged, encoding):
         '''Read a corpus file.'''
         data = []
@@ -135,13 +141,13 @@ class SQLite:
             encoding=encoding)
             print(f"Corpus loaded")
 
-        if isinstance(corpus, list):
+        if isinstance(corpus, (list, tuple)):
             is_file = False
             try:
-                if Path(corpus[0]).is_file():
+                if corpus and Path(corpus[0]).is_file():
                     is_file = True
-            except OSError:
-                    is_file  = False
+            except (OSError, TypeError):
+                is_file  = False
 
             if is_file:
                 for c in corpus:
@@ -155,7 +161,7 @@ class SQLite:
             else: # if not file, its separate segments
                 self.insert_segments(data=corpus, tagged=is_corpus_tagged)
                 print(f"Segments loaded")
-        
+            
     def load_stopwords(self, stopwords , encoding="utf-8"):
         '''Load the stopwords into the database.
         
@@ -539,7 +545,7 @@ class SQLite:
             else:
                 return False
             
-    def load_data_to_tables(self, table_names, corpus, is_corpus_tagged, stopwords, inner_stopwords, linguistic_patterns, evaluation_terms, external_terms):
+    def load_data_to_tables(self, table_names, corpus, is_corpus_tagged, stopwords, inner_stopwords, linguistic_patterns, evaluation_terms, external_terms, lang=None):
 
         loaders = {}
 
