@@ -2,6 +2,7 @@ from .._sqlite.sqlite import SQLite
 from .._results.results import Results
 from .._processor.preprocessor import Preprocessor
 from .._utils.utils import get_lang
+from .._processor.file_parser import FileParser
 import time
 
 class Extractor:
@@ -23,11 +24,14 @@ class Extractor:
         
         self.lang, self._lang_code = get_lang(language.lower())
         self._methodology = methodology
+        self.parser = FileParser(src_lang=self._lang_code)
+        corpus_generator = self.parser.corpus_generator(corpus=corpus)
+
         self._sqlite = SQLite(
             project_name=project_name, 
             stopwords=stopwords, 
             inner_stopwords=inner_stopwords, 
-            corpus=corpus,
+            corpus=corpus_generator,
             is_corpus_tagged=getattr(self._methodology,'is_corpus_tagged', False),
             linguistic_patterns=getattr(self._methodology, 'linguistic_patterns', None),
             evaluation_terms=getattr(self._methodology,'evaluation_terms', None),
@@ -40,10 +44,6 @@ class Extractor:
         self.inner_stopwords = self._sqlite.get("inner_stopwords")
 
         self._methodology.extractor = self
-
-        # self._methodology.processor.stopwords = self.stopwords
-        # self._methodology.processor.inner_stopwords = self.inner_stopwords
-        # self._methodology.processor.lang_code = self._lang_code
 
 # EXTRACTION FUNCTIONS
     def extract(self, timer=False, verbose=False) -> Results:
@@ -87,6 +87,8 @@ class Extractor:
 
         results._extractor = self  
         results._methodology = self._methodology
+
+        print("Term extraction finished", flush=True)
 
         if timer:
             end = time.time()
