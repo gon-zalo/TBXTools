@@ -37,12 +37,14 @@ class BilingualExtractor:
         self.tgt_language = tgt_language
 
         self.project_name = project_name
-        self.parser = FileParser(corpus=parallel_corpus, src_lang=src_language, tgt_lang=tgt_language)
+        self.parser = FileParser(src_lang=src_language, tgt_lang=tgt_language)
+        
+        src_corpus, tgt_corpus = self.parser.parse_corpus(corpus=parallel_corpus)
             
         self.src_extractor = Extractor(
             project_name=f"{project_name}-{src_language}",
             methodology=src_methodology,
-            corpus=self.parser.src,
+            corpus=src_corpus,
             stopwords=src_stopwords,
             language=src_language,
             overwrite_project=overwrite_project
@@ -51,7 +53,7 @@ class BilingualExtractor:
         self.tgt_extractor = Extractor(
             project_name=f"{project_name}-{tgt_language}",
             methodology=tgt_methodology,
-            corpus=self.parser.tgt,
+            corpus=tgt_corpus,
             stopwords=tgt_stopwords,
             language=tgt_language,
             overwrite_project=overwrite_project

@@ -9,23 +9,24 @@ class FileParser:
         self.tgt_lang = tgt_lang
 
     def parse_corpus(self, corpus):
-        if isinstance(corpus, (tuple, list)) and len(corpus) == 2: # parsing moses or 2 separate txt files
-            src_file, tgt_file = corpus
-            
-            src_corpus = self._parse_txt(src_file)
-            tgt_corpus = self._parse_txt(tgt_file)
+        if corpus:
+            if isinstance(corpus, (tuple, list)) and len(corpus) == 2: # parsing moses or 2 separate txt files
+                src_file, tgt_file = corpus
+                
+                src_corpus = self._parse_txt(src_file)
+                tgt_corpus = self._parse_txt(tgt_file)
 
-        else: # parsing tsv and tmx
-            ext = Path(corpus).suffix.lower()
-            if ext in [".tab", ".tsv"]:
-                src_corpus, tgt_corpus = self._parse_tab(corpus)
+            else: # parsing tsv and tmx
+                ext = Path(corpus).suffix.lower()
+                if ext in [".tab", ".tsv"]:
+                    src_corpus, tgt_corpus = self._parse_tab(corpus)
 
-            elif ext == ".tmx":
-                src_corpus, tgt_corpus = self._parse_tmx(corpus)
-            else:
-                raise ValueError(f"Unsupported file format: {ext}. Supported formats: moses, txt, tsv and tmx")
+                elif ext == ".tmx":
+                    src_corpus, tgt_corpus = self._parse_tmx(corpus)
+                else:
+                    raise ValueError(f"Unsupported file format: {ext}. Supported formats: moses, txt, tsv and tmx")
 
-        return src_corpus, tgt_corpus
+            return src_corpus, tgt_corpus
     
     def _parse_tmx(self, file_path):
             src_list, tgt_list = [], []
