@@ -1,12 +1,11 @@
 from TBXTools._results.bilingual import BilingualResults
-from .extractor import Extractor
-from TBXTools._processor.file_parser import FileParser
 
-class BilingualExtractor: 
-    
+
+class BilingualExtractor:
+
     """
     Orchestrates the bilingual terminology extraction pipeline. This class acts as the main controller, managing parallel corpus parsing and coordinating source and target term extractions through dedicated Extractor instances.
-    
+
     Attributes:
         project_name (str): The unique name identifier for the current bilingual extraction project.
         src_language (str): The language of the source corpus.
@@ -16,8 +15,10 @@ class BilingualExtractor:
         tgt_extractor (Extractor): Extractor instance dedicated to the target language.
     """
 
-    def __init__(self, project_name, src_methodology, tgt_methodology, src_language, tgt_language, parallel_corpus=None, src_stopwords=None, tgt_stopwords=None, overwrite_project=False):
-        
+    def __init__(self, project_name, src_methodology, tgt_methodology, src_language, tgt_language, parallel_corpus=None, src_stopwords=None, tgt_stopwords=None, src_inner_stopwords=None, tgt_inner_stopwords=None, overwrite_project=False):
+        from .extractor import Extractor
+        from TBXTools._processor.file_parser import FileParser
+        from .._utils.utils import get_lang
         '''
         Initializes the BilingualExtractor by setting up the parallel corpus parser and instantiating individual source and target Extractor objects with their respective configurations.
 
@@ -32,35 +33,39 @@ class BilingualExtractor:
             tgt_stopwords (list): Stopwords list for the target language.
             overwrite_project (bool, optional): If True, overwrites existing project data. Defaults to False.
         '''
-        
-        self.src_language = src_language
-        self.tgt_language = tgt_language
 
-        self.project_name = project_name
-        self.parser = FileParser(src_lang=src_language, tgt_lang=tgt_language)
-        
-        src_corpus, tgt_corpus = self.parser.parse_corpus(corpus=parallel_corpus)
-            
+        self.src_lang, self._src_lang_code = get_lang(src_language.lower())
+        self.tgt_lang, self._tgt_lang_code = get_lang(tgt_language.lower())
+
+        self.parser = FileParser(
+            src_lang=self._src_lang_code,
+            tgt_lang=self._tgt_lang_code
+        )
+
+        src_corpus, tgt_corpus = self.parser.corpus_generator(
+            corpus=parallel_corpus)
+
         self.src_extractor = Extractor(
-            project_name=f"{project_name}-{src_language}",
+            project_name=f"{project_name}-{self._src_lang_code}",
             methodology=src_methodology,
             corpus=src_corpus,
             stopwords=src_stopwords,
-            language=src_language,
+            inner_stopwords=src_inner_stopwords,
+            language=self.src_lang,
             overwrite_project=overwrite_project
         )
-        
+
         self.tgt_extractor = Extractor(
-            project_name=f"{project_name}-{tgt_language}",
+            project_name=f"{project_name}-{self._tgt_lang_code}",
             methodology=tgt_methodology,
             corpus=tgt_corpus,
             stopwords=tgt_stopwords,
-            language=tgt_language,
+            inner_stopwords=tgt_inner_stopwords,
+            language=self.tgt_lang,
             overwrite_project=overwrite_project
         )
-                
-    def extract(self, verbose: bool = False) -> BilingualResults:
-        
+
+    def extract(self, verbose=False) -> BilingualResults:
         '''
         Coordinates the bilingual extraction pipeline by executing extraction independently on both source and target extractors and wrapping the combined outputs into a BilingualResults object.
 
@@ -70,16 +75,16 @@ class BilingualExtractor:
         Returns:
             BilingualResults: An instance containing both source and target extraction results.
         '''
-        
+
         src_results = self.src_extractor.extract(verbose=verbose)
 
         tgt_results = self.tgt_extractor.extract(verbose=verbose)
 
         bilingual_results = BilingualResults(
-            src_results=src_results, 
+            src_results=src_results,
             tgt_results=tgt_results,
-            src_lang=self.src_language,  
-            tgt_lang=self.tgt_language         
+            src_lang=self._src_lang_code,
+            tgt_lang=self._tgt_lang_code
         )
 
         return bilingual_results
