@@ -1,7 +1,7 @@
 import re
 from ..base.base import BaseMethodology
 from ..._results.results import Results
-from ..._processor.processor import Processor
+from ..._processor.postprocessor import Postprocessor
 from .patterns_learning import PatternsLearning
 from collections import Counter
 
@@ -15,24 +15,22 @@ class LinguisticMethodology(BaseMethodology):
         is_corpus_tagged (bool): If True, indicates that the input corpus is POS-tagged.
         linguistic_patterns (list of str | None): A list of linguistic patterns.
         evaluation_terms (list of str | None) : Reference terms from which we can extrapolate linguistic patterns if 'linguistic_patterns' is not provided.
-        tsr_terms (list of str | None): Reference terms for TSR filter.
         processor (Processor): An internal instance of the Processor class configured with 'nmin' and 'nmax' used to handle text preprocessing tasks.
     '''
 
-    def __init__(self, nmin, nmax, is_corpus_tagged=False, case_normalization=True, linguistic_patterns=None, evaluation_terms=None, tsr_terms=None):
+    def __init__(self, nmin, nmax, min_freq, is_corpus_tagged=False, case_normalization=True, linguistic_patterns=None, evaluation_terms=None):
         
         self.name = "LinguisticMethodology"
         self.is_corpus_tagged = is_corpus_tagged
         self.linguistic_patterns = linguistic_patterns
         self.evaluation_terms = evaluation_terms
         self.case_normalization = case_normalization
-        self.tsr_terms = tsr_terms        
-        self.processor = Processor()
+    
+        self.processor = Postprocessor()
         self.processor.nmin = nmin 
         self.processor.nmax = nmax
         self.extractor = None
-
-    # MAIN FUNCTION
+        self.min_freq = min_freq
 
     def run(self, segments, minfreq=2, verbose=False):
         '''
@@ -61,16 +59,19 @@ class LinguisticMethodology(BaseMethodology):
         if not tagged_segments:
             tagged_segments = self.processor.create_tagged_segments(segments=segments)
 
+        # aqui _extract_ngrams
         clean_ngrams, tagged_ngrams = self.processor.ngram_calculation(segments=tagged_segments, is_corpus_tagged=True) # never change boolean, since we are passing tagged_segments then corpus is tagged now
         
         filtered_tagged_ngrams = []
         combined_ngrams = list(zip(clean_ngrams, tagged_ngrams))
         for term in evaluation_terms:
+
             for row in combined_ngrams:
                 clean_ngram = row[0][0]
                 tagged_ngram = row[1][0]
                 n = row[1][1]
                 freq = row[1][2]
+
                 if term == clean_ngram:
                     row = (tagged_ngram, n, freq)
                     filtered_tagged_ngrams.append(row)
@@ -91,7 +92,10 @@ class LinguisticMethodology(BaseMethodology):
                 raise ValueError("Learning process produced no patterns. Please verify database data.")
      
         translated_linguistic_patterns = self.processor.translate_pattern(linguistic_patterns)
-        candidate_terms = self._linguistic_extraction(ngrams_output=tagged_ngrams, linguistic_patterns=translated_linguistic_patterns, minfreq=minfreq)
+
+        # aqui extract candidates
+        candidate_terms = self._linguistic_extraction(
+            ngrams_output=tagged_ngrams, linguistic_patterns=translated_linguistic_patterns, minfreq=minfreq)
 
         if self.case_normalization:
                      candidate_terms = self.processor.case_normalization(
@@ -99,13 +103,13 @@ class LinguisticMethodology(BaseMethodology):
                         verbose=verbose) 
 
         results = Results(tagged_ngrams=tagged_ngrams,
-                       ngrams=clean_ngrams, 
+                    #    ngrams=clean_ngrams, 
                        terms=candidate_terms, 
                        linguistic_patterns=linguistic_patterns)
 
         self.extractor._sqlite.insert_segments(tagged_segments, tagged=True)
-        self.extractor._sqlite.insert_ngrams(results._tagged_ngrams, tagged=True)
-        self.extractor._sqlite.insert_ngrams(results._ngrams)
+        # self.extractor._sqlite.insert_ngrams(results._tagged_ngrams, tagged=True)
+        # self.extractor._sqlite.insert_ngrams(results._ngrams)
         self.extractor._sqlite.insert_linguistic_patterns(results._linguistic_patterns)
 
         return results
@@ -142,7 +146,7 @@ class LinguisticMethodology(BaseMethodology):
             n = tupla[1]
             frequency = tupla[2]
 
-            filtered_ngram = self.processor.filter_by_stopwords_linguistic(term=tagged_ngram)
+            filtered_ngram = self.processor.filter_tagged_ngram(term=tagged_ngram)
 
             if filtered_ngram is None:
                 continue
@@ -155,10 +159,35 @@ class LinguisticMethodology(BaseMethodology):
                             raw_candidates.append((candidate, n, "frequency", frequency))
                             break
         
-        candidate_frequencies= Counter()
+        candidate_frequencies = Counter()
         for candidate, n, _, frequency in raw_candidates: # underscore to ignore the third element "frequency" - not needed for aggregation
             candidate_frequencies[candidate] += frequency # If the candidate already exists, aggregate its frequency
         
         # Generate and return the final data structure 
         return [[term, len(term.split()), "frequency", freq] for term, freq in candidate_frequencies.items()]  # .items() yields (term, total_frequency) pairs from the Counter
-        
+
+    def _extract_ngrams(self, tagged_segments):
+
+        self.processor.generate_invalid_tokens()
+
+        ngrams = []
+        tagged_ngrams = []
+        for segment in tagged_segments:
+            tokenized_segment = self.processor.normalize_tokenize(segment)
+
+            raw_tagged_ngrams = self.processor.compute_ngrams(tokenized_segment)
+
+            for raw_ngram in raw_tagged_ngrams:
+                candidate_words = [ngt.split("|")[0] for ngt in raw_ngram]
+                
+                raw_ngram = " ".join(candidate_words)
+                filtered_ngram = self.processor.filter_tagged_ngram(raw_ngram)
+
+                if filtered_ngram:
+                    clean_ngram = self.processor.clean_ngram(filtered_ngram)
+
+                    if clean_ngram:
+                        tagged_ngrams.append(clean_ngram)
+
+    def _extract_candidates(self):
+        pass
