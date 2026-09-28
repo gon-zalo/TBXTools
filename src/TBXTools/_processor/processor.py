@@ -1,10 +1,10 @@
 from .._utils.utils import get_spacy_model_from_code
 from tqdm import tqdm
+import re
 
 class Processor:
-
-    '''Manages the text preprocessing pipeline for terminology extraction. This class
-    provides methods for tokenizing text segments, applying lemmatization, case and nest normalizations, and filtering candidate terms using stopwords and regular expressions.
+    '''
+    Manages the text preprocessing pipeline for terminology extraction. This class provides methods for tokenizing text segments, applying lemmatization, case and nest normalizations, and filtering candidate terms using stopwords and regular expressions.
 
     Attributes:
         stopwords (list/set): A collection of standard words to filter out.
@@ -14,7 +14,6 @@ class Processor:
         lang_code (str): The ISO code for the language.
         model_name (str): The name of the spacy model used (e.g., "en_core_web_sm" or "ca_core_news_sm").
         nlp: The NLP pipeline or model used for text processing.
-        
     '''
 
     def __init__(self):
@@ -26,17 +25,18 @@ class Processor:
         self.model_name = None
         self.nlp = None
 
-    def case_normalization(self, candidate_terms, verbose=False): 
+    
+    def case_normalization(self, candidate_terms, verbose=False):
         '''
-        Performs case normalization. If a capitalized term exists as non-capitalized, the capitalized one will be deleted and the frequency of the non-capitalized one will be increased by the frequency of the capitalized.
-
+        Performs case normalization on candidate terms while preserving acronyms. Converts candidate terms to lowercase except for uppercase tokens (e.g acronyms like 'ADH1B' or 'ADHD'). If a capitalized term exists as non-capitalized, the capitalized one will be deleted and the frequency of the non-capitalized one will be increased by the frequency of the capitalized.
+                
         Args:
           candidate_terms: a list of tuple containing the candidate terms. 
           verbose: If True, enables detailed logging. Defaults to False.
-        
+                
         Returns:
           normalized_terms: A new list of tuple after applying case normalization.
-        '''
+        '''        
         print("Applying case normalization")
 
         freq_dict = {}
@@ -45,13 +45,19 @@ class Processor:
             term = terms_row[0]
             freq = terms_row[3]
 
-            
-            if term.isupper():
-                key = term.strip()
-            else:
-                key = term.lower().strip()
+            tokens = term.split() #hacer split invece di tokenize
+            normalized_tokens = []
 
-            freq_dict[key] = freq_dict.get(key, 0) + freq
+            for token in tokens:
+                
+                if token.isupper():
+                    normalized_tokens.append(token)
+                else:
+                    normalized_tokens.append(token.lower())
+
+            normalized_term = " ".join(normalized_tokens)
+
+            freq_dict[normalized_term] = freq_dict.get(normalized_term, 0) + freq
 
         normalized_terms = []
         for term, freq in freq_dict.items():
@@ -61,7 +67,7 @@ class Processor:
             normalized_terms.append(row)
 
             if verbose:
-                print(term, "->", freq)
+                print(f"{term} -> {freq}")
 
         normalized_terms.sort(key=lambda row: row[3], reverse=True)
 
@@ -217,8 +223,8 @@ class Processor:
         
         Returns:
           candidates_to_exclude: a list of candidate terms to exclude.
-
         '''
+        
         import re
          
         candidates_to_exclude = []
@@ -441,163 +447,218 @@ class Processor:
 
         return ngrams_output, tagged_ngrams_output
     
-    def apply_tsr_filter(self, tsr_terms, candidate_terms, mode="strict", max_iterations=10000000000, verbose=False): 
+    
+    def apply_tsr_filter(self, tsr_terms, candidate_terms, mode="strict", max_iterations=10000000000, debug=False): 
         '''
-        Filters the extracted candidate terms using the TSR (Token Slot Recognition) method. The algorithm is based on the concept of terminological token to filter out term candidates. It reads the terminological tokens from a list of terms (tsr_terms) and stores them taking into account their position in the terminological unit (first, middle, last). The TSR method filters term candidates by taking into account their tokens. To do so, 3 filtering variants are designed: strict, flexible and combined. 
-        In strict TSR filtering, a term candidate will be kept only if all the tokens are present in the corresponding position. In flexible TSR filtering, a term candidate will be kept if any of the tokens is present in the corresponding position. In combined TSR filtering, strict filtering is first used and is then followed by flexible filtering. In flexible and combined mode the algorithm performs the filtering process recursively, that is, by enlarging the list of terminological tokens with the new selected term candidates.
-
-        Args:
-            tsr_terms: The reference standard terms.
-            candidate_terms (list of list): Candidates terms.
-            mode (str, optional): Filtering mode ("strict", "flexible", "combined"). Defaults to "combined".
-            max_iterations (int, optional): Loop ceiling for recursion. Defaults to 10000000000.
-            verbose (bool, optional): Defaults to False.
-
-        Returns:
-            updated_terms(list of list): Final candidate terms that passed the tsr filter structured as [term, n, freq, measure, value].
+        Filters the extracted candidate terms using the TSR (Token Slot Recognition) method. The algorithm is based on the concept of terminological token to filter out term candidates. It reads the terminological tokens from a list of terms (tsr_terms) and stores them taking into account their position in the terminological unit (first, middle, last). The TSR method filters term candidates by taking into account their tokens. To do so, 3 filtering variants are designed: strict, flexible and combined. In strict TSR filtering, a term candidate will be kept only if all the tokens are present in the corresponding position. In flexible TSR filtering, a term candidate will be kept if any of the tokens is present in the corresponding position. In combined TSR filtering, strict filtering is first used and is then followed by flexible filtering. In flexible and combined mode the algorithm performs the filtering process recursively, that is, by enlarging the list of terminological tokens with the new selected term candidates.
+        
+            Args:
+                tsr_terms: The reference standard terms.
+                candidate_terms (list of list): Candidates terms.
+                mode (str, optional): Filtering mode ("strict", "flexible", "combined"). Defaults to "combined".
+                max_iterations (int, optional): Loop ceiling for recursion. Defaults to 10000000000.
+                debug (bool, optional): Defaults to False.
+    
+            Returns:
+                updated_terms(list of list): Final candidate terms that passed the tsr filter structured as [term, n, freq, measure, value].
         '''
         component = {}  
         firstcomponent = {}
         middlecomponent = {}
         lastcomponent = {}
+
+        if debug:
+            print(f"\n==================================================================")
+            print(f"--- [DEBUG] START apply_tsr_filter | Type: '{mode}' ---")
+            print(f"==================================================================")
+            print(f"[DEBUG] Extracting components from {len(tsr_terms)} reference tsr_terms")
         
-        #from tsr terms list to the 4 dictionaries
+        #from tsr terms list to the 4 dictionaries      
         for tsr_term in tsr_terms:
             tsr_ngrams = tsr_term.split() 
-            if len(tsr_ngrams)==1: #UNIGRAMS
+            if len(tsr_ngrams) == 1:
                 firstcomponent[tsr_ngrams[0].lower()] = 1 
                 lastcomponent[tsr_ngrams[0].lower()] = 1
-            if len(tsr_ngrams)>= 2: 
+            if len(tsr_ngrams) >= 2: 
                 firstcomponent[tsr_ngrams[0].lower()] = 1
                 lastcomponent[tsr_ngrams[-1].lower()] = 1
-                component[tsr_ngrams[0].lower()]=1
-                component[tsr_ngrams[-1].lower()]=1
-                if len(tsr_ngrams)>=3:
-                    for i in range(1,len(tsr_ngrams)-1):
-                        middlecomponent[tsr_ngrams[i].lower()]=1
-                        component[tsr_ngrams[i].lower()]=1
+                component[tsr_ngrams[0].lower()] = 1
+                component[tsr_ngrams[-1].lower()] = 1
+                if len(tsr_ngrams) >= 3:
+                    for i in range(1, len(tsr_ngrams) - 1):
+                        middlecomponent[tsr_ngrams[i].lower()] = 1
+                        component[tsr_ngrams[i].lower()] = 1
 
-        new=True  #flag used to control the loop- initialized True to ensure the loop runs at least once
-        newcandidates={} #candidate-frequency
-        hashmeasure={} #to store the measurement modes for each accepted candidate ("tsr")
-        #hashvalue={} #stores the values for each accepted candidate
-        
-        iterations=0 #how many times the loop executes
+        if debug:
+            print(f"\n[DEBUG] Initial TSR Vocabulary:")
+            print(f"  • First ({len(firstcomponent)}): {sorted(list(firstcomponent.keys()))}")
+            print(f"  • Middle ({len(middlecomponent)}): {sorted(list(middlecomponent.keys()))}")
+            print(f"  • Last ({len(lastcomponent)}): {sorted(list(lastcomponent.keys()))}")
+
+        new = True  #flag used to control the loop- initialized True to ensure the loop runs at least once
+        newcandidates = {} #candidate-frequency
+        hashmeasure = {} #to store the measurement modes for each accepted candidate ("tsr")
+        iterations = 0 #how many times the loop executes
+
         while new: #the loop keeps running as long as new is True
-            iterations+=1
-            if verbose: print("ITERATION",iterations)
-            new=False #Immediately resets the new flag to False at the beginning of the round. If the code later finds and accepts a new candidate term, it will set this back to True to trigger another iteration. If no new terms are found, the loop will exit.
-            #value=max_iterations-iterations 
+            iterations += 1 
+            new = False #Immediately resets the new flag to False at the beginning of the round. If the code later finds and accepts a new candidate term, it will set this back to True to trigger another iteration. If no new terms are found, the loop will exit
+            accepted_in_this_iteration = 0
+
+            words_added_to_first = []
+            words_added_to_last = []
+            words_added_to_middle = []
             
+            if debug:
+                print(f"------------ ITERATION {iterations} ------------")
+
             for term in candidate_terms:
-                candidate=term[0]
-                n=term[1]
-                frequency=term[3]
-                measure="frequency" 
+                candidate = term[0]
+                n = term[1]
+                frequency = term[3]
+                measure = "frequency" 
                 
-                #Setting Up Validation Flags for the Current Candidate
-                first_c=False #It will be switched to True if the first word of the candidate matches the valid component criteria
-                middle_c=False
-                last_c=False
-                rcamps=candidate.split()
-                truesfalses=[] #initializes an empty list designed to collect the individual boolean verdicts (e.g., [True, False]) for each word of the candidate during the upcoming validation checks
+                rcamps = candidate.split()
+                truesfalses = [] 
+                match_details = [] 
                 
                 first_n = str(rcamps[0]).lower()
                 last_n = str(rcamps[-1]).lower()
                 
                 if first_n in firstcomponent: 
-                    first_c=True
                     truesfalses.append(True)
+                    match_details.append(f"FIRST: '{first_n}' [OK]")
                 else:
                     truesfalses.append(False)
+                    match_details.append(f"FIRST: '{first_n}' [FAIL]")
                 
                 if last_n in lastcomponent: 
-                    last_c=True
                     truesfalses.append(True)
+                    match_details.append(f"LAST: '{last_n}' [OK]")
                 else:
                     truesfalses.append(False)
+                    match_details.append(f"LAST: '{last_n}' [FAIL]")
 
-                if n>2:
-                    middle_c=True
-                    for i in range(1,n-1):
+                if n > 2:
+                    middle_c = True
+                    mid_details = []
+                    for i in range(1, n - 1):
                         mid_n = str(rcamps[i]).lower()
-                        if not mid_n in middlecomponent: 
-                            middle_c=False
-                    if middle_c==True:
-                        truesfalses.append(True)
-                    else:
-                        truesfalses.append(False)
+                        if mid_n in middlecomponent:
+                            mid_details.append(f"'{mid_n}' [OK]")
+                        else:
+                            middle_c = False
+                            mid_details.append(f"'{mid_n}' [FAIL]")
+                    
+                    truesfalses.append(middle_c)
+                    match_details.append(f"MIDDLE: {', '.join(mid_details)}")
 
-                if mode=="strict":
-                        if not False in truesfalses:
-                            if not candidate in newcandidates: 
-                                newcandidates[candidate]=frequency
-                                hashmeasure[candidate]=measure
-                                #hashvalue[candidate]=value
-                                new=True #Because a brand-new valid term was discovered during this round, the new flag is flipped back to True.
-                                
-                                w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
-                                firstcomponent[w_first_low]=1 
-                                lastcomponent[w_last_low]=1
+                is_accepted = False
 
-                elif mode=="flexible": 
-                    if True in truesfalses:
-                        if not candidate in newcandidates:
-                            newcandidates[candidate]=frequency
-                            hashmeasure[candidate]=measure
-                            #hashvalue[candidate]=value
-                            new=True
+                if mode == "strict":
+                    if False not in truesfalses:
+                        if candidate not in newcandidates: 
+                            newcandidates[candidate] = frequency
+                            hashmeasure[candidate] = measure
+                            new = True 
+                            is_accepted = True
+                            
                             w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
-                            firstcomponent[w_first_low]=1
-                            lastcomponent[w_last_low]=1
-                            component[w_first_low]=1
-                            component[w_last_low]=1
+                            if w_first_low not in firstcomponent: words_added_to_first.append(w_first_low)
+                            if w_last_low not in lastcomponent: words_added_to_last.append(w_last_low)
+                            
+                            firstcomponent[w_first_low] = 1 
+                            lastcomponent[w_last_low] = 1
 
-                elif mode=="combined":
-                    if iterations== 1:
-                        if not False in truesfalses: 
-                            if not candidate in newcandidates:
-                                newcandidates[candidate]=frequency
-                                hashmeasure[candidate]=measure
-                                #hashvalue[candidate]=value     
-                                new=True                         
-                                w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
-                                firstcomponent[w_first_low]=1
-                                lastcomponent[w_last_low]=1
-                                if n>2:
-                                    for i in range(1,n-1):
-                                        w_mid = rcamps[i].lower()
-                                        middlecomponent[w_mid]=1
-                                        component[w_mid]=1
-                    else:
-                        if True in truesfalses:
-                            if not candidate in newcandidates:
-                                newcandidates[candidate] = frequency
-                                hashmeasure[candidate] = measure
-                                #hashvalue[candidate] = value
-                                new=True
-                                
-                                w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
-                                firstcomponent[w_first_low]=1
-                                lastcomponent[w_last_low]=1
-                                if n>2:
-                                    for i in range(1,n-1):
-                                        w_mid = rcamps[i].lower()
-                                        middlecomponent[w_mid]=1
-                                        component[w_mid]=1
-                                component[w_first_low]=1
-                                component[w_last_low]=1
-                                
-        updated_terms=[] 
+                elif mode == "flexible": 
+                    if True in truesfalses:
+                        if candidate not in newcandidates:
+                            newcandidates[candidate] = frequency
+                            hashmeasure[candidate] = measure
+                            new = True
+                            is_accepted = True
+                            
+                            w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
+                            if w_first_low not in firstcomponent: words_added_to_first.append(w_first_low)
+                            if w_last_low not in lastcomponent: words_added_to_last.append(w_last_low)
+                            
+                            firstcomponent[w_first_low] = 1
+                            lastcomponent[w_last_low] = 1
+                            component[w_first_low] = 1
+                            component[w_last_low] = 1
+                            
+                            if n > 2:
+                                for i in range(1, n - 1):
+                                    w_mid = rcamps[i].lower()
+                                    if w_mid not in middlecomponent: words_added_to_middle.append(w_mid)
+                                    middlecomponent[w_mid] = 1
+                                    component[w_mid] = 1
+
+                elif mode == "combined":
+                    is_strict_round = (iterations == 1)
+                    condition_met = (False not in truesfalses) if is_strict_round else (True in truesfalses)
+
+                    if condition_met:
+                        if candidate not in newcandidates:
+                            newcandidates[candidate] = frequency
+                            hashmeasure[candidate] = measure
+                            new = True
+                            is_accepted = True
+                            
+                            w_first_low, w_last_low = rcamps[0].lower(), rcamps[-1].lower()
+                            if w_first_low not in firstcomponent: words_added_to_first.append(w_first_low)
+                            if w_last_low not in lastcomponent: words_added_to_last.append(w_last_low)
+                            
+                            firstcomponent[w_first_low] = 1
+                            lastcomponent[w_last_low] = 1
+                            
+                            if n > 2:
+                                for i in range(1, n - 1):
+                                    w_mid = rcamps[i].lower()
+                                    if w_mid not in middlecomponent: words_added_to_middle.append(w_mid)
+                                    middlecomponent[w_mid] = 1
+                                    component[w_mid] = 1
+                            
+                            if not is_strict_round:
+                                component[w_first_low] = 1
+                                component[w_last_low] = 1
+
+                if is_accepted:
+                    accepted_in_this_iteration += 1
+                    if debug:
+                        print(f"  [ACCEPTED] Candidate: '{candidate}'")
+                        print(f"  Match Detail: {' | '.join(match_details)}")
+                else:
+                    if debug and candidate not in newcandidates:
+                        print(f"  [REJECTED]  Candidate: '{candidate}'")
+                        print(f"  Match detail: {' | '.join(match_details)}")
+
+            if debug: 
+                print(f"\n--> ITERATION {iterations} SUMMARY:")
+                print(f"    • Candidates accepted in this iteration: {accepted_in_this_iteration}")
+                print(f"    • Newly learned tokens: First={words_added_to_first} | Middle={words_added_to_middle} | Last={words_added_to_last}")
+                print(f"    • Continue to next iteration?  -> {new}\n")
+                            
+            if iterations >= max_iterations:
+                if debug: print(f"[DEBUG] Maximum iteration limit reached ({max_iterations}). Stopping.")
+                break
+
+        updated_terms = [] 
         for new_candidate in newcandidates:
-            term= new_candidate
-            n=len(new_candidate.split())
-            freqtotal=newcandidates[new_candidate]
-            measure=hashmeasure[new_candidate]
-            #value=hashvalue[new_candidate]
-            
+            term = new_candidate
+            n = len(new_candidate.split())
+            freqtotal = newcandidates[new_candidate]
+            measure = hashmeasure[new_candidate]
             updated_terms.append((term, n, measure, freqtotal))
 
         updated_terms.sort(key=lambda row: row[3], reverse=True)
+
+        if debug:
+            print(f"==================================================================")
+            print(f"--- [DEBUG] TSR FILTER COMPLETED ---")
+            print(f"Final accepted candidates ({len(updated_terms)}):")
+            for idx, (t, n, m, f) in enumerate(updated_terms, 1):
+                print(f"  {idx:2d}. '{t}' (n={n}, freq={f})")
+            print(f"==================================================================\n")
 
         return updated_terms
