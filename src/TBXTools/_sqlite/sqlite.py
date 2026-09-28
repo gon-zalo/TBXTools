@@ -76,7 +76,7 @@ class SQLite:
         '''Opens a project. If the project already exists, it raises an exception. To avoid the exception use overwrite=True. To open existing projects, use the open_project method.'''
 
         project_name = self.add_extension(project_name)
-        print(f"Creating project: {project_name}" if not overwrite else f"Overwriting project: {project_name}")
+        print(f"\nCreating project: {project_name}" if not overwrite else f"\nOverwriting project: {project_name}")
         
         if os.path.isfile(project_name) and overwrite:
             os.remove(project_name)
@@ -111,55 +111,33 @@ class SQLite:
 
         self.conn = sqlite3.connect(project_name)
         self.cur = self.conn.cursor() 
-    
-                
-    def read_corpus(self, corpus_file, is_corpus_tagged, encoding):
-        '''Read a corpus file.'''
+
+    def read_corpus(self, corpus_generator, is_corpus_tagged=False, batch_size=1000):
+        '''Reads a corpus in batches'''
         from .._processor.normalizer import Normalizer
-        data = []
-        continserts = 0
-        if corpus_file:
-            try:
-                with open(corpus_file, "r", encoding=encoding) as file:
-                    for line in file:
-                        clean_line = Normalizer.normalize(segment=line)
-                        
-                        data.append(clean_line.rstrip())
-                        continserts += 1
 
-                        if continserts == self.MAX_INSERTS:
-                            self.insert_segments(data=data, tagged=is_corpus_tagged)
-                            data = []
-                            continserts = 0
-                    
-                    self.insert_segments(data=data, tagged=is_corpus_tagged)
+        batch = []
 
-            except FileNotFoundError:
-                print("Corpus file does not exist")
+        for segment in corpus_generator:
+            clean_segment = Normalizer.normalize(segment)
+            batch.append((clean_segment,))
+
+            if len(batch) == batch_size:
+                self.insert_segments(data=batch, tagged=is_corpus_tagged)
+
+        if batch:
+            self.insert_segments(data=batch, tagged=is_corpus_tagged)
 
     # LOAD METHODS
-    def load_corpus(self, corpus, is_corpus_tagged=False, encoding="utf-8", compoundify=False, comp_symbol="▁"):
-        from pathlib import Path
-
-        if isinstance(corpus, (list, tuple)):
-            is_file = False
-            try:
-                if corpus and Path(corpus[0]).is_file():
-                    is_file = True
-            except (OSError, TypeError):
-                is_file  = False
-
-            elif isinstance(corpus, list):
-                is_file = False
-                try:
-                    if Path(corpus[0]).is_file():
-                        is_file = True
-                except OSError:
-                        is_file  = False
-
-            else: # if not file, its separate segments
-                self.insert_segments(data=corpus, tagged=is_corpus_tagged)
-                print(f"Segments loaded")
+    def load_corpus(self, corpus, is_corpus_tagged=False):
+        from typing import Generator
+        
+        if corpus:
+            if isinstance(corpus, Generator):
+                    self.read_corpus(corpus_generator=corpus, is_corpus_tagged=is_corpus_tagged)
+            
+            else:
+                raise ValueError("Corpus is not a Generator object")
             
     def load_stopwords(self, stopwords , encoding="utf-8"):
         '''Load the stopwords into the database.
@@ -312,12 +290,7 @@ class SQLite:
                 self.cur.executemany('INSERT INTO external_terms (external_term) VALUES (?)', data)
 
     # INSERT METHODS
-    def insert_segments(self, data, tagged=False, tokenized=False, in_list_of_lists=False):
-        '''Inserts the segmented corpus into the database.'''
-        if in_list_of_lists:
-            data = [" ".join(segment) for segment in data]
-        
-        data = [(segment,) for segment in data]
+    def insert_segments(self, data, tagged=False, tokenized=False):
         with self.conn:
             if tagged:
                 self.cur.executemany("INSERT INTO tagged_corpus (tagged_segment) VALUES (?)", data)
@@ -326,7 +299,7 @@ class SQLite:
                 self.cur.executemany("INSERT INTO tokenized_corpus (tokenized_segment) VALUES (?)", data)
             else:
                 self.cur.executemany("INSERT INTO corpus (segment) VALUES (?)", data)
-    
+
     def insert_ngrams(self, data, tagged=False):
         '''Inserts Ngrams and Tagged Ngrams into the database.'''
         
