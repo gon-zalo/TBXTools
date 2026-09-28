@@ -7,7 +7,7 @@ class SQLite:
     Manage SQLite functions.
     '''
 
-    def __init__(self, project_name, corpus, stopwords=None, inner_stopwords=None, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None, exclusion_regexes=None, tsr_terms=None, external_terms=None, overwrite_project=False, lang=None, lang_code=None):
+    def __init__(self, project_name, corpus, stopwords=None, inner_stopwords=None, is_corpus_tagged=False, linguistic_patterns=None, evaluation_terms=None, external_terms=None, overwrite_project=False, lang=None, lang_code=None):
         from TBXTools._resources.resources import Resources
 
         self.cur = None
