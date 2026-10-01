@@ -4,4 +4,4 @@
 - Linguistic
 - BERT-based
 
-You can head to the [wiki](https://github.com/gon-zalo/TBXTools/wiki/) for more detailed information about the tool.
+You can head to the [wiki](https://github.com/grial-research-group/TBXTools/wiki/) for more detailed information about the tool.
