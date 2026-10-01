@@ -1,5 +1,6 @@
 .vscode
 tests/*
+old/*
 src/tbxtools_beta.egg-info/
 __pycache__/
 tutorial/*.sqlite
