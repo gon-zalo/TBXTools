@@ -16,6 +16,7 @@ class Results:
         self._tagged_ngrams= tagged_ngrams or []
         self._linguistic_patterns = linguistic_patterns or []
         self._tokens = tokens or []
+        # add lang code for bilingualresults align
 
         self._methodology = None
         self._extractor = None
@@ -124,7 +125,7 @@ class Results:
         '''
         candidate_terms = self._terms
 
-        filtered_terms = self._methodology.processor.nest_normalization(candidate_terms=candidate_terms, percent=percent, verbose=verbose)
+        filtered_terms = self._methodology.postprocessor.nest_normalization(candidate_terms=candidate_terms, percent=percent, verbose=verbose)
 
         self._extractor._sqlite.delete("candidate_terms")
         self._extractor._sqlite.insert_candidate_terms(filtered_terms)
@@ -193,7 +194,7 @@ class Results:
         
         candidate_terms = self._terms # get preprocessed terms instead 
         # return processed (self._terms = filtered_terms can stay the same i think)
-        candidates_to_exclude = self._methodology.processor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms, verbose=verbose, mode=mode)
+        candidates_to_exclude = self._methodology.postprocessor.regex_exclusion(regexes=regexes, candidate_terms=candidate_terms, verbose=verbose, mode=mode)
         
         if candidates_to_exclude:
             self._extractor._sqlite.delete_specific_candidate_term(candidates=candidates_to_exclude)
