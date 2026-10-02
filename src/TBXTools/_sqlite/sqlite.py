@@ -49,7 +49,7 @@ class SQLite:
     def initialize_project(self, project_name, overwrite_project):
         '''Initialize the SQLite project, either opening an existing one or creating a new one.'''
         file_name = self.add_extension(project_name=project_name)
-        self.project_name = file_name
+        self.project_name = file_name.stem
 
         if file_name.exists() and overwrite_project==False:
             self.open_project(project_name=project_name)
@@ -295,7 +295,6 @@ class SQLite:
             if tagged:
                 self.cur.executemany("INSERT INTO tagged_corpus (tagged_segment) VALUES (?)", data)
             elif tokenized:
-
                 self.cur.executemany("INSERT INTO tokenized_corpus (tokenized_segment) VALUES (?)", data)
             else:
                 self.cur.executemany("INSERT INTO corpus (segment) VALUES (?)", data)
