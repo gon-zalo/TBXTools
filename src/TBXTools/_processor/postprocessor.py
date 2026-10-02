@@ -243,105 +243,6 @@ class Postprocessor:
                     break
 
         return candidates_to_exclude
-             
-    def filter_tagged_ngram(self, term):
-        """
-        Filters a candidate term (in this case a tagged ngram) by checking for invalid stopwords. A term is rejected (returns None) if it contains a standard stopword at its boundaries (start/end).
-
-        Args: 
-          term(str): The candidate term string to validate.
-        
-        Returns:
-          str or None: The original term string if it passes all stopword filters, otherwise None.
-        """
-        split_term = term.lower().split()
-    
-        if not split_term:
-            return None
-        # Mental|Mental|PROPN 	 Disorders|Disorders|PROPN
-        first_parts = split_term[0].split("|")
-        first_word = first_parts[1] if len(first_parts) > 1 else (first_parts[0] if len(first_parts) > 0 else "")
-    
-        if first_word and first_word in self.invalid_tokens:
-            return None
-    
-        last_parts = split_term[-1].split("|")
-        last_word = last_parts[1] if len(last_parts) > 1 else (last_parts[0] if len(last_parts) > 0 else "")
-    
-        if last_word and last_word in self.invalid_tokens:
-            return None
-    
-        return term
-    
-    def translate_pattern(self, linguistic_patterns):
-        """
-        Translates a list of linguistic patterns into valid regular expressions.
-
-        This method processes each pattern string (or the first element of a tuple), tokenizes it by whitespace, and converts specific custom syntax elements into regex equivalents.
-
-        Args:
-           linguistic_patterns (list of str or list of tuple): A list containing the linguistic patterns to be translated. If an element is a tuple, only the first string item is processed.
-
-        Returns:
-           list of str: A list of compiled regular expression strings."""
-
-        translated_patterns= []
-        
-        for pattern_str in linguistic_patterns:
-            if isinstance(pattern_str, tuple):
-                pattern_str = pattern_str[0]
-
-            aux = []
-            for ptoken in pattern_str.split():
-                auxtoken = []
-                ptoken = ptoken.replace(".*", "[^\s]+") 
-                for pelement in ptoken.split("|"):
-                    if pelement == "#":
-                        auxtoken.append("([^\s]+?)")                    
-                    elif pelement == "":
-                        auxtoken.append("[^\s]+?")
-                    else:
-                        if pelement.startswith("#"):
-                            auxtoken.append("(" + pelement.replace("#", "") + ")")
-                        else:
-                            auxtoken.append(pelement)
-                aux.append("\|".join(auxtoken))
-            tp = "(" + " ".join(aux) + ")"
-            
-            translated_patterns.append(tp)
-            
-        return translated_patterns
-    
-    def create_tagged_segments(self, segments):
-        """
-        Pos tags a list of text segments.
-
-        Args:
-          segment (list of str): The input text string to be processed.
-
-        Returns:
-          tagged_segments (list of str): A list of POS tagged segments.
-        """
-        from .._utils.utils import load_spacy_model
-
-        if self.lang_code and not self.model_name:
-            self.model_name = get_spacy_model_from_code(self.lang_code)
-        
-            self.nlp = load_spacy_model(self.model_name)
-
-        from ..methodology.linguistic.tagger import LinguisticTagger
-
-        tagger = LinguisticTagger(self.nlp)
-
-        tagged_segments = []
-        for segment in segments:
-
-            single_tagged_segment = tagger.tag_segment(segment)
-
-            if single_tagged_segment:
-                tagged_segments.append(single_tagged_segment)
-
-        return tagged_segments
     
     def ngram_calculation(self, segments, is_corpus_tagged=False, minfreq=2):
         '''
@@ -375,7 +276,6 @@ class Postprocessor:
                     ngrams_output.append((" ".join(ngram), len(ngram), freq))
 
         return ngrams_output, tagged_ngrams_output
-    
     
     def apply_tsr_filter(self, tsr_terms, candidate_terms, mode="strict", max_iterations=10000000000, debug=False): 
         '''
